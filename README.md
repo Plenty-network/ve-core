@@ -6,6 +6,7 @@ All contracts are written in [SmartPy](https://smartpy.io). Refer to their elabo
 
 - `helpers` : Consists of test helpers like dummy addresses and token contracts.
 - `michelson` : Compiled michelson code.
+- `utils` : Utilities like token transfer calls.
 
 ## Compilation
 
