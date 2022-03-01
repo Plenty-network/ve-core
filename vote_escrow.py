@@ -76,6 +76,9 @@ class Errors:
     LOCK_DOES_NOT_EXIST = "LOCK_DOES_NOT_EXIST"
     NOT_AUTHORISED = "NOT_AUTHORISED"
     LOCK_YET_TO_EXPIRE = "LOCK_YET_TO_EXPIRE"
+    LOCK_HAS_EXPIRED = "LOCK_HAS_EXPIRED"
+    INVALID_INCREASE_VALUE = "INVALID_INCREASE_VALUE"
+    INVALID_INCREASE_END_TIMESTAMP = "INVALID_INCREASE_END_TIMESTAMP"
 
 
 # TZIP-12 specified errors for FA2 standard
@@ -243,8 +246,8 @@ class VoteEscrow(sp.Contract):
         sp.verify((d_ts >= WEEK) & (d_ts <= MAX_TIME), Errors.INVALID_LOCK_TIME)
 
         # Calculate slope & bias for linearly decreasing voting power
-        slope = params.base_value // d_ts
         bias = (params.base_value * d_ts) // MAX_TIME
+        slope = bias // d_ts
 
         # Update uid and mint associated NFT for params.user_address
         self.data.uid += 1
@@ -302,6 +305,93 @@ class VoteEscrow(sp.Contract):
         # Delete the lock
         del self.data.locks[token_id]
 
+    @sp.entry_point
+    def increase_lock_value(self, params):
+        sp.set_type(params, sp.TRecord(token_id=sp.TNat, value=sp.TNat))
+
+        # nat version of block timestamp
+        now_ = sp.as_nat(sp.now - sp.timestamp(0))
+
+        # Sanity checks
+        sp.verify(self.data.ledger[(sp.sender, params.token_id)] == 1, Errors.NOT_AUTHORISED)
+        sp.verify(self.data.locks[params.token_id].end > now_, Errors.LOCK_HAS_EXPIRED)
+        sp.verify(params.value > 0, Errors.INVALID_INCREASE_VALUE)
+
+        # Modify base value of the lock
+        self.data.locks[params.token_id].base_value += params.value
+
+        # Fetch current updated bias
+        index_ = self.data.num_token_checkpoints[params.token_id]
+        last_tc = self.data.token_checkpoints[(params.token_id, index_)]
+        bias_ = sp.as_nat(last_tc.bias - (last_tc.slope * sp.as_nat(now_ - last_tc.ts)))
+
+        # Time left in lock
+        d_ts = sp.as_nat(self.data.locks[params.token_id].end - now_)
+
+        # Increase in bias
+        i_bias = (params.value * d_ts) // MAX_TIME
+
+        # New bias & slope
+        n_bias = bias_ + i_bias
+        n_slope = n_bias // d_ts
+
+        # Record new token checkpoint
+        self.data.token_checkpoints[
+            (params.token_id, self.data.num_token_checkpoints[params.token_id] + 1)
+        ] = sp.record(
+            slope=n_slope,
+            bias=n_bias,
+            ts=now_,
+        )
+
+        # Updated later to prevent access error
+        self.data.num_token_checkpoints[params.token_id] += 1
+
+        # # Retrieve the increased value in base token
+        TokenUtils.transfer_FA12(
+            sp.record(
+                from_=sp.sender,
+                to_=sp.self_address,
+                value=params.value,
+                token_address=self.data.base_token,
+            )
+        )
+
+    @sp.entry_point
+    def increase_lock_end(self, params):
+        sp.set_type(params, sp.TRecord(token_id=sp.TNat, end=sp.TNat))
+
+        # nat version of block timestamp
+        now_ = sp.as_nat(sp.now - sp.timestamp(0))
+
+        # Find a timestamp rounded off to nearest week
+        ts = (params.end // WEEK) * WEEK
+
+        # Lock period in seconds
+        d_ts = sp.as_nat(ts - now_, Errors.INVALID_LOCK_TIME)
+
+        # Sanity checks
+        sp.verify(self.data.ledger[(sp.sender, params.token_id)] == 1, Errors.NOT_AUTHORISED)
+        sp.verify(self.data.locks[params.token_id].end > now_, Errors.LOCK_HAS_EXPIRED)
+        sp.verify(
+            (ts > self.data.locks[params.token_id].end) & (d_ts <= MAX_TIME), Errors.INVALID_INCREASE_END_TIMESTAMP
+        )
+
+        # Update lock
+        self.data.locks[params.token_id].end = ts
+
+        # Calculate new bias and slope
+        bias = (self.data.locks[params.token_id].base_value * d_ts) // MAX_TIME
+        slope = bias // d_ts
+
+        # Add new checkpoint for token
+        self.data.num_token_checkpoints[params.token_id] += 1
+        self.data.token_checkpoints[(params.token_id, self.data.num_token_checkpoints[params.token_id])] = sp.record(
+            slope=slope,
+            bias=bias,
+            ts=now_,
+        )
+
 
 if __name__ == "__main__":
 
@@ -314,6 +404,7 @@ if __name__ == "__main__":
     ##############
     # create_lock
     ##############
+
     @sp.add_test(name="create_lock works correctly for locks shorter than maxtime")
     def test():
         scenario = sp.test_scenario()
@@ -350,7 +441,7 @@ if __name__ == "__main__":
         # Predicted bias and slope
         d_ts = 2 * WEEK - NOW
         bias = (1000 * DECIMALS * d_ts) // MAX_TIME
-        slope = (1000 * DECIMALS) // d_ts
+        slope = bias // d_ts
 
         # Correct checkpoint is created for the token
         scenario.verify(ve.data.token_checkpoints[(1, 1)] == sp.record(bias=bias, slope=slope, ts=NOW))
@@ -396,19 +487,19 @@ if __name__ == "__main__":
         # Predicted bias and slope
         d_ts = MAX_TIME
         bias = 1000 * DECIMALS
-        slope = (1000 * DECIMALS) // d_ts
+        slope = bias // d_ts
 
         # Correct checkpoint is created for the token
         scenario.verify(ve.data.token_checkpoints[(1, 1)] == sp.record(bias=bias, slope=slope, ts=0))
 
-        # Tokens get lock in ve
+        # Tokens get locked in ve
         scenario.verify(ply_token.data.balances[ve.address].balance == 1000 * DECIMALS)
 
     ###########
     # withdraw
     ###########
 
-    @sp.add_test(name="withdraw works correctly")
+    @sp.add_test(name="withdraw allows unlocking of vePLY")
     def test():
         scenario = sp.test_scenario()
 
@@ -436,5 +527,214 @@ if __name__ == "__main__":
 
         # ALICE gets back the underlying PLY
         scenario.verify(ply_token.data.balances[Addresses.ALICE].balance == 100)
+
+    ######################
+    # increase_lock_value
+    ######################
+
+    @sp.add_test(name="increase_lock_value allows increasing locked PLY value without changing end time")
+    def test():
+        scenario = sp.test_scenario()
+
+        # Initial values for simulated storage
+        base_value_ = 1000 * DECIMALS
+        end_ = 4 * WEEK
+        d_ts = end_ - NOW
+        bias_ = (1000 * DECIMALS * d_ts) // MAX_TIME
+        slope_ = bias_ // d_ts
+
+        ply_token = FA12()
+        ve = VoteEscrow(
+            ledger=sp.big_map(l={(Addresses.ALICE, 1): 1}),
+            locks=sp.big_map(
+                l={
+                    1: sp.record(
+                        base_value=base_value_,
+                        end=end_,
+                    )
+                }
+            ),
+            num_token_checkpoints=sp.big_map(
+                l={
+                    1: 1,
+                },
+            ),
+            token_checkpoints=sp.big_map(
+                l={
+                    (1, 1): sp.record(
+                        bias=bias_,
+                        slope=slope_,
+                        ts=NOW,
+                    )
+                },
+            ),
+            base_token=ply_token.address,
+        )
+
+        scenario += ply_token
+        scenario += ve
+
+        # Mint and approve tokens for ALICE
+        scenario += ply_token.mint(
+            address=Addresses.ALICE,
+            value=100 * DECIMALS,
+        ).run(sender=Addresses.ADMIN)
+        scenario += ply_token.approve(
+            spender=ve.address,
+            value=100 * DECIMALS,
+        ).run(sender=Addresses.ALICE)
+
+        # Taken randomly - the timestamp at which ALICE increases lock value
+        increase_ts = 9 * DAY
+        increase_val = 100 * DECIMALS
+
+        # When ALICE adds 100 PLY to the lock for token id 1
+        scenario += ve.increase_lock_value(token_id=1, value=100 * DECIMALS).run(
+            sender=Addresses.ALICE, now=sp.timestamp(increase_ts)
+        )
+
+        # Lock's base value is updated correctly
+        scenario.verify(ve.data.locks[1] == sp.record(base_value=1100 * DECIMALS, end=end_))
+
+        # Predicted bias and slope
+        i_bias = (increase_val * (end_ - increase_ts)) // MAX_TIME
+        bias = (bias_ - (slope_ * (increase_ts - NOW))) + i_bias
+        slope = bias // (end_ - increase_ts)
+
+        # Correct checkpoint is added
+        scenario.verify(ve.data.num_token_checkpoints[1] == 2)
+        scenario.verify(ve.data.token_checkpoints[(1, 2)] == sp.record(bias=bias, slope=slope, ts=increase_ts))
+
+        # Tokens get locked in ve
+        scenario.verify(ply_token.data.balances[ve.address].balance == 100 * DECIMALS)
+
+    #####################
+    # increase_lock_end
+    #####################
+    @sp.add_test(name="increase_lock_end correctly makes smaller than maxtime increase")
+    def test():
+        scenario = sp.test_scenario()
+
+        # Initial values for simulated storage
+        base_value_ = 1000 * DECIMALS
+        end_ = 4 * WEEK
+        d_ts = end_ - NOW
+        bias_ = (1000 * DECIMALS * d_ts) // MAX_TIME
+        slope_ = bias_ // d_ts
+
+        ply_token = FA12()
+        ve = VoteEscrow(
+            ledger=sp.big_map(l={(Addresses.ALICE, 1): 1}),
+            locks=sp.big_map(
+                l={
+                    1: sp.record(
+                        base_value=base_value_,
+                        end=end_,
+                    )
+                }
+            ),
+            num_token_checkpoints=sp.big_map(
+                l={
+                    1: 1,
+                },
+            ),
+            token_checkpoints=sp.big_map(
+                l={
+                    (1, 1): sp.record(
+                        bias=bias_,
+                        slope=slope_,
+                        ts=NOW,
+                    )
+                },
+            ),
+            base_token=ply_token.address,
+        )
+
+        scenario += ply_token
+        scenario += ve
+
+        # Taken randomly - the timestamp at which ALICE increases lock end
+        increase_ts = 9 * DAY
+
+        # New lock ending
+        n_end = 10 * WEEK
+
+        # When ALICE increases the lock end
+        scenario += ve.increase_lock_end(token_id=1, end=n_end).run(
+            sender=Addresses.ALICE, now=sp.timestamp(increase_ts)
+        )
+
+        # Predicted bias and slope for new checkpoint
+        bias = (base_value_ * (n_end - increase_ts)) // MAX_TIME
+        slope = bias // (n_end - increase_ts)
+
+        # Lock is modified correctly
+        scenario.verify(ve.data.locks[1].end == n_end)
+
+        # Correct checkpoint is address
+        scenario.verify(ve.data.token_checkpoints[(1, 2)] == sp.record(bias=bias, slope=slope, ts=increase_ts))
+
+    @sp.add_test(name="increase_lock_end correctly makes maxtime increase")
+    def test():
+        scenario = sp.test_scenario()
+
+        # Initial values for simulated storage
+        base_value_ = 1000 * DECIMALS
+        end_ = 4 * WEEK
+        d_ts = end_ - 0
+        bias_ = (1000 * DECIMALS * d_ts) // MAX_TIME
+        slope_ = bias_ // d_ts
+
+        ply_token = FA12()
+        ve = VoteEscrow(
+            ledger=sp.big_map(l={(Addresses.ALICE, 1): 1}),
+            locks=sp.big_map(
+                l={
+                    1: sp.record(
+                        base_value=base_value_,
+                        end=end_,
+                    )
+                }
+            ),
+            num_token_checkpoints=sp.big_map(
+                l={
+                    1: 1,
+                },
+            ),
+            token_checkpoints=sp.big_map(
+                l={
+                    (1, 1): sp.record(
+                        bias=bias_,
+                        slope=slope_,
+                        ts=0,
+                    )
+                },
+            ),
+            base_token=ply_token.address,
+        )
+
+        scenario += ply_token
+        scenario += ve
+
+        # Taken randomly - the timestamp at which ALICE increases lock end
+        increase_ts = 1 * WEEK
+
+        # New lock ending
+        n_end = 1 * WEEK + MAX_TIME
+
+        # When ALICE increases the lock end
+        scenario += ve.increase_lock_end(token_id=1, end=n_end).run(
+            sender=Addresses.ALICE, now=sp.timestamp(increase_ts)
+        )
+
+        # Predicted bias and slope for new checkpoint
+        bias = base_value_
+        slope = bias // (n_end - increase_ts)
+
+        # Lock is modified correctly
+        scenario.verify(ve.data.locks[1].end == n_end)
+
+        # Correct checkpoint is address
+        scenario.verify(ve.data.token_checkpoints[(1, 2)] == sp.record(bias=bias, slope=slope, ts=increase_ts))
 
     sp.add_compilation_target("vote_escrow", VoteEscrow())
