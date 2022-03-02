@@ -79,6 +79,7 @@ class Errors:
     LOCK_HAS_EXPIRED = "LOCK_HAS_EXPIRED"
     INVALID_INCREASE_VALUE = "INVALID_INCREASE_VALUE"
     INVALID_INCREASE_END_TIMESTAMP = "INVALID_INCREASE_END_TIMESTAMP"
+    TOO_EARLY_TIMESTAMP = "TOO_EARLY_TIMESTAMP"
 
 
 # TZIP-12 specified errors for FA2 standard
@@ -391,6 +392,51 @@ class VoteEscrow(sp.Contract):
             bias=bias,
             ts=now_,
         )
+
+    @sp.onchain_view()
+    def get_token_voting_power(self, params):
+        sp.set_type(params, sp.TRecord(token_id=sp.TNat, ts=sp.TNat))
+
+        # Find a timestamp rounded off to nearest week
+        ts = (params.ts // WEEK) * WEEK
+
+        # Sanity checks
+        sp.verify(self.data.locks.contains(params.token_id), Errors.LOCK_DOES_NOT_EXIST)
+        sp.verify(ts >= self.data.token_checkpoints[(params.token_id, 1)].ts, Errors.TOO_EARLY_TIMESTAMP)
+
+        last_checkpoint = self.data.token_checkpoints[
+            (params.token_id, self.data.num_token_checkpoints[params.token_id])
+        ]
+
+        with sp.if_(ts >= last_checkpoint.ts):
+            i_bias = last_checkpoint.bias
+            slope = last_checkpoint.slope
+            f_bias = i_bias - sp.as_nat(ts - last_checkpoint.ts) * slope
+            with sp.if_(f_bias < 0):
+                sp.result(sp.nat(0))
+            with sp.else_():
+                sp.result(sp.as_nat(f_bias))
+        with sp.else_():
+            high = sp.local("high", sp.as_nat(self.data.num_token_checkpoints[params.token_id] - 2))
+            low = sp.local("low", sp.nat(0))
+            mid = sp.local("mid", sp.nat(0))
+
+            with sp.while_(
+                (low.value < high.value) & (self.data.token_checkpoints[(params.token_id, mid.value + 1)].ts != ts)
+            ):
+                mid.value = (low.value + high.value + 1) // 2
+                with sp.if_(self.data.token_checkpoints[(params.token_id, mid.value + 1)].ts < ts):
+                    low.value = mid.value
+                with sp.else_():
+                    high.value = sp.as_nat(mid.value - 1)
+
+            with sp.if_(self.data.token_checkpoints[(params.token_id, mid.value + 1)].ts == ts):
+                sp.result(self.data.token_checkpoints[(params.token_id, mid.value + 1)].bias)
+            with sp.else_():
+                bias = self.data.token_checkpoints[(params.token_id, low.value + 1)].bias
+                slope = self.data.token_checkpoints[(params.token_id, low.value + 1)].slope
+                d_ts = ts - self.data.token_checkpoints[(params.token_id, low.value + 1)].ts
+                sp.result(sp.as_nat(bias - sp.as_nat(d_ts) * slope))
 
 
 if __name__ == "__main__":
@@ -736,5 +782,145 @@ if __name__ == "__main__":
 
         # Correct checkpoint is address
         scenario.verify(ve.data.token_checkpoints[(1, 2)] == sp.record(bias=bias, slope=slope, ts=increase_ts))
+
+    #########################
+    # get_token_voting_power
+    #########################
+    @sp.add_test(name="get_token_voting_power works for odd number of checkpoints")
+    def test():
+        scenario = sp.test_scenario()
+
+        ve = VoteEscrow(
+            locks=sp.big_map(
+                l={
+                    1: sp.record(
+                        # Random values. Inconsequential for this test.
+                        base_value=1000,
+                        end=4 * YEAR,
+                    )
+                }
+            ),
+            num_token_checkpoints=sp.big_map(
+                l={
+                    1: 5,
+                },
+            ),
+            token_checkpoints=sp.big_map(
+                l={
+                    (1, 1): sp.record(
+                        bias=1000 * DECIMALS,
+                        slope=5,
+                        ts=8 * DAY,
+                    ),
+                    (1, 2): sp.record(
+                        bias=800 * DECIMALS,
+                        slope=2,
+                        ts=17 * DAY,
+                    ),
+                    (1, 3): sp.record(
+                        bias=700 * DECIMALS,
+                        slope=3,
+                        ts=24 * DAY,
+                    ),
+                    (1, 4): sp.record(
+                        bias=1000 * DECIMALS,
+                        slope=6,
+                        ts=30 * DAY,
+                    ),
+                    (1, 5): sp.record(
+                        bias=900 * DECIMALS,
+                        slope=5,
+                        ts=36 * DAY,
+                    ),
+                },
+            ),
+        )
+
+        scenario += ve
+
+        # Predicted voting power (bias_) for ts = 23 * DAY
+        ts_1 = 21 * DAY  # rounded ts
+        bias_1 = (800 * DECIMALS) - (4 * DAY) * 2
+
+        # Predicted voting power (bias_) for ts = 29 * DAY
+        ts_2 = 28 * DAY  # rounded ts
+        bias_2 = (700 * DECIMALS) - (4 * DAY) * 3
+
+        # Correct voting power is received for 23 * DAY
+        scenario.verify(ve.get_token_voting_power(sp.record(token_id=1, ts=ts_1)) == bias_1)
+
+        # Correct voting power is received for 29 * DAY
+        scenario.verify(ve.get_token_voting_power(sp.record(token_id=1, ts=ts_2)) == bias_2)
+
+    @sp.add_test(name="get_token_voting_power works for even number of checkpoints")
+    def test():
+        scenario = sp.test_scenario()
+
+        ve = VoteEscrow(
+            locks=sp.big_map(
+                l={
+                    1: sp.record(
+                        # Random values. Inconsequential for this test.
+                        base_value=1000,
+                        end=4 * YEAR,
+                    )
+                }
+            ),
+            num_token_checkpoints=sp.big_map(
+                l={
+                    1: 5,
+                },
+            ),
+            token_checkpoints=sp.big_map(
+                l={
+                    (1, 1): sp.record(
+                        bias=1000 * DECIMALS,
+                        slope=5,
+                        ts=8 * DAY,
+                    ),
+                    (1, 2): sp.record(
+                        bias=800 * DECIMALS,
+                        slope=2,
+                        ts=17 * DAY,
+                    ),
+                    (1, 3): sp.record(
+                        bias=700 * DECIMALS,
+                        slope=3,
+                        ts=24 * DAY,
+                    ),
+                    (1, 4): sp.record(
+                        bias=1000 * DECIMALS,
+                        slope=6,
+                        ts=30 * DAY,
+                    ),
+                    (1, 5): sp.record(
+                        bias=900 * DECIMALS,
+                        slope=5,
+                        ts=36 * DAY,
+                    ),
+                    (1, 6): sp.record(
+                        bias=500 * DECIMALS,
+                        slope=3,
+                        ts=40 * DAY,
+                    ),
+                },
+            ),
+        )
+
+        scenario += ve
+
+        # Predicted voting power (bias_) for ts = 29 * DAY
+        ts_1 = 28 * DAY  # rounded ts
+        bias_1 = (700 * DECIMALS) - (4 * DAY) * 3
+
+        # Predicted voting power (bias_) for ts = 38 * DAY
+        ts_2 = 35 * DAY  # rounded ts
+        bias_2 = (1000 * DECIMALS) - (5 * DAY) * 6
+
+        # Correct voting power is received for 23 * DAY
+        scenario.verify(ve.get_token_voting_power(sp.record(token_id=1, ts=ts_1)) == bias_1)
+
+        # Correct voting power is received for 29 * DAY
+        scenario.verify(ve.get_token_voting_power(sp.record(token_id=1, ts=ts_2)) == bias_2)
 
     sp.add_compilation_target("vote_escrow", VoteEscrow())

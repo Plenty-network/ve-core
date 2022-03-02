@@ -41,7 +41,7 @@ function processContract {
 
     # Test
     echo ">>> [1 / 3] Testing ${CONTRACT_NAME} "
-    $SMART_PY_CLI test $CONTRACT_IN $OUT_DIR
+    $SMART_PY_CLI test $CONTRACT_IN $OUT_DIR --html
     echo ">>> Done"
 
     echo ">>> [2 / 3] Compiling ${CONTRACT_NAME}"
