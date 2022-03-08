@@ -438,6 +438,21 @@ class VoteEscrow(sp.Contract):
                 d_ts = ts - self.data.token_checkpoints[(params.token_id, low.value + 1)].ts
                 sp.result(sp.as_nat(bias - sp.as_nat(d_ts) * slope))
 
+    # TODO: total voting-power entrypoint
+
+    # TODO: test this
+    @sp.onchain_view()
+    def is_owner(self, params):
+        sp.set_type(params, sp.TRecord(address=sp.TAddress, token_id=sp.TNat))
+
+        with sp.if_(~self.data.ledger.contains((params.address, params.token_id))):
+            sp.result(sp.bool(False))
+        with sp.else_():
+            with sp.if_(self.data.ledger[(params.address, params.token_id)] != 1):
+                sp.result(sp.bool(False))
+            with sp.else_():
+                sp.result(True)
+
 
 if __name__ == "__main__":
 
@@ -922,5 +937,7 @@ if __name__ == "__main__":
 
         # Correct voting power is received for 29 * DAY
         scenario.verify(ve.get_token_voting_power(sp.record(token_id=1, ts=ts_2)) == bias_2)
+
+    # TODO: test zero power returns i.e after expiry
 
     sp.add_compilation_target("vote_escrow", VoteEscrow())

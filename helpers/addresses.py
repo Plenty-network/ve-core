@@ -7,5 +7,9 @@ JOHN = sp.test_account("john").address
 MIKE = sp.test_account("mike").address
 
 # Dummy addresses
+CONTRACT = sp.test_account("contract").address
+AMM_1 = sp.test_account("amm_1").address
+AMM_2 = sp.test_account("amm_2").address
+AMM_3 = sp.test_account("amm_3").address
 TOKEN = sp.test_account("token").address
 ADMIN = sp.test_account("admin").address

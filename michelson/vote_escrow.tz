@@ -2481,3 +2481,55 @@ view
           }; # nat
       }; # nat
   };
+view
+  "is_owner" (pair (address %address) (nat %token_id)) bool
+  {
+    UNPAIR;     # @parameter : @storage
+    SWAP;       # @storage : @parameter
+    # if ~ (self.data.ledger.contains((params.address, params.token_id))): # @storage : @parameter
+    DUP;        # @storage : @storage : @parameter
+    DUG 2;      # @storage : @parameter : @storage
+    CAR;        # pair (address %base_token) (pair (big_map %ledger (pair address nat) nat) (big_map %locks nat (pair (nat %base_value) (nat %end)))) : @parameter : @storage
+    GET 3;      # big_map (pair address nat) nat : @parameter : @storage
+    SWAP;       # @parameter : big_map (pair address nat) nat : @storage
+    DUP;        # @parameter : @parameter : big_map (pair address nat) nat : @storage
+    CDR;        # nat : @parameter : big_map (pair address nat) nat : @storage
+    SWAP;       # @parameter : nat : big_map (pair address nat) nat : @storage
+    DUP;        # @parameter : @parameter : nat : big_map (pair address nat) nat : @storage
+    DUG 3;      # @parameter : nat : big_map (pair address nat) nat : @parameter : @storage
+    CAR;        # address : nat : big_map (pair address nat) nat : @parameter : @storage
+    PAIR;       # pair address nat : big_map (pair address nat) nat : @parameter : @storage
+    MEM;        # bool : @parameter : @storage
+    IF
+      {
+        # if self.data.ledger[(params.address, params.token_id)] != 1: # @parameter : @storage
+        PUSH nat 1; # nat : @parameter : @storage
+        DIG 2;      # @storage : nat : @parameter
+        CAR;        # pair (address %base_token) (pair (big_map %ledger (pair address nat) nat) (big_map %locks nat (pair (nat %base_value) (nat %end)))) : nat : @parameter
+        GET 3;      # big_map (pair address nat) nat : nat : @parameter
+        DIG 2;      # @parameter : big_map (pair address nat) nat : nat
+        GET;        # option nat : nat
+        IF_NONE
+          {
+            PUSH int 451; # int : nat
+            FAILWITH;   # FAILED
+          }
+          {}; # @some : nat
+        COMPARE;    # int
+        NEQ;        # bool
+        IF
+          {
+            # sp.result(False) # 
+            PUSH bool False; # bool
+          }
+          {
+            # sp.result(True) # 
+            PUSH bool True; # bool
+          }; # bool
+      }
+      {
+        DROP 2;     # 
+        # sp.result(False) # 
+        PUSH bool False; # bool
+      }; # bool
+  };

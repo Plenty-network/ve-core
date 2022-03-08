@@ -16,7 +16,7 @@ OUT_DIR=./test_outputs
 COMP_DIR=./michelson
 
 # Array of files to compile.
-CONTRACTS_ARRAY=(ply_fa12 vote_escrow)
+CONTRACTS_ARRAY=(ply_fa12 vote_escrow voter)
 
 # Ensure we have a SmartPy binary.
 if [ ! -f "$SMART_PY_CLI" ]; then
