@@ -130,6 +130,17 @@ class VoteEscrow(sp.Contract):
             tkey=sp.TNat,
             tvalue=sp.TNat,
         ),
+        gc_index=sp.nat(0),
+        global_checkpoints=sp.big_map(
+            l={},
+            tkey=sp.TNat,
+            tvalue=Types.POINT,
+        ),
+        slope_changes=sp.big_map(
+            l={},
+            tkey=sp.TNat,
+            tvalue=sp.TNat,
+        ),
         base_token=Addresses.TOKEN,
     ):
         self.init(
@@ -139,6 +150,9 @@ class VoteEscrow(sp.Contract):
             uid=sp.nat(0),
             token_checkpoints=token_checkpoints,
             num_token_checkpoints=num_token_checkpoints,
+            gc_index=gc_index,
+            global_checkpoints=global_checkpoints,
+            slope_changes=slope_changes,
             base_token=base_token,
         )
 
@@ -230,6 +244,75 @@ class VoteEscrow(sp.Contract):
                     )
                     del self.data.operators[upd]
 
+    @sp.private_lambda(with_storage="read-write", wrap_call=True)
+    def record_global_checkpoint(self, params):
+        sp.set_type(
+            params,
+            sp.TRecord(old_cp=Types.POINT, new_cp=Types.POINT, prev_end=sp.TNat, new_end=sp.TNat),
+        )
+
+        # nat version of block timestamp
+        now_ = sp.as_nat(sp.now - sp.timestamp(0))
+
+        with sp.if_(self.data.gc_index == 0):
+            # First entry check
+            self.data.slope_changes[params.new_end] = params.new_cp.slope
+            self.data.global_checkpoints[self.data.gc_index + 1] = sp.record(
+                bias=params.new_cp.bias,
+                slope=params.new_cp.slope,
+                ts=now_,
+            )
+            self.data.gc_index += 1
+        with sp.else_():
+            # Calculate current global bias and slope
+            c_bias = sp.local("c_bias", self.data.global_checkpoints[self.data.gc_index].bias)
+            c_slope = sp.local("c_slope", self.data.global_checkpoints[self.data.gc_index].slope)
+
+            n_ts = sp.local("n_ts", ((self.data.global_checkpoints[self.data.gc_index].ts + WEEK) // WEEK) * WEEK)
+            c_ts = sp.local("c_ts", self.data.global_checkpoints[self.data.gc_index].ts)
+
+            with sp.if_(n_ts.value < now_):
+                with sp.while_((n_ts.value < now_) & (c_bias.value != 0)):
+                    d_ts = sp.as_nat(n_ts.value - c_ts.value)
+                    c_bias.value = sp.as_nat(c_bias.value - (d_ts * c_slope.value))
+
+                    # Update slope
+                    c_slope.value = sp.as_nat(c_slope.value - self.data.slope_changes.get(n_ts.value, 0))
+
+                    # Update n_ts
+                    c_ts.value = n_ts.value
+                    n_ts.value = n_ts.value + WEEK
+
+            with sp.if_(c_bias.value != 0):
+                d_ts = sp.as_nat(now_ - c_ts.value)
+                c_bias.value = sp.as_nat(c_bias.value - (d_ts * c_slope.value))
+
+            # Adjust out old checkpoint off the global bias/slope & slope_changes
+            with sp.if_(params.old_cp.ts != 0):
+                bias_ = sp.as_nat(params.old_cp.bias - (params.old_cp.slope * sp.as_nat(now_ - params.old_cp.ts)))
+                c_bias.value = sp.as_nat(c_bias.value - bias_)
+                c_slope.value = sp.as_nat(c_slope.value - params.old_cp.slope)
+
+            with sp.if_(params.prev_end != 0):
+                self.data.slope_changes[params.prev_end] = sp.as_nat(
+                    self.data.slope_changes[params.prev_end] - params.old_cp.slope
+                )
+
+            # Add new checkpoint to global bias/slope & slope_changes
+            c_bias.value += params.new_cp.bias
+            c_slope.value += params.new_cp.slope
+            with sp.if_(~self.data.slope_changes.contains(params.new_end)):
+                self.data.slope_changes[params.new_end] = 0
+            self.data.slope_changes[params.new_end] += params.new_cp.slope
+
+            # Insert new global checkpoint
+            self.data.global_checkpoints[self.data.gc_index + 1] = sp.record(
+                bias=c_bias.value,
+                slope=c_slope.value,
+                ts=now_,
+            )
+            self.data.gc_index += 1
+
     @sp.entry_point
     def create_lock(self, params):
         sp.set_type(params, Types.CREATE_LOCK_PARAMS)
@@ -266,6 +349,18 @@ class VoteEscrow(sp.Contract):
             slope=slope,
             bias=bias,
             ts=now_,
+        )
+
+        # Record global checkpoint for lock creation
+        old_cp = sp.record(bias=0, slope=0, ts=0)
+        new_cp = self.data.token_checkpoints[(self.data.uid, self.data.num_token_checkpoints[self.data.uid])]
+        self.record_global_checkpoint(
+            sp.record(
+                old_cp=old_cp,
+                new_cp=new_cp,
+                prev_end=0,
+                new_end=self.data.locks[self.data.uid].end,
+            )
         )
 
         # Retrieve base token to self address
@@ -348,6 +443,20 @@ class VoteEscrow(sp.Contract):
         # Updated later to prevent access error
         self.data.num_token_checkpoints[params.token_id] += 1
 
+        # Record global checkpoint
+        old_cp = self.data.token_checkpoints[
+            (params.token_id, sp.as_nat(self.data.num_token_checkpoints[params.token_id] - 1))
+        ]
+        new_cp = self.data.token_checkpoints[(params.token_id, self.data.num_token_checkpoints[params.token_id])]
+        self.record_global_checkpoint(
+            sp.record(
+                old_cp=old_cp,
+                new_cp=new_cp,
+                prev_end=self.data.locks[params.token_id].end,
+                new_end=self.data.locks[params.token_id].end,
+            )
+        )
+
         # # Retrieve the increased value in base token
         TokenUtils.transfer_FA12(
             sp.record(
@@ -378,6 +487,9 @@ class VoteEscrow(sp.Contract):
             (ts > self.data.locks[params.token_id].end) & (d_ts <= MAX_TIME), Errors.INVALID_INCREASE_END_TIMESTAMP
         )
 
+        # Locally record previous end
+        prev_end = sp.local("prev_end", self.data.locks[params.token_id].end)
+
         # Update lock
         self.data.locks[params.token_id].end = ts
 
@@ -391,6 +503,20 @@ class VoteEscrow(sp.Contract):
             slope=slope,
             bias=bias,
             ts=now_,
+        )
+
+        # Record global checkpoint
+        old_cp = self.data.token_checkpoints[
+            (params.token_id, sp.as_nat(self.data.num_token_checkpoints[params.token_id] - 1))
+        ]
+        new_cp = self.data.token_checkpoints[(params.token_id, self.data.num_token_checkpoints[params.token_id])]
+        self.record_global_checkpoint(
+            sp.record(
+                old_cp=old_cp,
+                new_cp=new_cp,
+                prev_end=prev_end.value,
+                new_end=self.data.locks[params.token_id].end,
+            )
         )
 
     @sp.onchain_view()
@@ -507,6 +633,10 @@ if __name__ == "__main__":
         # Correct checkpoint is created for the token
         scenario.verify(ve.data.token_checkpoints[(1, 1)] == sp.record(bias=bias, slope=slope, ts=NOW))
 
+        # Global checkpoint is recorded correctly
+        scenario.verify(ve.data.global_checkpoints[1] == sp.record(bias=bias, slope=slope, ts=NOW))
+        scenario.verify(ve.data.slope_changes[2 * WEEK] == slope)
+
         # Tokens get lock in ve
         scenario.verify(ply_token.data.balances[ve.address].balance == 1000 * DECIMALS)
 
@@ -552,6 +682,10 @@ if __name__ == "__main__":
 
         # Correct checkpoint is created for the token
         scenario.verify(ve.data.token_checkpoints[(1, 1)] == sp.record(bias=bias, slope=slope, ts=0))
+
+        # Global checkpoint is recorded correctly
+        scenario.verify(ve.data.global_checkpoints[1] == sp.record(bias=bias, slope=slope, ts=0))
+        scenario.verify(ve.data.slope_changes[MAX_TIME] == slope)
 
         # Tokens get locked in ve
         scenario.verify(ply_token.data.balances[ve.address].balance == 1000 * DECIMALS)
@@ -629,6 +763,17 @@ if __name__ == "__main__":
                     )
                 },
             ),
+            global_checkpoints=sp.big_map(
+                l={
+                    1: sp.record(
+                        bias=bias_,
+                        slope=slope_,
+                        ts=NOW,
+                    )
+                }
+            ),
+            slope_changes=sp.big_map(l={end_: slope_}),
+            gc_index=sp.nat(1),
             base_token=ply_token.address,
         )
 
@@ -666,12 +811,17 @@ if __name__ == "__main__":
         scenario.verify(ve.data.num_token_checkpoints[1] == 2)
         scenario.verify(ve.data.token_checkpoints[(1, 2)] == sp.record(bias=bias, slope=slope, ts=increase_ts))
 
+        # Global checkpoint is recorded correctly
+        scenario.verify(ve.data.global_checkpoints[2] == sp.record(bias=bias, slope=slope, ts=increase_ts))
+        scenario.verify(ve.data.slope_changes[end_] == slope)
+
         # Tokens get locked in ve
         scenario.verify(ply_token.data.balances[ve.address].balance == 100 * DECIMALS)
 
     #####################
     # increase_lock_end
     #####################
+
     @sp.add_test(name="increase_lock_end correctly makes smaller than maxtime increase")
     def test():
         scenario = sp.test_scenario()
@@ -708,6 +858,17 @@ if __name__ == "__main__":
                     )
                 },
             ),
+            global_checkpoints=sp.big_map(
+                l={
+                    1: sp.record(
+                        bias=bias_,
+                        slope=slope_,
+                        ts=NOW,
+                    )
+                }
+            ),
+            slope_changes=sp.big_map(l={end_: slope_}),
+            gc_index=sp.nat(1),
             base_token=ply_token.address,
         )
 
@@ -732,7 +893,12 @@ if __name__ == "__main__":
         # Lock is modified correctly
         scenario.verify(ve.data.locks[1].end == n_end)
 
-        # Correct checkpoint is address
+        # Global checkpoint is recorded correctly
+        scenario.verify(ve.data.global_checkpoints[2] == sp.record(bias=bias, slope=slope, ts=increase_ts))
+        scenario.verify(ve.data.slope_changes[end_] == 0)
+        scenario.verify(ve.data.slope_changes[n_end] == slope)
+
+        # Correct checkpoint is added
         scenario.verify(ve.data.token_checkpoints[(1, 2)] == sp.record(bias=bias, slope=slope, ts=increase_ts))
 
     @sp.add_test(name="increase_lock_end correctly makes maxtime increase")
@@ -742,7 +908,7 @@ if __name__ == "__main__":
         # Initial values for simulated storage
         base_value_ = 1000 * DECIMALS
         end_ = 4 * WEEK
-        d_ts = end_ - 0
+        d_ts = end_ - NOW
         bias_ = (1000 * DECIMALS * d_ts) // MAX_TIME
         slope_ = bias_ // d_ts
 
@@ -767,10 +933,21 @@ if __name__ == "__main__":
                     (1, 1): sp.record(
                         bias=bias_,
                         slope=slope_,
-                        ts=0,
+                        ts=NOW,
                     )
                 },
             ),
+            global_checkpoints=sp.big_map(
+                l={
+                    1: sp.record(
+                        bias=bias_,
+                        slope=slope_,
+                        ts=NOW,
+                    )
+                }
+            ),
+            slope_changes=sp.big_map(l={end_: slope_}),
+            gc_index=sp.nat(1),
             base_token=ply_token.address,
         )
 
@@ -795,12 +972,73 @@ if __name__ == "__main__":
         # Lock is modified correctly
         scenario.verify(ve.data.locks[1].end == n_end)
 
-        # Correct checkpoint is address
+        # Global checkpoint is recorded correctly
+        scenario.verify(ve.data.global_checkpoints[2] == sp.record(bias=bias, slope=slope, ts=increase_ts))
+        scenario.verify(ve.data.slope_changes[end_] == 0)
+        scenario.verify(ve.data.slope_changes[n_end] == slope)
+
+        # Correct checkpoint is added
         scenario.verify(ve.data.token_checkpoints[(1, 2)] == sp.record(bias=bias, slope=slope, ts=increase_ts))
+
+    ############################
+    # record_global_checkpoint
+    ############################
+    # @sp.add_test(name="record_global_checkpoint works correctly for overlapping locks")
+    # def test():
+    #     scenario = sp.test_scenario()
+
+    #     ply_token = FA12()
+    #     ve = VoteEscrow(base_token=ply_token.address)
+
+    #     scenario += ply_token
+    #     scenario += ve
+
+    #     # Mint and approve tokens for ALICE
+    #     scenario += ply_token.mint(
+    #         address=Addresses.ALICE,
+    #         value=1000 * DECIMALS,
+    #     ).run(sender=Addresses.ADMIN)
+    #     scenario += ply_token.approve(
+    #         spender=ve.address,
+    #         value=1000 * DECIMALS,
+    #     ).run(sender=Addresses.ALICE)
+
+    #     # Max-time lockup values
+    #     lock_1_bias = 200 * DECIMALS
+    #     lock_1_slope = lock_1_bias // MAX_TIME
+
+    #     # 3/4th of Max-time lockup values
+    #     lock_2_bias = 300 * DECIMALS
+    #     lock_2_slope = lock_2_bias // (int(0.75 * MAX_TIME))
+
+    #     scenario += ve.create_lock(
+    #         user_address=Addresses.ALICE,
+    #         base_value=200 * DECIMALS,
+    #         end=MAX_TIME,
+    #     ).run(sender=Addresses.ALICE, now=sp.timestamp(0))
+
+    #     scenario += ve.create_lock(
+    #         user_address=Addresses.ALICE,
+    #         base_value=400 * DECIMALS,
+    #         end=(MAX_TIME // 2) + int(0.75 * MAX_TIME),
+    #     ).run(sender=Addresses.ALICE, now=sp.timestamp(MAX_TIME // 2))
+
+    #     scenario.verify(
+    #         ve.data.global_checkpoints[1] == sp.record(bias=lock_1_bias, slope=lock_1_slope, ts=0),
+    #     )
+    #     scenario.verify(
+    #         ve.data.global_checkpoints[2]
+    #         == sp.record(
+    #             bias=(lock_1_bias // 2) + lock_2_bias,
+    #             slope=lock_1_slope + lock_2_slope,
+    #             ts=MAX_TIME // 2,
+    #         )
+    #     )
 
     #########################
     # get_token_voting_power
     #########################
+
     @sp.add_test(name="get_token_voting_power works for odd number of checkpoints")
     def test():
         scenario = sp.test_scenario()
