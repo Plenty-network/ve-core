@@ -569,9 +569,58 @@ class VoteEscrow(sp.Contract):
                 d_ts = ts - self.data.token_checkpoints[(params.token_id, low.value + 1)].ts
                 sp.result(sp.as_nat(bias - (sp.as_nat(d_ts) * slope) // SLOPE_MULTIPLIER))
 
-    # TODO: total voting-power entrypoint
+    @sp.onchain_view()
+    def get_total_voting_power(self, param_ts):
+        sp.set_type(param_ts, sp.TNat)
 
-    # TODO: test this
+        # Find a timestamp rounded off to nearest week
+        ts = (param_ts // WEEK) * WEEK
+
+        # Sanity check
+        sp.verify(ts >= self.data.global_checkpoints[1].ts, Errors.TOO_EARLY_TIMESTAMP)
+
+        # Checkpoint closest to requested ts
+        c_cp = sp.local("c_cp", self.data.global_checkpoints[self.data.gc_index])
+
+        # Find the closest checkpoint using binary search
+        with sp.if_(ts < c_cp.value.ts):
+            high = sp.local("high", sp.as_nat(self.data.gc_index - 2))
+            low = sp.local("low", sp.nat(0))
+            mid = sp.local("mid", sp.nat(0))
+
+            with sp.while_((low.value < high.value) & (self.data.global_checkpoints[mid.value + 1].ts != ts)):
+                mid.value = (low.value + high.value + 1) // 2
+                with sp.if_(self.data.global_checkpoints[mid.value + 1].ts < ts):
+                    low.value = mid.value
+                with sp.else_():
+                    high.value = sp.as_nat(mid.value - 1)
+            with sp.if_(self.data.global_checkpoints[mid.value + 1].ts == ts):
+                c_cp.value = self.data.global_checkpoints[mid.value + 1]
+            with sp.else_():
+                c_cp.value = self.data.global_checkpoints[low.value + 1]
+
+        # Calculate the linear drop across remaining seconds
+        c_bias = sp.local("c_bias", c_cp.value.bias)
+        c_slope = sp.local("c_slope", c_cp.value.slope)
+
+        n_ts = sp.local("n_ts", ((c_cp.value.ts + WEEK) // WEEK) * WEEK)
+        c_ts = sp.local("c_ts", c_cp.value.ts)
+
+        with sp.if_(n_ts.value <= ts):
+            # Can go upto ts here, since ts is a whole WEEK
+            with sp.while_((n_ts.value <= ts) & (c_bias.value != 0)):
+                d_ts = sp.as_nat(n_ts.value - c_ts.value)
+                c_bias.value = sp.as_nat(c_bias.value - (d_ts * c_slope.value) // SLOPE_MULTIPLIER)
+
+                # Update slope
+                c_slope.value = sp.as_nat(c_slope.value - self.data.slope_changes.get(n_ts.value, 0))
+
+                # Update n_ts
+                c_ts.value = n_ts.value
+                n_ts.value = n_ts.value + WEEK
+
+        sp.result(c_bias.value)
+
     @sp.onchain_view()
     def is_owner(self, params):
         sp.set_type(params, sp.TRecord(address=sp.TAddress, token_id=sp.TNat))
@@ -582,7 +631,7 @@ class VoteEscrow(sp.Contract):
             with sp.if_(self.data.ledger[(params.address, params.token_id)] != 1):
                 sp.result(sp.bool(False))
             with sp.else_():
-                sp.result(True)
+                sp.result(sp.bool(True))
 
 
 if __name__ == "__main__":
@@ -988,6 +1037,7 @@ if __name__ == "__main__":
     ############################
     # record_global_checkpoint
     ############################
+
     @sp.add_test(name="record_global_checkpoint works correctly for overlapping locks")
     def test():
         scenario = sp.test_scenario()
@@ -1065,6 +1115,70 @@ if __name__ == "__main__":
         scenario.verify(ve.data.slope_changes[3 * YEAR] == lock_2_slope)
         scenario.verify(ve.data.slope_changes[5 * YEAR] == slope_)
 
+    @sp.add_test(name="record_global_checkpoint works correctly for non overlapping locks")
+    def test():
+        scenario = sp.test_scenario()
+
+        ply_token = FA12()
+        ve = VoteEscrow(base_token=ply_token.address)
+
+        scenario += ply_token
+        scenario += ve
+
+        # Mint and approve tokens for ALICE
+        scenario += ply_token.mint(
+            address=Addresses.ALICE,
+            value=1000 * DECIMALS,
+        ).run(sender=Addresses.ADMIN)
+        scenario += ply_token.approve(
+            spender=ve.address,
+            value=1000 * DECIMALS,
+        ).run(sender=Addresses.ALICE)
+
+        # 2 Year lock up
+        lock_1_bias = 200 * DECIMALS
+        lock_1_slope = (lock_1_bias * SLOPE_MULTIPLIER) // (2 * YEAR)
+
+        # 1 Year lock up
+        lock_2_bias = (400 * DECIMALS * (YEAR - 3 * DAY)) // MAX_TIME
+        lock_2_slope = (lock_2_bias * SLOPE_MULTIPLIER) // (YEAR - 3 * DAY)
+
+        # ALICE creates first lock at timestamp - 0 (Genesis for tests)
+        scenario += ve.create_lock(
+            user_address=Addresses.ALICE,
+            base_value=400 * DECIMALS,
+            end=2 * YEAR,
+        ).run(sender=Addresses.ALICE, now=sp.timestamp(0))
+
+        # ALICE creates second lock (for 1 Year) 3 days after first lock expires
+        scenario += ve.create_lock(
+            user_address=Addresses.ALICE,
+            base_value=400 * DECIMALS,
+            end=(2 * YEAR) + (3 * DAY) + (YEAR),
+        ).run(sender=Addresses.ALICE, now=sp.timestamp(2 * YEAR + 3 * DAY))
+
+        # This is required since due to limited precision, a small (usually order of 1/10^17) global bias
+        # is left out when calculating decrease in bias over time.
+        def precision_verify(a, b, p):
+            scenario.verify((a >= (b - p)) & (a <= (b + p)))
+
+        # Global checkpoints are recorded correctly
+        scenario.verify(ve.data.global_checkpoints[1].bias == lock_1_bias)
+        scenario.verify(ve.data.global_checkpoints[1].slope == lock_1_slope)
+        scenario.verify(ve.data.global_checkpoints[1].ts == 0)
+
+        precision_verify(
+            ve.data.global_checkpoints[2].bias,
+            lock_2_bias,
+            100,
+        )
+        scenario.verify(ve.data.global_checkpoints[2].slope == lock_2_slope)
+        scenario.verify(ve.data.global_checkpoints[2].ts == (2 * YEAR + 3 * DAY))
+
+        # Slope changes are recorded correctly
+        scenario.verify(ve.data.slope_changes[2 * YEAR] == lock_1_slope)
+        scenario.verify(ve.data.slope_changes[3 * YEAR] == lock_2_slope)
+
     #########################
     # get_token_voting_power
     #########################
@@ -1121,11 +1235,11 @@ if __name__ == "__main__":
 
         scenario += ve
 
-        # Predicted voting power (bias_) for ts = 23 * DAY
+        # Predicted voting power (bias_1) for ts = 23 * DAY
         ts_1 = 21 * DAY  # rounded ts
         bias_1 = (800 * DECIMALS) - (4 * DAY) * 2
 
-        # Predicted voting power (bias_) for ts = 29 * DAY
+        # Predicted voting power (bias_2) for ts = 29 * DAY
         ts_2 = 28 * DAY  # rounded ts
         bias_2 = (700 * DECIMALS) - (4 * DAY) * 3
 
@@ -1151,7 +1265,7 @@ if __name__ == "__main__":
             ),
             num_token_checkpoints=sp.big_map(
                 l={
-                    1: 5,
+                    1: 6,
                 },
             ),
             token_checkpoints=sp.big_map(
@@ -1192,20 +1306,379 @@ if __name__ == "__main__":
 
         scenario += ve
 
-        # Predicted voting power (bias_) for ts = 29 * DAY
+        # Predicted voting power (bias_1) for ts = 29 * DAY
         ts_1 = 28 * DAY  # rounded ts
         bias_1 = (700 * DECIMALS) - (4 * DAY) * 3
 
-        # Predicted voting power (bias_) for ts = 38 * DAY
+        # Predicted voting power (bias_2) for ts = 38 * DAY
         ts_2 = 35 * DAY  # rounded ts
         bias_2 = (1000 * DECIMALS) - (5 * DAY) * 6
 
-        # Correct voting power is received for 23 * DAY
+        # Correct voting power is received for 29 * DAY
         scenario.verify(ve.get_token_voting_power(sp.record(token_id=1, ts=ts_1)) == bias_1)
 
-        # Correct voting power is received for 29 * DAY
+        # Correct voting power is received for 38 * DAY
         scenario.verify(ve.get_token_voting_power(sp.record(token_id=1, ts=ts_2)) == bias_2)
 
-    # TODO: test zero power returns i.e after expiry
+    @sp.add_test(name="get_token_voting_power works for timestamp that is within the checkpoints")
+    def test():
+        scenario = sp.test_scenario()
+
+        ve = VoteEscrow(
+            locks=sp.big_map(
+                l={
+                    1: sp.record(
+                        # Random values. Inconsequential for this test.
+                        base_value=1000,
+                        end=4 * YEAR,
+                    )
+                }
+            ),
+            num_token_checkpoints=sp.big_map(
+                l={
+                    1: 6,
+                },
+            ),
+            token_checkpoints=sp.big_map(
+                l={
+                    (1, 1): sp.record(
+                        bias=1000 * DECIMALS,
+                        slope=5 * SLOPE_MULTIPLIER,
+                        ts=8 * DAY,
+                    ),
+                    (1, 2): sp.record(
+                        bias=800 * DECIMALS,
+                        slope=2 * SLOPE_MULTIPLIER,
+                        ts=17 * DAY,
+                    ),
+                    (1, 3): sp.record(
+                        bias=700 * DECIMALS,
+                        slope=3 * SLOPE_MULTIPLIER,
+                        ts=24 * DAY,
+                    ),
+                    (1, 4): sp.record(
+                        bias=1000 * DECIMALS,
+                        slope=6 * SLOPE_MULTIPLIER,
+                        ts=30 * DAY,
+                    ),
+                    (1, 5): sp.record(
+                        bias=900 * DECIMALS,
+                        slope=5 * SLOPE_MULTIPLIER,
+                        ts=35 * DAY,  # Whole week timestamp
+                    ),
+                    (1, 6): sp.record(
+                        bias=500 * DECIMALS,
+                        slope=3 * SLOPE_MULTIPLIER,
+                        ts=40 * DAY,
+                    ),
+                },
+            ),
+        )
+
+        scenario += ve
+
+        # Correct voting power is received for 36 * DAY
+        scenario.verify(ve.get_token_voting_power(sp.record(token_id=1, ts=36 * DAY)) == 900 * DECIMALS)
+
+    @sp.add_test(name="get_token_voting_power works for timestamps after expiry")
+    def test():
+        scenario = sp.test_scenario()
+
+        ve = VoteEscrow(
+            locks=sp.big_map(
+                l={
+                    1: sp.record(
+                        # Random values. Inconsequential for this test.
+                        base_value=1000,
+                        end=4 * YEAR,
+                    )
+                }
+            ),
+            num_token_checkpoints=sp.big_map(
+                l={
+                    1: 6,
+                },
+            ),
+            token_checkpoints=sp.big_map(
+                l={
+                    (1, 1): sp.record(
+                        bias=1000 * DECIMALS,
+                        slope=5 * SLOPE_MULTIPLIER,
+                        ts=8 * DAY,
+                    ),
+                    (1, 2): sp.record(
+                        bias=800 * DECIMALS,
+                        slope=2 * SLOPE_MULTIPLIER,
+                        ts=17 * DAY,
+                    ),
+                    (1, 3): sp.record(
+                        bias=700 * DECIMALS,
+                        slope=3 * SLOPE_MULTIPLIER,
+                        ts=24 * DAY,
+                    ),
+                    (1, 4): sp.record(
+                        bias=1000 * DECIMALS,
+                        slope=6 * SLOPE_MULTIPLIER,
+                        ts=30 * DAY,
+                    ),
+                    (1, 5): sp.record(
+                        bias=900 * DECIMALS,
+                        slope=5 * SLOPE_MULTIPLIER,
+                        ts=36 * DAY,
+                    ),
+                    (1, 6): sp.record(
+                        bias=500 * DECIMALS,
+                        slope=2 * DECIMALS * SLOPE_MULTIPLIER,  # High slope to ease out testing
+                        ts=40 * DAY,
+                    ),
+                },
+            ),
+        )
+
+        scenario += ve
+
+        # Correct voting power is received after expiry - i.e 0
+        scenario.verify(ve.get_token_voting_power(sp.record(token_id=1, ts=44 * DAY)) == 0)
+
+    #########################
+    # get_total_voting_power
+    #########################
+
+    @sp.add_test(name="get_total_voting_power works for odd number of global checkpoints")
+    def test():
+        scenario = sp.test_scenario()
+
+        ve = VoteEscrow(
+            gc_index=5,
+            global_checkpoints=sp.big_map(
+                l={
+                    1: sp.record(
+                        bias=1000 * DECIMALS,
+                        slope=5 * SLOPE_MULTIPLIER,
+                        ts=3 * DAY,
+                    ),
+                    2: sp.record(
+                        bias=800 * DECIMALS,
+                        slope=2 * SLOPE_MULTIPLIER,
+                        ts=22 * DAY,
+                    ),
+                    3: sp.record(
+                        bias=700 * DECIMALS,
+                        slope=3 * SLOPE_MULTIPLIER,
+                        ts=24 * DAY,
+                    ),
+                    4: sp.record(
+                        bias=1000 * DECIMALS,
+                        slope=6 * SLOPE_MULTIPLIER,
+                        ts=30 * DAY,
+                    ),
+                    5: sp.record(
+                        bias=900 * DECIMALS,
+                        slope=5 * SLOPE_MULTIPLIER,
+                        ts=36 * DAY,
+                    ),
+                },
+            ),
+            slope_changes=sp.big_map(
+                l={
+                    7 * DAY: 2 * SLOPE_MULTIPLIER,
+                    14 * DAY: 1 * SLOPE_MULTIPLIER,
+                }
+            ),
+        )
+
+        scenario += ve
+
+        # Predicted global voting power (bias_1) for ts = 23 * DAY (21 * DAY if rounded)
+        bias_1 = (1000 * DECIMALS) - (4 * DAY * 5) - (WEEK * 3) - (WEEK * 2)
+
+        # Predicted global voting power (bias_2) for ts = 38 * DAY (35 * DAY if rounded)
+        bias_2 = (1000 * DECIMALS) - (5 * DAY * 6)
+
+        scenario.verify(ve.get_total_voting_power(23 * DAY) == bias_1)
+        scenario.verify(ve.get_total_voting_power(38 * DAY) == bias_2)
+
+    @sp.add_test(name="get_total_voting_power works for even number of global checkpoints")
+    def test():
+        scenario = sp.test_scenario()
+
+        ve = VoteEscrow(
+            gc_index=6,
+            global_checkpoints=sp.big_map(
+                l={
+                    1: sp.record(
+                        bias=1000 * DECIMALS,
+                        slope=5 * SLOPE_MULTIPLIER,
+                        ts=3 * DAY,
+                    ),
+                    2: sp.record(
+                        bias=800 * DECIMALS,
+                        slope=2 * SLOPE_MULTIPLIER,
+                        ts=22 * DAY,
+                    ),
+                    3: sp.record(
+                        bias=700 * DECIMALS,
+                        slope=3 * SLOPE_MULTIPLIER,
+                        ts=24 * DAY,
+                    ),
+                    4: sp.record(
+                        bias=1000 * DECIMALS,
+                        slope=6 * SLOPE_MULTIPLIER,
+                        ts=30 * DAY,
+                    ),
+                    5: sp.record(
+                        bias=900 * DECIMALS,
+                        slope=5 * SLOPE_MULTIPLIER,
+                        ts=36 * DAY,
+                    ),
+                    6: sp.record(
+                        bias=800 * DECIMALS,
+                        slope=5 * SLOPE_MULTIPLIER,
+                        ts=40 * DAY,
+                    ),
+                },
+            ),
+            slope_changes=sp.big_map(
+                l={
+                    7 * DAY: 2 * SLOPE_MULTIPLIER,
+                    14 * DAY: 1 * SLOPE_MULTIPLIER,
+                }
+            ),
+        )
+
+        scenario += ve
+
+        # Predicted global voting power (bias_1) for ts = 23 * DAY (21 * DAY if rounded)
+        bias_1 = (1000 * DECIMALS) - (4 * DAY * 5) - (WEEK * 3) - (WEEK * 2)
+
+        # Predicted global voting power (bias_2) for ts = 38 * DAY (35 * DAY if rounded)
+        bias_2 = (1000 * DECIMALS) - (5 * DAY * 6)
+
+        scenario.verify(ve.get_total_voting_power(23 * DAY) == bias_1)
+        scenario.verify(ve.get_total_voting_power(38 * DAY) == bias_2)
+
+    @sp.add_test(name="get_total_voting_power works when given timestamp is in the global checkpoints")
+    def test():
+        scenario = sp.test_scenario()
+
+        ve = VoteEscrow(
+            gc_index=6,
+            global_checkpoints=sp.big_map(
+                l={
+                    1: sp.record(
+                        bias=1000 * DECIMALS,
+                        slope=5 * SLOPE_MULTIPLIER,
+                        ts=3 * DAY,
+                    ),
+                    2: sp.record(
+                        bias=800 * DECIMALS,
+                        slope=2 * SLOPE_MULTIPLIER,
+                        ts=21 * DAY,
+                    ),
+                    3: sp.record(
+                        bias=700 * DECIMALS,
+                        slope=3 * SLOPE_MULTIPLIER,
+                        ts=24 * DAY,
+                    ),
+                    4: sp.record(
+                        bias=1000 * DECIMALS,
+                        slope=6 * SLOPE_MULTIPLIER,
+                        ts=30 * DAY,
+                    ),
+                    5: sp.record(
+                        bias=900 * DECIMALS,
+                        slope=5 * SLOPE_MULTIPLIER,
+                        ts=36 * DAY,
+                    ),
+                    6: sp.record(
+                        bias=800 * DECIMALS,
+                        slope=5 * SLOPE_MULTIPLIER,
+                        ts=40 * DAY,
+                    ),
+                },
+            ),
+            slope_changes=sp.big_map(
+                l={
+                    7 * DAY: 2 * SLOPE_MULTIPLIER,
+                    14 * DAY: 1 * SLOPE_MULTIPLIER,
+                }
+            ),
+        )
+
+        scenario += ve
+
+        # Voting power for 21 * DAY (rounded)
+        scenario.verify(ve.get_total_voting_power(23 * DAY) == 800 * DECIMALS)
+
+    @sp.add_test(name="get_total_voting_power works when given timestamp is beyond the last checkpoint")
+    def test():
+        scenario = sp.test_scenario()
+
+        ve = VoteEscrow(
+            gc_index=6,
+            global_checkpoints=sp.big_map(
+                l={
+                    1: sp.record(
+                        bias=1000 * DECIMALS,
+                        slope=5 * SLOPE_MULTIPLIER,
+                        ts=3 * DAY,
+                    ),
+                    2: sp.record(
+                        bias=800 * DECIMALS,
+                        slope=2 * SLOPE_MULTIPLIER,
+                        ts=21 * DAY,
+                    ),
+                    3: sp.record(
+                        bias=700 * DECIMALS,
+                        slope=3 * SLOPE_MULTIPLIER,
+                        ts=24 * DAY,
+                    ),
+                    4: sp.record(
+                        bias=1000 * DECIMALS,
+                        slope=6 * SLOPE_MULTIPLIER,
+                        ts=30 * DAY,
+                    ),
+                    5: sp.record(
+                        bias=900 * DECIMALS,
+                        slope=5 * SLOPE_MULTIPLIER,
+                        ts=36 * DAY,
+                    ),
+                    6: sp.record(
+                        bias=800 * DECIMALS,
+                        slope=5 * SLOPE_MULTIPLIER,
+                        ts=40 * DAY,
+                    ),
+                },
+            ),
+            slope_changes=sp.big_map(
+                l={7 * DAY: 2 * SLOPE_MULTIPLIER, 14 * DAY: 1 * SLOPE_MULTIPLIER, 42 * DAY: 2 * SLOPE_MULTIPLIER}
+            ),
+        )
+
+        scenario += ve
+
+        # Predicted global voting power (bias_) for ts = 52 * DAY (49 * DAY if rounded)
+        bias_ = (800 * DECIMALS) - (2 * DAY * 5) - (WEEK * 3)
+
+        scenario.verify(ve.get_total_voting_power(52 * DAY) == bias_)
+
+    ###########
+    # is_owner
+    ###########
+
+    @sp.add_test(name="is_owner works correctly")
+    def test():
+        scenario = sp.test_scenario()
+
+        # ALICE has 1 token of token-id 1
+        ve = VoteEscrow(ledger=sp.big_map(l={(Addresses.ALICE, 1): 1}))
+
+        scenario += ve
+
+        # Verify that ALICE is owner of token-id 1
+        scenario.verify(ve.is_owner(sp.record(address=Addresses.ALICE, token_id=1)))
+
+        # Verify that BOB is not owner of token-id 1
+        scenario.verify(~ve.is_owner(sp.record(address=Addresses.BOB, token_id=1)))
 
     sp.add_compilation_target("vote_escrow", VoteEscrow())

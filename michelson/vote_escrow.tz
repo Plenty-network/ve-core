@@ -3427,6 +3427,515 @@ view
       }; # nat
   };
 view
+  "get_total_voting_power" nat nat
+  {
+    UNPAIR;     # @parameter : @storage
+    SWAP;       # @storage : @parameter
+    # sp.verify(((params // 604800) * 604800) >= self.data.global_checkpoints[1].ts, 'TOO_EARLY_TIMESTAMP') # @storage : @parameter
+    DUP;        # @storage : @storage : @parameter
+    DUG 2;      # @storage : @parameter : @storage
+    CAR;        # pair (pair (address %base_token) (nat %gc_index)) (pair (big_map %global_checkpoints nat (pair (nat %slope) (pair (nat %bias) (nat %ts)))) (pair (big_map %ledger (pair address nat) nat) (big_map %locks nat (pair (nat %base_value) (nat %end))))) : @parameter : @storage
+    GET 3;      # big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : @parameter : @storage
+    PUSH nat 1; # nat : big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : @parameter : @storage
+    GET;        # option (pair (nat %slope) (pair (nat %bias) (nat %ts))) : @parameter : @storage
+    IF_NONE
+      {
+        PUSH int 580; # int : @parameter : @storage
+        FAILWITH;   # FAILED
+      }
+      {}; # @some : @parameter : @storage
+    GET 4;      # nat : @parameter : @storage
+    PUSH nat 604800; # nat : nat : @parameter : @storage
+    DUP;        # nat : nat : nat : @parameter : @storage
+    DUP 4;      # @parameter : nat : nat : nat : @parameter : @storage
+    EDIV;       # option (pair nat nat) : nat : nat : @parameter : @storage
+    IF_NONE
+      {
+        PUSH int 577; # int : nat : nat : @parameter : @storage
+        FAILWITH;   # FAILED
+      }
+      {
+        CAR;        # nat : nat : nat : @parameter : @storage
+      }; # nat : nat : nat : @parameter : @storage
+    MUL;        # nat : nat : @parameter : @storage
+    COMPARE;    # int : @parameter : @storage
+    GE;         # bool : @parameter : @storage
+    IF
+      {}
+      {
+        PUSH string "TOO_EARLY_TIMESTAMP"; # string : @parameter : @storage
+        FAILWITH;   # FAILED
+      }; # @parameter : @storage
+    SWAP;       # @storage : @parameter
+    # c_cp = sp.local("c_cp", self.data.global_checkpoints[self.data.gc_index]) # @storage : @parameter
+    DUP;        # @storage : @storage : @parameter
+    CAR;        # pair (pair (address %base_token) (nat %gc_index)) (pair (big_map %global_checkpoints nat (pair (nat %slope) (pair (nat %bias) (nat %ts)))) (pair (big_map %ledger (pair address nat) nat) (big_map %locks nat (pair (nat %base_value) (nat %end))))) : @storage : @parameter
+    GET 3;      # big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : @storage : @parameter
+    SWAP;       # @storage : big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : @parameter
+    DUP;        # @storage : @storage : big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : @parameter
+    DUG 3;      # @storage : big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : @parameter : @storage
+    CAR;        # pair (pair (address %base_token) (nat %gc_index)) (pair (big_map %global_checkpoints nat (pair (nat %slope) (pair (nat %bias) (nat %ts)))) (pair (big_map %ledger (pair address nat) nat) (big_map %locks nat (pair (nat %base_value) (nat %end))))) : big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : @parameter : @storage
+    CAR;        # pair (address %base_token) (nat %gc_index) : big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : @parameter : @storage
+    CDR;        # nat : big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : @parameter : @storage
+    GET;        # option (pair (nat %slope) (pair (nat %bias) (nat %ts))) : @parameter : @storage
+    IF_NONE
+      {
+        PUSH int 583; # int : @parameter : @storage
+        FAILWITH;   # FAILED
+      }
+      {}; # @some : @parameter : @storage
+    # if ((params // 604800) * 604800) < c_cp.value.ts: # @some : @parameter : @storage
+    DUP;        # @some : @some : @parameter : @storage
+    GET 4;      # nat : @some : @parameter : @storage
+    PUSH nat 604800; # nat : nat : @some : @parameter : @storage
+    DUP;        # nat : nat : nat : @some : @parameter : @storage
+    DUP 5;      # @parameter : nat : nat : nat : @some : @parameter : @storage
+    EDIV;       # option (pair nat nat) : nat : nat : @some : @parameter : @storage
+    IF_NONE
+      {
+        PUSH int 577; # int : nat : nat : @some : @parameter : @storage
+        FAILWITH;   # FAILED
+      }
+      {
+        CAR;        # nat : nat : nat : @some : @parameter : @storage
+      }; # nat : nat : nat : @some : @parameter : @storage
+    MUL;        # nat : nat : @some : @parameter : @storage
+    COMPARE;    # int : @some : @parameter : @storage
+    LT;         # bool : @some : @parameter : @storage
+    IF
+      {
+        # high = sp.local("high", sp.as_nat(self.data.gc_index - 2)) # @some : @parameter : @storage
+        PUSH nat 2; # nat : @some : @parameter : @storage
+        DUP 4;      # @storage : nat : @some : @parameter : @storage
+        CAR;        # pair (pair (address %base_token) (nat %gc_index)) (pair (big_map %global_checkpoints nat (pair (nat %slope) (pair (nat %bias) (nat %ts)))) (pair (big_map %ledger (pair address nat) nat) (big_map %locks nat (pair (nat %base_value) (nat %end))))) : nat : @some : @parameter : @storage
+        CAR;        # pair (address %base_token) (nat %gc_index) : nat : @some : @parameter : @storage
+        CDR;        # nat : nat : @some : @parameter : @storage
+        SUB;        # int : @some : @parameter : @storage
+        ISNAT;      # option nat : @some : @parameter : @storage
+        IF_NONE
+          {
+            PUSH int 587; # int : @some : @parameter : @storage
+            FAILWITH;   # FAILED
+          }
+          {}; # @some : @some : @parameter : @storage
+        # low = sp.local("low", 0) # @some : @some : @parameter : @storage
+        PUSH nat 0; # nat : @some : @some : @parameter : @storage
+        # mid = sp.local("mid", 0) # nat : @some : @some : @parameter : @storage
+        PUSH nat 0; # nat : nat : @some : @some : @parameter : @storage
+        # while (low.value < high.value) & (self.data.global_checkpoints[mid.value + 1].ts != ((params // 604800) * 604800)) : ... # nat : nat : @some : @some : @parameter : @storage
+        DUP 3;      # @some : nat : nat : @some : @some : @parameter : @storage
+        DUP 3;      # nat : @some : nat : nat : @some : @some : @parameter : @storage
+        COMPARE;    # int : nat : nat : @some : @some : @parameter : @storage
+        LT;         # bool : nat : nat : @some : @some : @parameter : @storage
+        IF
+          {
+            PUSH nat 604800; # nat : nat : nat : @some : @some : @parameter : @storage
+            DUP;        # nat : nat : nat : nat : @some : @some : @parameter : @storage
+            DUP 7;      # @parameter : nat : nat : nat : nat : @some : @some : @parameter : @storage
+            EDIV;       # option (pair nat nat) : nat : nat : nat : @some : @some : @parameter : @storage
+            IF_NONE
+              {
+                PUSH int 577; # int : nat : nat : nat : @some : @some : @parameter : @storage
+                FAILWITH;   # FAILED
+              }
+              {
+                CAR;        # nat : nat : nat : nat : @some : @some : @parameter : @storage
+              }; # nat : nat : nat : nat : @some : @some : @parameter : @storage
+            MUL;        # nat : nat : nat : @some : @some : @parameter : @storage
+            DUP 7;      # @storage : nat : nat : nat : @some : @some : @parameter : @storage
+            CAR;        # pair (pair (address %base_token) (nat %gc_index)) (pair (big_map %global_checkpoints nat (pair (nat %slope) (pair (nat %bias) (nat %ts)))) (pair (big_map %ledger (pair address nat) nat) (big_map %locks nat (pair (nat %base_value) (nat %end))))) : nat : nat : nat : @some : @some : @parameter : @storage
+            GET 3;      # big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : nat : nat : nat : @some : @some : @parameter : @storage
+            PUSH nat 1; # nat : big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : nat : nat : nat : @some : @some : @parameter : @storage
+            DUP 4;      # nat : nat : big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : nat : nat : nat : @some : @some : @parameter : @storage
+            ADD;        # nat : big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : nat : nat : nat : @some : @some : @parameter : @storage
+            GET;        # option (pair (nat %slope) (pair (nat %bias) (nat %ts))) : nat : nat : nat : @some : @some : @parameter : @storage
+            IF_NONE
+              {
+                PUSH int 591; # int : nat : nat : nat : @some : @some : @parameter : @storage
+                FAILWITH;   # FAILED
+              }
+              {}; # @some : nat : nat : nat : @some : @some : @parameter : @storage
+            GET 4;      # nat : nat : nat : nat : @some : @some : @parameter : @storage
+            COMPARE;    # int : nat : nat : @some : @some : @parameter : @storage
+            NEQ;        # bool : nat : nat : @some : @some : @parameter : @storage
+          }
+          {
+            PUSH bool False; # bool : nat : nat : @some : @some : @parameter : @storage
+          }; # bool : nat : nat : @some : @some : @parameter : @storage
+        LOOP
+          {
+            DROP;       # nat : @some : @some : @parameter : @storage
+            # mid.value = ((low.value + high.value) + 1) // 2 # nat : @some : @some : @parameter : @storage
+            PUSH nat 2; # nat : nat : @some : @some : @parameter : @storage
+            PUSH nat 1; # nat : nat : nat : @some : @some : @parameter : @storage
+            DUP 4;      # @some : nat : nat : nat : @some : @some : @parameter : @storage
+            DUP 4;      # nat : @some : nat : nat : nat : @some : @some : @parameter : @storage
+            ADD;        # nat : nat : nat : nat : @some : @some : @parameter : @storage
+            ADD;        # nat : nat : nat : @some : @some : @parameter : @storage
+            EDIV;       # option (pair nat nat) : nat : @some : @some : @parameter : @storage
+            IF_NONE
+              {
+                PUSH int 592; # int : nat : @some : @some : @parameter : @storage
+                FAILWITH;   # FAILED
+              }
+              {
+                CAR;        # nat : nat : @some : @some : @parameter : @storage
+              }; # nat : nat : @some : @some : @parameter : @storage
+            # if self.data.global_checkpoints[mid.value + 1].ts < ((params // 604800) * 604800): # nat : nat : @some : @some : @parameter : @storage
+            PUSH nat 604800; # nat : nat : nat : @some : @some : @parameter : @storage
+            DUP;        # nat : nat : nat : nat : @some : @some : @parameter : @storage
+            DUP 7;      # @parameter : nat : nat : nat : nat : @some : @some : @parameter : @storage
+            EDIV;       # option (pair nat nat) : nat : nat : nat : @some : @some : @parameter : @storage
+            IF_NONE
+              {
+                PUSH int 577; # int : nat : nat : nat : @some : @some : @parameter : @storage
+                FAILWITH;   # FAILED
+              }
+              {
+                CAR;        # nat : nat : nat : nat : @some : @some : @parameter : @storage
+              }; # nat : nat : nat : nat : @some : @some : @parameter : @storage
+            MUL;        # nat : nat : nat : @some : @some : @parameter : @storage
+            DUP 7;      # @storage : nat : nat : nat : @some : @some : @parameter : @storage
+            CAR;        # pair (pair (address %base_token) (nat %gc_index)) (pair (big_map %global_checkpoints nat (pair (nat %slope) (pair (nat %bias) (nat %ts)))) (pair (big_map %ledger (pair address nat) nat) (big_map %locks nat (pair (nat %base_value) (nat %end))))) : nat : nat : nat : @some : @some : @parameter : @storage
+            GET 3;      # big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : nat : nat : nat : @some : @some : @parameter : @storage
+            PUSH nat 1; # nat : big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : nat : nat : nat : @some : @some : @parameter : @storage
+            DUP 4;      # nat : nat : big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : nat : nat : nat : @some : @some : @parameter : @storage
+            ADD;        # nat : big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : nat : nat : nat : @some : @some : @parameter : @storage
+            GET;        # option (pair (nat %slope) (pair (nat %bias) (nat %ts))) : nat : nat : nat : @some : @some : @parameter : @storage
+            IF_NONE
+              {
+                PUSH int 593; # int : nat : nat : nat : @some : @some : @parameter : @storage
+                FAILWITH;   # FAILED
+              }
+              {}; # @some : nat : nat : nat : @some : @some : @parameter : @storage
+            GET 4;      # nat : nat : nat : nat : @some : @some : @parameter : @storage
+            COMPARE;    # int : nat : nat : @some : @some : @parameter : @storage
+            LT;         # bool : nat : nat : @some : @some : @parameter : @storage
+            IF
+              {
+                SWAP;       # nat : nat : @some : @some : @parameter : @storage
+                DROP;       # nat : @some : @some : @parameter : @storage
+                # low.value = mid.value # nat : @some : @some : @parameter : @storage
+                DUP;        # nat : nat : @some : @some : @parameter : @storage
+              }
+              {
+                DIG 2;      # @some : nat : nat : @some : @parameter : @storage
+                DROP;       # nat : nat : @some : @parameter : @storage
+                # high.value = sp.as_nat(mid.value - 1) # nat : nat : @some : @parameter : @storage
+                DUP;        # nat : nat : nat : @some : @parameter : @storage
+                PUSH nat 1; # nat : nat : nat : nat : @some : @parameter : @storage
+                SWAP;       # nat : nat : nat : nat : @some : @parameter : @storage
+                SUB;        # int : nat : nat : @some : @parameter : @storage
+                ISNAT;      # option nat : nat : nat : @some : @parameter : @storage
+                IF_NONE
+                  {
+                    PUSH int 596; # int : nat : nat : @some : @parameter : @storage
+                    FAILWITH;   # FAILED
+                  }
+                  {}; # @some : nat : nat : @some : @parameter : @storage
+                DUG 2;      # nat : nat : @some : @some : @parameter : @storage
+              }; # nat : nat : @some : @some : @parameter : @storage
+            # check for next loop: (low.value < high.value) & (self.data.global_checkpoints[mid.value + 1].ts != ((params // 604800) * 604800)) # nat : nat : @some : @some : @parameter : @storage
+            DUP 3;      # @some : nat : nat : @some : @some : @parameter : @storage
+            DUP 3;      # nat : @some : nat : nat : @some : @some : @parameter : @storage
+            COMPARE;    # int : nat : nat : @some : @some : @parameter : @storage
+            LT;         # bool : nat : nat : @some : @some : @parameter : @storage
+            IF
+              {
+                PUSH nat 604800; # nat : nat : nat : @some : @some : @parameter : @storage
+                DUP;        # nat : nat : nat : nat : @some : @some : @parameter : @storage
+                DUP 7;      # @parameter : nat : nat : nat : nat : @some : @some : @parameter : @storage
+                EDIV;       # option (pair nat nat) : nat : nat : nat : @some : @some : @parameter : @storage
+                IF_NONE
+                  {
+                    PUSH int 577; # int : nat : nat : nat : @some : @some : @parameter : @storage
+                    FAILWITH;   # FAILED
+                  }
+                  {
+                    CAR;        # nat : nat : nat : nat : @some : @some : @parameter : @storage
+                  }; # nat : nat : nat : nat : @some : @some : @parameter : @storage
+                MUL;        # nat : nat : nat : @some : @some : @parameter : @storage
+                DUP 7;      # @storage : nat : nat : nat : @some : @some : @parameter : @storage
+                CAR;        # pair (pair (address %base_token) (nat %gc_index)) (pair (big_map %global_checkpoints nat (pair (nat %slope) (pair (nat %bias) (nat %ts)))) (pair (big_map %ledger (pair address nat) nat) (big_map %locks nat (pair (nat %base_value) (nat %end))))) : nat : nat : nat : @some : @some : @parameter : @storage
+                GET 3;      # big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : nat : nat : nat : @some : @some : @parameter : @storage
+                PUSH nat 1; # nat : big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : nat : nat : nat : @some : @some : @parameter : @storage
+                DUP 4;      # nat : nat : big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : nat : nat : nat : @some : @some : @parameter : @storage
+                ADD;        # nat : big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : nat : nat : nat : @some : @some : @parameter : @storage
+                GET;        # option (pair (nat %slope) (pair (nat %bias) (nat %ts))) : nat : nat : nat : @some : @some : @parameter : @storage
+                IF_NONE
+                  {
+                    PUSH int 591; # int : nat : nat : nat : @some : @some : @parameter : @storage
+                    FAILWITH;   # FAILED
+                  }
+                  {}; # @some : nat : nat : nat : @some : @some : @parameter : @storage
+                GET 4;      # nat : nat : nat : nat : @some : @some : @parameter : @storage
+                COMPARE;    # int : nat : nat : @some : @some : @parameter : @storage
+                NEQ;        # bool : nat : nat : @some : @some : @parameter : @storage
+              }
+              {
+                PUSH bool False; # bool : nat : nat : @some : @some : @parameter : @storage
+              }; # bool : nat : nat : @some : @some : @parameter : @storage
+          }; # nat : nat : @some : @some : @parameter : @storage
+        DIG 3;      # @some : nat : nat : @some : @parameter : @storage
+        DROP;       # nat : nat : @some : @parameter : @storage
+        # if self.data.global_checkpoints[mid.value + 1].ts == ((params // 604800) * 604800): # nat : nat : @some : @parameter : @storage
+        PUSH nat 604800; # nat : nat : nat : @some : @parameter : @storage
+        DUP;        # nat : nat : nat : nat : @some : @parameter : @storage
+        DUP 6;      # @parameter : nat : nat : nat : nat : @some : @parameter : @storage
+        EDIV;       # option (pair nat nat) : nat : nat : nat : @some : @parameter : @storage
+        IF_NONE
+          {
+            PUSH int 577; # int : nat : nat : nat : @some : @parameter : @storage
+            FAILWITH;   # FAILED
+          }
+          {
+            CAR;        # nat : nat : nat : nat : @some : @parameter : @storage
+          }; # nat : nat : nat : nat : @some : @parameter : @storage
+        MUL;        # nat : nat : nat : @some : @parameter : @storage
+        DUP 6;      # @storage : nat : nat : nat : @some : @parameter : @storage
+        CAR;        # pair (pair (address %base_token) (nat %gc_index)) (pair (big_map %global_checkpoints nat (pair (nat %slope) (pair (nat %bias) (nat %ts)))) (pair (big_map %ledger (pair address nat) nat) (big_map %locks nat (pair (nat %base_value) (nat %end))))) : nat : nat : nat : @some : @parameter : @storage
+        GET 3;      # big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : nat : nat : nat : @some : @parameter : @storage
+        PUSH nat 1; # nat : big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : nat : nat : nat : @some : @parameter : @storage
+        DUP 4;      # nat : nat : big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : nat : nat : nat : @some : @parameter : @storage
+        ADD;        # nat : big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : nat : nat : nat : @some : @parameter : @storage
+        GET;        # option (pair (nat %slope) (pair (nat %bias) (nat %ts))) : nat : nat : nat : @some : @parameter : @storage
+        IF_NONE
+          {
+            PUSH int 597; # int : nat : nat : nat : @some : @parameter : @storage
+            FAILWITH;   # FAILED
+          }
+          {}; # @some : nat : nat : nat : @some : @parameter : @storage
+        GET 4;      # nat : nat : nat : nat : @some : @parameter : @storage
+        COMPARE;    # int : nat : nat : @some : @parameter : @storage
+        EQ;         # bool : nat : nat : @some : @parameter : @storage
+        IF
+          {
+            SWAP;       # nat : nat : @some : @parameter : @storage
+            DROP;       # nat : @some : @parameter : @storage
+            SWAP;       # @some : nat : @parameter : @storage
+            DROP;       # nat : @parameter : @storage
+            # c_cp.value = self.data.global_checkpoints[mid.value + 1] # nat : @parameter : @storage
+            DUP 3;      # @storage : nat : @parameter : @storage
+            CAR;        # pair (pair (address %base_token) (nat %gc_index)) (pair (big_map %global_checkpoints nat (pair (nat %slope) (pair (nat %bias) (nat %ts)))) (pair (big_map %ledger (pair address nat) nat) (big_map %locks nat (pair (nat %base_value) (nat %end))))) : nat : @parameter : @storage
+            GET 3;      # big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : nat : @parameter : @storage
+            PUSH nat 1; # nat : big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : nat : @parameter : @storage
+            DIG 2;      # nat : nat : big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : @parameter : @storage
+            ADD;        # nat : big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : @parameter : @storage
+            GET;        # option (pair (nat %slope) (pair (nat %bias) (nat %ts))) : @parameter : @storage
+            IF_NONE
+              {
+                PUSH int 598; # int : @parameter : @storage
+                FAILWITH;   # FAILED
+              }
+              {}; # @some : @parameter : @storage
+          }
+          {
+            DROP;       # nat : @some : @parameter : @storage
+            SWAP;       # @some : nat : @parameter : @storage
+            DROP;       # nat : @parameter : @storage
+            # c_cp.value = self.data.global_checkpoints[low.value + 1] # nat : @parameter : @storage
+            DUP 3;      # @storage : nat : @parameter : @storage
+            CAR;        # pair (pair (address %base_token) (nat %gc_index)) (pair (big_map %global_checkpoints nat (pair (nat %slope) (pair (nat %bias) (nat %ts)))) (pair (big_map %ledger (pair address nat) nat) (big_map %locks nat (pair (nat %base_value) (nat %end))))) : nat : @parameter : @storage
+            GET 3;      # big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : nat : @parameter : @storage
+            PUSH nat 1; # nat : big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : nat : @parameter : @storage
+            DIG 2;      # nat : nat : big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : @parameter : @storage
+            ADD;        # nat : big_map nat (pair (nat %slope) (pair (nat %bias) (nat %ts))) : @parameter : @storage
+            GET;        # option (pair (nat %slope) (pair (nat %bias) (nat %ts))) : @parameter : @storage
+            IF_NONE
+              {
+                PUSH int 600; # int : @parameter : @storage
+                FAILWITH;   # FAILED
+              }
+              {}; # @some : @parameter : @storage
+          }; # @some : @parameter : @storage
+      }
+      {}; # @some : @parameter : @storage
+    # c_bias = sp.local("c_bias", c_cp.value.bias) # @some : @parameter : @storage
+    DUP;        # @some : @some : @parameter : @storage
+    GET 3;      # nat : @some : @parameter : @storage
+    SWAP;       # @some : nat : @parameter : @storage
+    # c_slope = sp.local("c_slope", c_cp.value.slope) # @some : nat : @parameter : @storage
+    DUP;        # @some : @some : nat : @parameter : @storage
+    DUG 2;      # @some : nat : @some : @parameter : @storage
+    CAR;        # nat : nat : @some : @parameter : @storage
+    # n_ts = sp.local("n_ts", ((c_cp.value.ts + 604800) // 604800) * 604800) # nat : nat : @some : @parameter : @storage
+    PUSH nat 604800; # nat : nat : nat : @some : @parameter : @storage
+    DUP;        # nat : nat : nat : nat : @some : @parameter : @storage
+    DUP;        # nat : nat : nat : nat : nat : @some : @parameter : @storage
+    DUP 6;      # @some : nat : nat : nat : nat : nat : @some : @parameter : @storage
+    GET 4;      # nat : nat : nat : nat : nat : nat : @some : @parameter : @storage
+    ADD;        # nat : nat : nat : nat : nat : @some : @parameter : @storage
+    EDIV;       # option (pair nat nat) : nat : nat : nat : @some : @parameter : @storage
+    IF_NONE
+      {
+        PUSH int 606; # int : nat : nat : nat : @some : @parameter : @storage
+        FAILWITH;   # FAILED
+      }
+      {
+        CAR;        # nat : nat : nat : nat : @some : @parameter : @storage
+      }; # nat : nat : nat : nat : @some : @parameter : @storage
+    MUL;        # nat : nat : nat : @some : @parameter : @storage
+    # c_ts = sp.local("c_ts", c_cp.value.ts) # nat : nat : nat : @some : @parameter : @storage
+    DUP 4;      # @some : nat : nat : nat : @some : @parameter : @storage
+    GET 4;      # nat : nat : nat : nat : @some : @parameter : @storage
+    # if n_ts.value <= ((params // 604800) * 604800): # nat : nat : nat : nat : @some : @parameter : @storage
+    PUSH nat 604800; # nat : nat : nat : nat : nat : @some : @parameter : @storage
+    DUP;        # nat : nat : nat : nat : nat : nat : @some : @parameter : @storage
+    DUP 8;      # @parameter : nat : nat : nat : nat : nat : nat : @some : @parameter : @storage
+    EDIV;       # option (pair nat nat) : nat : nat : nat : nat : nat : @some : @parameter : @storage
+    IF_NONE
+      {
+        PUSH int 577; # int : nat : nat : nat : nat : nat : @some : @parameter : @storage
+        FAILWITH;   # FAILED
+      }
+      {
+        CAR;        # nat : nat : nat : nat : nat : nat : @some : @parameter : @storage
+      }; # nat : nat : nat : nat : nat : nat : @some : @parameter : @storage
+    MUL;        # nat : nat : nat : nat : nat : @some : @parameter : @storage
+    DUP 3;      # nat : nat : nat : nat : nat : nat : @some : @parameter : @storage
+    COMPARE;    # int : nat : nat : nat : nat : @some : @parameter : @storage
+    LE;         # bool : nat : nat : nat : nat : @some : @parameter : @storage
+    IF
+      {
+        # while (n_ts.value <= ((params // 604800) * 604800)) & (c_bias.value != 0) : ... # nat : nat : nat : nat : @some : @parameter : @storage
+        PUSH nat 604800; # nat : nat : nat : nat : nat : @some : @parameter : @storage
+        DUP;        # nat : nat : nat : nat : nat : nat : @some : @parameter : @storage
+        DUP 8;      # @parameter : nat : nat : nat : nat : nat : nat : @some : @parameter : @storage
+        EDIV;       # option (pair nat nat) : nat : nat : nat : nat : nat : @some : @parameter : @storage
+        IF_NONE
+          {
+            PUSH int 577; # int : nat : nat : nat : nat : nat : @some : @parameter : @storage
+            FAILWITH;   # FAILED
+          }
+          {
+            CAR;        # nat : nat : nat : nat : nat : nat : @some : @parameter : @storage
+          }; # nat : nat : nat : nat : nat : nat : @some : @parameter : @storage
+        MUL;        # nat : nat : nat : nat : nat : @some : @parameter : @storage
+        DUP 3;      # nat : nat : nat : nat : nat : nat : @some : @parameter : @storage
+        COMPARE;    # int : nat : nat : nat : nat : @some : @parameter : @storage
+        LE;         # bool : nat : nat : nat : nat : @some : @parameter : @storage
+        IF
+          {
+            PUSH nat 0; # nat : nat : nat : nat : nat : @some : @parameter : @storage
+            DUP 5;      # nat : nat : nat : nat : nat : nat : @some : @parameter : @storage
+            COMPARE;    # int : nat : nat : nat : nat : @some : @parameter : @storage
+            NEQ;        # bool : nat : nat : nat : nat : @some : @parameter : @storage
+          }
+          {
+            PUSH bool False; # bool : nat : nat : nat : nat : @some : @parameter : @storage
+          }; # bool : nat : nat : nat : nat : @some : @parameter : @storage
+        LOOP
+          {
+            # c_bias.value = sp.as_nat(c_bias.value - ((sp.as_nat(n_ts.value - c_ts.value) * c_slope.value) // 1000000000000000000)) # nat : nat : nat : nat : @some : @parameter : @storage
+            PUSH nat 1000000000000000000; # nat : nat : nat : nat : nat : @some : @parameter : @storage
+            DUP 4;      # nat : nat : nat : nat : nat : nat : @some : @parameter : @storage
+            DIG 2;      # nat : nat : nat : nat : nat : nat : @some : @parameter : @storage
+            DUP 4;      # nat : nat : nat : nat : nat : nat : nat : @some : @parameter : @storage
+            SUB;        # int : nat : nat : nat : nat : nat : @some : @parameter : @storage
+            ISNAT;      # option nat : nat : nat : nat : nat : nat : @some : @parameter : @storage
+            IF_NONE
+              {
+                PUSH int 612; # int : nat : nat : nat : nat : nat : @some : @parameter : @storage
+                FAILWITH;   # FAILED
+              }
+              {}; # @some : nat : nat : nat : nat : nat : @some : @parameter : @storage
+            MUL;        # nat : nat : nat : nat : nat : @some : @parameter : @storage
+            EDIV;       # option (pair nat nat) : nat : nat : nat : @some : @parameter : @storage
+            IF_NONE
+              {
+                PUSH int 613; # int : nat : nat : nat : @some : @parameter : @storage
+                FAILWITH;   # FAILED
+              }
+              {
+                CAR;        # nat : nat : nat : nat : @some : @parameter : @storage
+              }; # nat : nat : nat : nat : @some : @parameter : @storage
+            DIG 3;      # nat : nat : nat : nat : @some : @parameter : @storage
+            SUB;        # int : nat : nat : @some : @parameter : @storage
+            ISNAT;      # option nat : nat : nat : @some : @parameter : @storage
+            IF_NONE
+              {
+                PUSH int 613; # int : nat : nat : @some : @parameter : @storage
+                FAILWITH;   # FAILED
+              }
+              {}; # @some : nat : nat : @some : @parameter : @storage
+            DUG 2;      # nat : nat : @some : @some : @parameter : @storage
+            # c_slope.value = sp.as_nat(c_slope.value - self.data.slope_changes.get(n_ts.value, default_value = 0)) # nat : nat : @some : @some : @parameter : @storage
+            DUP 6;      # @storage : nat : nat : @some : @some : @parameter : @storage
+            GET 5;      # big_map nat nat : nat : nat : @some : @some : @parameter : @storage
+            SWAP;       # nat : big_map nat nat : nat : @some : @some : @parameter : @storage
+            DUP;        # nat : nat : big_map nat nat : nat : @some : @some : @parameter : @storage
+            DUG 2;      # nat : big_map nat nat : nat : nat : @some : @some : @parameter : @storage
+            GET;        # option nat : nat : nat : @some : @some : @parameter : @storage
+            IF_NONE
+              {
+                PUSH nat 0; # nat : nat : nat : @some : @some : @parameter : @storage
+              }
+              {}; # nat : nat : nat : @some : @some : @parameter : @storage
+            DIG 2;      # nat : nat : nat : @some : @some : @parameter : @storage
+            SUB;        # int : nat : @some : @some : @parameter : @storage
+            ISNAT;      # option nat : nat : @some : @some : @parameter : @storage
+            IF_NONE
+              {
+                PUSH int 616; # int : nat : @some : @some : @parameter : @storage
+                FAILWITH;   # FAILED
+              }
+              {}; # @some : nat : @some : @some : @parameter : @storage
+            SWAP;       # nat : @some : @some : @some : @parameter : @storage
+            # c_ts.value = n_ts.value # nat : @some : @some : @some : @parameter : @storage
+            DUP;        # nat : nat : @some : @some : @some : @parameter : @storage
+            # n_ts.value += 604800 # nat : nat : @some : @some : @some : @parameter : @storage
+            PUSH nat 604800; # nat : nat : nat : @some : @some : @some : @parameter : @storage
+            DIG 2;      # nat : nat : nat : @some : @some : @some : @parameter : @storage
+            ADD;        # nat : nat : @some : @some : @some : @parameter : @storage
+            SWAP;       # nat : nat : @some : @some : @some : @parameter : @storage
+            # check for next loop: (n_ts.value <= ((params // 604800) * 604800)) & (c_bias.value != 0) # nat : nat : @some : @some : @some : @parameter : @storage
+            PUSH nat 604800; # nat : nat : nat : @some : @some : @some : @parameter : @storage
+            DUP;        # nat : nat : nat : nat : @some : @some : @some : @parameter : @storage
+            DUP 8;      # @parameter : nat : nat : nat : nat : @some : @some : @some : @parameter : @storage
+            EDIV;       # option (pair nat nat) : nat : nat : nat : @some : @some : @some : @parameter : @storage
+            IF_NONE
+              {
+                PUSH int 577; # int : nat : nat : nat : @some : @some : @some : @parameter : @storage
+                FAILWITH;   # FAILED
+              }
+              {
+                CAR;        # nat : nat : nat : nat : @some : @some : @some : @parameter : @storage
+              }; # nat : nat : nat : nat : @some : @some : @some : @parameter : @storage
+            MUL;        # nat : nat : nat : @some : @some : @some : @parameter : @storage
+            DUP 3;      # nat : nat : nat : nat : @some : @some : @some : @parameter : @storage
+            COMPARE;    # int : nat : nat : @some : @some : @some : @parameter : @storage
+            LE;         # bool : nat : nat : @some : @some : @some : @parameter : @storage
+            IF
+              {
+                PUSH nat 0; # nat : nat : nat : @some : @some : @some : @parameter : @storage
+                DUP 5;      # @some : nat : nat : nat : @some : @some : @some : @parameter : @storage
+                COMPARE;    # int : nat : nat : @some : @some : @some : @parameter : @storage
+                NEQ;        # bool : nat : nat : @some : @some : @some : @parameter : @storage
+              }
+              {
+                PUSH bool False; # bool : nat : nat : @some : @some : @some : @parameter : @storage
+              }; # bool : nat : nat : @some : @some : @some : @parameter : @storage
+          }; # nat : nat : nat : nat : @some : @parameter : @storage
+        DROP 3;     # nat : @some : @parameter : @storage
+        SWAP;       # @some : nat : @parameter : @storage
+        DROP;       # nat : @parameter : @storage
+        SWAP;       # @parameter : nat : @storage
+        DROP;       # nat : @storage
+        SWAP;       # @storage : nat
+        DROP;       # nat
+      }
+      {
+        DROP 3;     # nat : @some : @parameter : @storage
+        SWAP;       # @some : nat : @parameter : @storage
+        DROP;       # nat : @parameter : @storage
+        SWAP;       # @parameter : nat : @storage
+        DROP;       # nat : @storage
+        SWAP;       # @storage : nat
+        DROP;       # nat
+      }; # nat
+    # sp.result(c_bias.value) # nat
+  };
+view
   "is_owner" (pair (address %address) (nat %token_id)) bool
   {
     UNPAIR;     # @parameter : @storage
@@ -3456,7 +3965,7 @@ view
         GET;        # option nat : nat
         IF_NONE
           {
-            PUSH int 582; # int : nat
+            PUSH int 631; # int : nat
             FAILWITH;   # FAILED
           }
           {}; # @some : nat
