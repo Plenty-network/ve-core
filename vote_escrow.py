@@ -13,6 +13,9 @@ WEEK = 7 * DAY
 YEAR = 52 * WEEK
 MAX_TIME = 4 * YEAR
 
+# Increase precision during slope and associated bias calculation
+SLOPE_MULTIPLIER = 10 ** 18
+
 ########
 # Types
 ########
@@ -274,7 +277,7 @@ class VoteEscrow(sp.Contract):
             with sp.if_(n_ts.value < now_):
                 with sp.while_((n_ts.value < now_) & (c_bias.value != 0)):
                     d_ts = sp.as_nat(n_ts.value - c_ts.value)
-                    c_bias.value = sp.as_nat(c_bias.value - (d_ts * c_slope.value))
+                    c_bias.value = sp.as_nat(c_bias.value - (d_ts * c_slope.value) // SLOPE_MULTIPLIER)
 
                     # Update slope
                     c_slope.value = sp.as_nat(c_slope.value - self.data.slope_changes.get(n_ts.value, 0))
@@ -285,11 +288,13 @@ class VoteEscrow(sp.Contract):
 
             with sp.if_(c_bias.value != 0):
                 d_ts = sp.as_nat(now_ - c_ts.value)
-                c_bias.value = sp.as_nat(c_bias.value - (d_ts * c_slope.value))
+                c_bias.value = sp.as_nat(c_bias.value - (d_ts * c_slope.value) // SLOPE_MULTIPLIER)
 
             # Adjust out old checkpoint off the global bias/slope & slope_changes
-            with sp.if_(params.old_cp.ts != 0):
-                bias_ = sp.as_nat(params.old_cp.bias - (params.old_cp.slope * sp.as_nat(now_ - params.old_cp.ts)))
+            with sp.if_(params.old_cp.slope != 0):
+                bias_ = sp.as_nat(
+                    params.old_cp.bias - (params.old_cp.slope * sp.as_nat(now_ - params.old_cp.ts)) // SLOPE_MULTIPLIER
+                )
                 c_bias.value = sp.as_nat(c_bias.value - bias_)
                 c_slope.value = sp.as_nat(c_slope.value - params.old_cp.slope)
 
@@ -331,7 +336,7 @@ class VoteEscrow(sp.Contract):
 
         # Calculate slope & bias for linearly decreasing voting power
         bias = (params.base_value * d_ts) // MAX_TIME
-        slope = bias // d_ts
+        slope = (bias * SLOPE_MULTIPLIER) // d_ts
 
         # Update uid and mint associated NFT for params.user_address
         self.data.uid += 1
@@ -419,7 +424,7 @@ class VoteEscrow(sp.Contract):
         # Fetch current updated bias
         index_ = self.data.num_token_checkpoints[params.token_id]
         last_tc = self.data.token_checkpoints[(params.token_id, index_)]
-        bias_ = sp.as_nat(last_tc.bias - (last_tc.slope * sp.as_nat(now_ - last_tc.ts)))
+        bias_ = sp.as_nat(last_tc.bias - (last_tc.slope * sp.as_nat(now_ - last_tc.ts)) // SLOPE_MULTIPLIER)
 
         # Time left in lock
         d_ts = sp.as_nat(self.data.locks[params.token_id].end - now_)
@@ -429,7 +434,7 @@ class VoteEscrow(sp.Contract):
 
         # New bias & slope
         n_bias = bias_ + i_bias
-        n_slope = n_bias // d_ts
+        n_slope = (n_bias * SLOPE_MULTIPLIER) // d_ts
 
         # Record new token checkpoint
         self.data.token_checkpoints[
@@ -495,7 +500,7 @@ class VoteEscrow(sp.Contract):
 
         # Calculate new bias and slope
         bias = (self.data.locks[params.token_id].base_value * d_ts) // MAX_TIME
-        slope = bias // d_ts
+        slope = (bias * SLOPE_MULTIPLIER) // d_ts
 
         # Add new checkpoint for token
         self.data.num_token_checkpoints[params.token_id] += 1
@@ -537,7 +542,7 @@ class VoteEscrow(sp.Contract):
         with sp.if_(ts >= last_checkpoint.ts):
             i_bias = last_checkpoint.bias
             slope = last_checkpoint.slope
-            f_bias = i_bias - sp.as_nat(ts - last_checkpoint.ts) * slope
+            f_bias = i_bias - (sp.as_nat(ts - last_checkpoint.ts) * slope) // SLOPE_MULTIPLIER
             with sp.if_(f_bias < 0):
                 sp.result(sp.nat(0))
             with sp.else_():
@@ -562,7 +567,7 @@ class VoteEscrow(sp.Contract):
                 bias = self.data.token_checkpoints[(params.token_id, low.value + 1)].bias
                 slope = self.data.token_checkpoints[(params.token_id, low.value + 1)].slope
                 d_ts = ts - self.data.token_checkpoints[(params.token_id, low.value + 1)].ts
-                sp.result(sp.as_nat(bias - sp.as_nat(d_ts) * slope))
+                sp.result(sp.as_nat(bias - (sp.as_nat(d_ts) * slope) // SLOPE_MULTIPLIER))
 
     # TODO: total voting-power entrypoint
 
@@ -628,7 +633,7 @@ if __name__ == "__main__":
         # Predicted bias and slope
         d_ts = 2 * WEEK - NOW
         bias = (1000 * DECIMALS * d_ts) // MAX_TIME
-        slope = bias // d_ts
+        slope = (bias * SLOPE_MULTIPLIER) // d_ts
 
         # Correct checkpoint is created for the token
         scenario.verify(ve.data.token_checkpoints[(1, 1)] == sp.record(bias=bias, slope=slope, ts=NOW))
@@ -678,7 +683,7 @@ if __name__ == "__main__":
         # Predicted bias and slope
         d_ts = MAX_TIME
         bias = 1000 * DECIMALS
-        slope = bias // d_ts
+        slope = (bias * SLOPE_MULTIPLIER) // d_ts
 
         # Correct checkpoint is created for the token
         scenario.verify(ve.data.token_checkpoints[(1, 1)] == sp.record(bias=bias, slope=slope, ts=0))
@@ -736,7 +741,7 @@ if __name__ == "__main__":
         end_ = 4 * WEEK
         d_ts = end_ - NOW
         bias_ = (1000 * DECIMALS * d_ts) // MAX_TIME
-        slope_ = bias_ // d_ts
+        slope_ = (bias_ * SLOPE_MULTIPLIER) // d_ts
 
         ply_token = FA12()
         ve = VoteEscrow(
@@ -804,8 +809,8 @@ if __name__ == "__main__":
 
         # Predicted bias and slope
         i_bias = (increase_val * (end_ - increase_ts)) // MAX_TIME
-        bias = (bias_ - (slope_ * (increase_ts - NOW))) + i_bias
-        slope = bias // (end_ - increase_ts)
+        bias = (bias_ - (slope_ * (increase_ts - NOW)) // SLOPE_MULTIPLIER) + i_bias
+        slope = (bias * SLOPE_MULTIPLIER) // (end_ - increase_ts)
 
         # Correct checkpoint is added
         scenario.verify(ve.data.num_token_checkpoints[1] == 2)
@@ -831,7 +836,7 @@ if __name__ == "__main__":
         end_ = 4 * WEEK
         d_ts = end_ - NOW
         bias_ = (1000 * DECIMALS * d_ts) // MAX_TIME
-        slope_ = bias_ // d_ts
+        slope_ = (bias_ * SLOPE_MULTIPLIER) // d_ts
 
         ply_token = FA12()
         ve = VoteEscrow(
@@ -888,7 +893,7 @@ if __name__ == "__main__":
 
         # Predicted bias and slope for new checkpoint
         bias = (base_value_ * (n_end - increase_ts)) // MAX_TIME
-        slope = bias // (n_end - increase_ts)
+        slope = (bias * SLOPE_MULTIPLIER) // (n_end - increase_ts)
 
         # Lock is modified correctly
         scenario.verify(ve.data.locks[1].end == n_end)
@@ -910,7 +915,7 @@ if __name__ == "__main__":
         end_ = 4 * WEEK
         d_ts = end_ - NOW
         bias_ = (1000 * DECIMALS * d_ts) // MAX_TIME
-        slope_ = bias_ // d_ts
+        slope_ = (bias_ * SLOPE_MULTIPLIER) // d_ts
 
         ply_token = FA12()
         ve = VoteEscrow(
@@ -967,7 +972,7 @@ if __name__ == "__main__":
 
         # Predicted bias and slope for new checkpoint
         bias = base_value_
-        slope = bias // (n_end - increase_ts)
+        slope = (bias * SLOPE_MULTIPLIER) // (n_end - increase_ts)
 
         # Lock is modified correctly
         scenario.verify(ve.data.locks[1].end == n_end)
@@ -983,57 +988,82 @@ if __name__ == "__main__":
     ############################
     # record_global_checkpoint
     ############################
-    # @sp.add_test(name="record_global_checkpoint works correctly for overlapping locks")
-    # def test():
-    #     scenario = sp.test_scenario()
+    @sp.add_test(name="record_global_checkpoint works correctly for overlapping locks")
+    def test():
+        scenario = sp.test_scenario()
 
-    #     ply_token = FA12()
-    #     ve = VoteEscrow(base_token=ply_token.address)
+        ply_token = FA12()
+        ve = VoteEscrow(base_token=ply_token.address)
 
-    #     scenario += ply_token
-    #     scenario += ve
+        scenario += ply_token
+        scenario += ve
 
-    #     # Mint and approve tokens for ALICE
-    #     scenario += ply_token.mint(
-    #         address=Addresses.ALICE,
-    #         value=1000 * DECIMALS,
-    #     ).run(sender=Addresses.ADMIN)
-    #     scenario += ply_token.approve(
-    #         spender=ve.address,
-    #         value=1000 * DECIMALS,
-    #     ).run(sender=Addresses.ALICE)
+        # Mint and approve tokens for ALICE
+        scenario += ply_token.mint(
+            address=Addresses.ALICE,
+            value=1000 * DECIMALS,
+        ).run(sender=Addresses.ADMIN)
+        scenario += ply_token.approve(
+            spender=ve.address,
+            value=1000 * DECIMALS,
+        ).run(sender=Addresses.ALICE)
 
-    #     # Max-time lockup values
-    #     lock_1_bias = 200 * DECIMALS
-    #     lock_1_slope = lock_1_bias // MAX_TIME
+        # Max-time lockup values
+        lock_1_bias = 200 * DECIMALS
+        lock_1_slope = (lock_1_bias * SLOPE_MULTIPLIER) // MAX_TIME
 
-    #     # 3/4th of Max-time lockup values
-    #     lock_2_bias = 300 * DECIMALS
-    #     lock_2_slope = lock_2_bias // (int(0.75 * MAX_TIME))
+        # 1/4th of Max-time lockup values
+        lock_2_bias = 100 * DECIMALS
+        lock_2_slope = (lock_2_bias * SLOPE_MULTIPLIER) // YEAR
 
-    #     scenario += ve.create_lock(
-    #         user_address=Addresses.ALICE,
-    #         base_value=200 * DECIMALS,
-    #         end=MAX_TIME,
-    #     ).run(sender=Addresses.ALICE, now=sp.timestamp(0))
+        # ALICE creates first lock (for 4 Years) at timestamp - 0 (Genesis for tests)
+        scenario += ve.create_lock(
+            user_address=Addresses.ALICE,
+            base_value=200 * DECIMALS,
+            end=MAX_TIME,
+        ).run(sender=Addresses.ALICE, now=sp.timestamp(0))
 
-    #     scenario += ve.create_lock(
-    #         user_address=Addresses.ALICE,
-    #         base_value=400 * DECIMALS,
-    #         end=(MAX_TIME // 2) + int(0.75 * MAX_TIME),
-    #     ).run(sender=Addresses.ALICE, now=sp.timestamp(MAX_TIME // 2))
+        # ALICE creates second lock (for 1 Year) at 2 Years after first lock
+        scenario += ve.create_lock(
+            user_address=Addresses.ALICE,
+            base_value=400 * DECIMALS,
+            end=(2 * YEAR) + (YEAR),
+        ).run(sender=Addresses.ALICE, now=sp.timestamp(2 * YEAR))
 
-    #     scenario.verify(
-    #         ve.data.global_checkpoints[1] == sp.record(bias=lock_1_bias, slope=lock_1_slope, ts=0),
-    #     )
-    #     scenario.verify(
-    #         ve.data.global_checkpoints[2]
-    #         == sp.record(
-    #             bias=(lock_1_bias // 2) + lock_2_bias,
-    #             slope=lock_1_slope + lock_2_slope,
-    #             ts=MAX_TIME // 2,
-    #         )
-    #     )
+        # ALICE increase lock end for 1 lock to an additional YEAR, 3 Days after 2nd lock ends
+        scenario += ve.increase_lock_end(token_id=1, end=MAX_TIME + YEAR).run(
+            sender=Addresses.ALICE, now=sp.timestamp(3 * YEAR + 3 * DAY)
+        )
+
+        # This is required since due to limited precision, a small (usually order of 1/10^17) global bias
+        # is left out when calculating decrease in bias over time.
+        def precision_verify(a, b, p):
+            scenario.verify((a >= (b - p)) & (a <= (b + p)))
+
+        # Global checkpoints are recorded correctly
+        scenario.verify(ve.data.global_checkpoints[1].bias == lock_1_bias)
+        scenario.verify(ve.data.global_checkpoints[1].slope == lock_1_slope)
+        scenario.verify(ve.data.global_checkpoints[1].ts == 0)
+
+        precision_verify(
+            ve.data.global_checkpoints[2].bias,
+            lock_1_bias - (lock_1_slope * 2 * YEAR) // SLOPE_MULTIPLIER + lock_2_bias,
+            100,
+        )
+        scenario.verify(ve.data.global_checkpoints[2].slope == lock_1_slope + lock_2_slope)
+        scenario.verify(ve.data.global_checkpoints[2].ts == 2 * YEAR)
+
+        bias_ = (lock_1_bias * (2 * YEAR - 3 * DAY)) // MAX_TIME
+        slope_ = (bias_ * SLOPE_MULTIPLIER) // (2 * YEAR - 3 * DAY)
+
+        precision_verify(ve.data.global_checkpoints[3].bias, bias_, 100)
+        scenario.verify(ve.data.global_checkpoints[3].slope == slope_)
+        scenario.verify(ve.data.global_checkpoints[3].ts == 3 * YEAR + 3 * DAY)
+
+        # Slope changes are recorded correctly
+        scenario.verify(ve.data.slope_changes[MAX_TIME] == 0)
+        scenario.verify(ve.data.slope_changes[3 * YEAR] == lock_2_slope)
+        scenario.verify(ve.data.slope_changes[5 * YEAR] == slope_)
 
     #########################
     # get_token_voting_power
@@ -1062,27 +1092,27 @@ if __name__ == "__main__":
                 l={
                     (1, 1): sp.record(
                         bias=1000 * DECIMALS,
-                        slope=5,
+                        slope=5 * SLOPE_MULTIPLIER,
                         ts=8 * DAY,
                     ),
                     (1, 2): sp.record(
                         bias=800 * DECIMALS,
-                        slope=2,
+                        slope=2 * SLOPE_MULTIPLIER,
                         ts=17 * DAY,
                     ),
                     (1, 3): sp.record(
                         bias=700 * DECIMALS,
-                        slope=3,
+                        slope=3 * SLOPE_MULTIPLIER,
                         ts=24 * DAY,
                     ),
                     (1, 4): sp.record(
                         bias=1000 * DECIMALS,
-                        slope=6,
+                        slope=6 * SLOPE_MULTIPLIER,
                         ts=30 * DAY,
                     ),
                     (1, 5): sp.record(
                         bias=900 * DECIMALS,
-                        slope=5,
+                        slope=5 * SLOPE_MULTIPLIER,
                         ts=36 * DAY,
                     ),
                 },
@@ -1128,32 +1158,32 @@ if __name__ == "__main__":
                 l={
                     (1, 1): sp.record(
                         bias=1000 * DECIMALS,
-                        slope=5,
+                        slope=5 * SLOPE_MULTIPLIER,
                         ts=8 * DAY,
                     ),
                     (1, 2): sp.record(
                         bias=800 * DECIMALS,
-                        slope=2,
+                        slope=2 * SLOPE_MULTIPLIER,
                         ts=17 * DAY,
                     ),
                     (1, 3): sp.record(
                         bias=700 * DECIMALS,
-                        slope=3,
+                        slope=3 * SLOPE_MULTIPLIER,
                         ts=24 * DAY,
                     ),
                     (1, 4): sp.record(
                         bias=1000 * DECIMALS,
-                        slope=6,
+                        slope=6 * SLOPE_MULTIPLIER,
                         ts=30 * DAY,
                     ),
                     (1, 5): sp.record(
                         bias=900 * DECIMALS,
-                        slope=5,
+                        slope=5 * SLOPE_MULTIPLIER,
                         ts=36 * DAY,
                     ),
                     (1, 6): sp.record(
                         bias=500 * DECIMALS,
-                        slope=3,
+                        slope=3 * SLOPE_MULTIPLIER,
                         ts=40 * DAY,
                     ),
                 },
