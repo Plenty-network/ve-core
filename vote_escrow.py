@@ -414,7 +414,8 @@ class VoteEscrow(sp.Contract):
         now_ = sp.as_nat(sp.now - sp.timestamp(0))
 
         # Sanity checks
-        sp.verify(self.data.ledger[(sp.sender, params.token_id)] == 1, Errors.NOT_AUTHORISED)
+        sp.verify(self.data.locks.contains(params.token_id), Errors.LOCK_DOES_NOT_EXIST)
+        sp.verify(self.data.ledger.get((sp.sender, params.token_id), 0) == 1, Errors.NOT_AUTHORISED)
         sp.verify(self.data.locks[params.token_id].end > now_, Errors.LOCK_HAS_EXPIRED)
         sp.verify(params.value > 0, Errors.INVALID_INCREASE_VALUE)
 
@@ -642,9 +643,9 @@ if __name__ == "__main__":
     NOW = int(0.5 * DAY)
     DECIMALS = 10 ** 18
 
-    ##############
-    # create_lock
-    ##############
+    ###########################
+    # create_lock (valid test)
+    ###########################
 
     @sp.add_test(name="create_lock works correctly for locks shorter than maxtime")
     def test():
@@ -744,9 +745,41 @@ if __name__ == "__main__":
         # Tokens get locked in ve
         scenario.verify(ply_token.data.balances[ve.address].balance == 1000 * DECIMALS)
 
-    ###########
-    # withdraw
-    ###########
+    #############################
+    # create_lock (failure test)
+    #############################
+
+    @sp.add_test(name="create_lock fails for invalid lock time")
+    def test():
+        scenario = sp.test_scenario()
+
+        ve = VoteEscrow()
+        scenario += ve
+
+        # When ALICE create a lock with ending before current time, the txn fails
+        scenario += ve.create_lock(
+            user_address=Addresses.ALICE,
+            base_value=1000 * DECIMALS,
+            end=2 * YEAR,
+        ).run(sender=Addresses.ALICE, now=sp.timestamp(3 * YEAR), valid=False, exception=Errors.INVALID_LOCK_TIME)
+
+        # When ALICE create a lock with lock time greater than max-time, the txn fails
+        scenario += ve.create_lock(
+            user_address=Addresses.ALICE,
+            base_value=1000 * DECIMALS,
+            end=MAX_TIME + 2 * WEEK,
+        ).run(sender=Addresses.ALICE, now=sp.timestamp(0), valid=False, exception=Errors.INVALID_LOCK_TIME)
+
+        # When ALICE create a lock with lock time less than a week (4 days here), the txn fails
+        scenario += ve.create_lock(
+            user_address=Addresses.ALICE,
+            base_value=1000 * DECIMALS,
+            end=8 * DAY,
+        ).run(sender=Addresses.ALICE, now=sp.timestamp(3 * DAY), valid=False, exception=Errors.INVALID_LOCK_TIME)
+
+    ########################
+    # withdraw (valid test)
+    ########################
 
     @sp.add_test(name="withdraw allows unlocking of vePLY")
     def test():
@@ -767,7 +800,7 @@ if __name__ == "__main__":
         # Mint PLY for ve
         scenario += ply_token.mint(address=ve.address, value=100).run(sender=Addresses.ADMIN)
 
-        # When ALICE withdraw from her lock under token_id 1
+        # When ALICE withdraws from her lock under token_id 1
         scenario += ve.withdraw(1).run(sender=Addresses.ALICE, now=sp.timestamp(NOW + 7 * DAY))
 
         # Storage is updated correctly
@@ -777,9 +810,61 @@ if __name__ == "__main__":
         # ALICE gets back the underlying PLY
         scenario.verify(ply_token.data.balances[Addresses.ALICE].balance == 100)
 
-    ######################
-    # increase_lock_value
-    ######################
+    ##########################
+    # withdraw (failure test)
+    ##########################
+
+    @sp.add_test(name="withdraw fails if lock does not exist or does not belong to the user")
+    def test():
+        scenario = sp.test_scenario()
+
+        # Setup a lock with base value of 100 PLY and ending in 7 days for ALICE
+        ve = VoteEscrow(
+            ledger=sp.big_map(l={(Addresses.ALICE, 1): 1}),
+            locks=sp.big_map(l={1: sp.record(base_value=100, end=7 * DAY)}),
+        )
+
+        scenario += ve
+
+        # When ALICE tries withdrawing from a lock belonging to invalid token-id 2, txn fails
+        scenario += ve.withdraw(2).run(
+            sender=Addresses.ALICE,
+            now=sp.timestamp(NOW + 7 * DAY),
+            valid=False,
+            exception=Errors.LOCK_DOES_NOT_EXIST,
+        )
+
+        # When BOB tries withdrawing from a lock that does not belong to him, txn fails
+        scenario += ve.withdraw(1).run(
+            sender=Addresses.BOB,
+            now=sp.timestamp(NOW + 7 * DAY),
+            valid=False,
+            exception=Errors.NOT_AUTHORISED,
+        )
+
+    @sp.add_test(name="withdraw fails if lock is yet to expire")
+    def test():
+        scenario = sp.test_scenario()
+
+        # Setup a lock with base value of 100 PLY and ending in 7 days for ALICE
+        ve = VoteEscrow(
+            ledger=sp.big_map(l={(Addresses.ALICE, 1): 1}),
+            locks=sp.big_map(l={1: sp.record(base_value=100, end=7 * DAY)}),
+        )
+
+        scenario += ve
+
+        # When ALICE tries withdrawing before the lock expires, txn fails
+        scenario += ve.withdraw(1).run(
+            sender=Addresses.ALICE,
+            now=sp.timestamp(NOW + 6 * DAY),
+            valid=False,
+            exception=Errors.LOCK_YET_TO_EXPIRE,
+        )
+
+    ###################################
+    # increase_lock_value (valid test)
+    ###################################
 
     @sp.add_test(name="increase_lock_value allows increasing locked PLY value without changing end time")
     def test():
@@ -872,9 +957,43 @@ if __name__ == "__main__":
         # Tokens get locked in ve
         scenario.verify(ply_token.data.balances[ve.address].balance == 100 * DECIMALS)
 
-    #####################
-    # increase_lock_end
-    #####################
+    #####################################
+    # increase_lock_value (failure test)
+    #####################################
+
+    # NOTE: invalid lock and ownership failures are same as 'withdraw'
+
+    @sp.add_test(name="increase_lock_value fails if lock is expired or invalid increase value is provided")
+    def test():
+        scenario = sp.test_scenario()
+
+        # Setup a lock with base value of 100 PLY and ending in 7 days for ALICE
+        ve = VoteEscrow(
+            ledger=sp.big_map(l={(Addresses.ALICE, 1): 1}),
+            locks=sp.big_map(l={1: sp.record(base_value=100, end=7 * DAY)}),
+        )
+
+        scenario += ve
+
+        # When ALICE tries increasing lock value after the lock expires, txn fails
+        scenario += ve.increase_lock_value(token_id=1, value=100 * DECIMALS).run(
+            sender=Addresses.ALICE,
+            now=sp.timestamp(NOW + 8 * DAY),
+            valid=False,
+            exception=Errors.LOCK_HAS_EXPIRED,
+        )
+
+        # When ALICE provides invalid increase value, txn fails
+        scenario += ve.increase_lock_value(token_id=1, value=0).run(
+            sender=Addresses.ALICE,
+            now=sp.timestamp(NOW + 5 * DAY),
+            valid=False,
+            exception=Errors.INVALID_INCREASE_VALUE,
+        )
+
+    #################################
+    # increase_lock_end (valid test)
+    #################################
 
     @sp.add_test(name="increase_lock_end correctly makes smaller than maxtime increase")
     def test():
@@ -1033,6 +1152,41 @@ if __name__ == "__main__":
 
         # Correct checkpoint is added
         scenario.verify(ve.data.token_checkpoints[(1, 2)] == sp.record(bias=bias, slope=slope, ts=increase_ts))
+
+    #################################
+    # increase_lock_end (valid test)
+    #################################
+
+    # NOTE: only the new lock time failure test is relevant. Other failure statements are already verified in
+    # previous tests.
+
+    @sp.add_test(name="increase_lock_end fails if new lock time is not within bounds")
+    def test():
+        scenario = sp.test_scenario()
+
+        # Setup a lock with base value of 100 PLY and ending in 7 days for ALICE
+        ve = VoteEscrow(
+            ledger=sp.big_map(l={(Addresses.ALICE, 1): 1}),
+            locks=sp.big_map(l={1: sp.record(base_value=100, end=7 * DAY)}),
+        )
+
+        scenario += ve
+
+        # When ALICE tries increasing lock end by less than a week, txn fails
+        scenario += ve.increase_lock_end(token_id=1, end=9 * DAY).run(
+            sender=Addresses.ALICE,
+            now=sp.timestamp(NOW + 5 * DAY),
+            valid=False,
+            exception=Errors.INVALID_INCREASE_END_TIMESTAMP,
+        )
+
+        # When ALICE tries increasing lock by more than 4 years, txn fails
+        scenario += ve.increase_lock_end(token_id=1, end=MAX_TIME + YEAR).run(
+            sender=Addresses.ALICE,
+            now=sp.timestamp(NOW + 5 * DAY),
+            valid=False,
+            exception=Errors.INVALID_INCREASE_END_TIMESTAMP,
+        )
 
     ############################
     # record_global_checkpoint
