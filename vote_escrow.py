@@ -145,6 +145,7 @@ class VoteEscrow(sp.Contract):
             tvalue=sp.TNat,
         ),
         base_token=Addresses.TOKEN,
+        locked_supply=sp.nat(0),
     ):
         self.init(
             ledger=ledger,
@@ -157,6 +158,7 @@ class VoteEscrow(sp.Contract):
             global_checkpoints=global_checkpoints,
             slope_changes=slope_changes,
             base_token=base_token,
+            locked_supply=locked_supply,
         )
 
     # Default tzip-12 specified transfer for NFTs
@@ -378,6 +380,9 @@ class VoteEscrow(sp.Contract):
             )
         )
 
+        # Increase locked supply
+        self.data.locked_supply += params.base_value
+
     @sp.entry_point
     def withdraw(self, token_id):
         sp.set_type(token_id, sp.TNat)
@@ -399,6 +404,9 @@ class VoteEscrow(sp.Contract):
                 token_address=self.data.base_token,
             )
         )
+
+        # Decrease locked supply
+        self.data.locked_supply = sp.as_nat(self.data.locked_supply - self.data.locks[token_id].base_value)
 
         # Remove associated token
         self.data.ledger[(sp.sender, token_id)] = 0
@@ -463,7 +471,7 @@ class VoteEscrow(sp.Contract):
             )
         )
 
-        # # Retrieve the increased value in base token
+        # Retrieve the increased value in base token
         TokenUtils.transfer_FA12(
             sp.record(
                 from_=sp.sender,
@@ -472,6 +480,9 @@ class VoteEscrow(sp.Contract):
                 token_address=self.data.base_token,
             )
         )
+
+        # Increase locked supply
+        self.data.locked_supply += params.value
 
     @sp.entry_point
     def increase_lock_end(self, params):
@@ -634,6 +645,10 @@ class VoteEscrow(sp.Contract):
             with sp.else_():
                 sp.result(sp.bool(True))
 
+    @sp.onchain_view()
+    def get_locked_supply(self):
+        sp.result(self.data.locked_supply)
+
 
 if __name__ == "__main__":
 
@@ -695,6 +710,9 @@ if __name__ == "__main__":
         # Tokens get lock in ve
         scenario.verify(ply_token.data.balances[ve.address].balance == 1000 * DECIMALS)
 
+        # Locked supply is updated correctly
+        scenario.verify(ve.data.locked_supply == 1000 * DECIMALS)
+
     @sp.add_test(name="create_lock works correctly for locks of maxtime")
     def test():
         scenario = sp.test_scenario()
@@ -745,6 +763,9 @@ if __name__ == "__main__":
         # Tokens get locked in ve
         scenario.verify(ply_token.data.balances[ve.address].balance == 1000 * DECIMALS)
 
+        # Locked supply is updated correctly
+        scenario.verify(ve.data.locked_supply == 1000 * DECIMALS)
+
     #############################
     # create_lock (failure test)
     #############################
@@ -790,15 +811,16 @@ if __name__ == "__main__":
         # Setup a lock with base value of 100 PLY and ending in 7 days
         ve = VoteEscrow(
             ledger=sp.big_map(l={(Addresses.ALICE, 1): 1}),
-            locks=sp.big_map(l={1: sp.record(base_value=100, end=7 * DAY)}),
+            locks=sp.big_map(l={1: sp.record(base_value=100 * DECIMALS, end=7 * DAY)}),
             base_token=ply_token.address,
+            locked_supply=100 * DECIMALS,
         )
 
         scenario += ply_token
         scenario += ve
 
         # Mint PLY for ve
-        scenario += ply_token.mint(address=ve.address, value=100).run(sender=Addresses.ADMIN)
+        scenario += ply_token.mint(address=ve.address, value=100 * DECIMALS).run(sender=Addresses.ADMIN)
 
         # When ALICE withdraws from her lock under token_id 1
         scenario += ve.withdraw(1).run(sender=Addresses.ALICE, now=sp.timestamp(NOW + 7 * DAY))
@@ -808,7 +830,10 @@ if __name__ == "__main__":
         scenario.verify(ve.data.ledger[(Addresses.ALICE, 1)] == 0)
 
         # ALICE gets back the underlying PLY
-        scenario.verify(ply_token.data.balances[Addresses.ALICE].balance == 100)
+        scenario.verify(ply_token.data.balances[Addresses.ALICE].balance == 100 * DECIMALS)
+
+        # Locked supply is updated correctly
+        scenario.verify(ve.data.locked_supply == 0)
 
     ##########################
     # withdraw (failure test)
@@ -956,6 +981,9 @@ if __name__ == "__main__":
 
         # Tokens get locked in ve
         scenario.verify(ply_token.data.balances[ve.address].balance == 100 * DECIMALS)
+
+        # Locked supply is updated correctly
+        scenario.verify(ve.data.locked_supply == 100 * DECIMALS)
 
     #####################################
     # increase_lock_value (failure test)
@@ -1834,5 +1862,21 @@ if __name__ == "__main__":
 
         # Verify that BOB is not owner of token-id 1
         scenario.verify(~ve.is_owner(sp.record(address=Addresses.BOB, token_id=1)))
+
+    ####################
+    # get_locked_supply
+    ####################
+
+    @sp.add_test(name="get_locked_supply works correctly")
+    def test():
+        scenario = sp.test_scenario()
+
+        # Setup default locked supply value
+        ve = VoteEscrow(locked_supply=100)
+
+        scenario += ve
+
+        # Verify that correct value is returned
+        scenario.verify(ve.get_locked_supply() == 100)
 
     sp.add_compilation_target("vote_escrow", VoteEscrow())

@@ -11,8 +11,12 @@ class VE(sp.Contract):
             tkey=sp.TNat,
             tvalue=sp.TNat,
         ),
+        locked_supply=sp.nat(0),
     ):
-        self.init(powers=powers)
+        self.init(
+            powers=powers,
+            locked_supply=locked_supply,
+        )
 
     @sp.onchain_view()
     def get_token_voting_power(self, params):
@@ -25,3 +29,7 @@ class VE(sp.Contract):
         sp.set_type(params, sp.TRecord(address=sp.TAddress, token_id=sp.TNat))
 
         sp.result(sp.bool(True))
+
+    @sp.onchain_view()
+    def get_locked_supply(self):
+        sp.result(self.data.locked_supply)

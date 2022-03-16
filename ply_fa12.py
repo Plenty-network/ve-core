@@ -2,6 +2,12 @@ import smartpy as sp
 
 Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
 
+############
+# Constants
+############
+
+MAX_SUPPLY = 100_000_000 * (10 ** 18)
+
 # TODO: Update icon url
 TOKEN_METADATA = {
     "decimals": "18",
@@ -25,6 +31,7 @@ class FA12_Error:
     UnsafeAllowanceChange = make("UnsafeAllowanceChange")
     NotAllowed = make("NotAllowed")
     MintingDisabled = make("MintingDisabled")
+    MaxSupplyMinted = make("MaxSupplyMinted")
 
 
 class FA12_common:
@@ -44,7 +51,7 @@ class FA12_core(sp.Contract, FA12_common):
             ),
             totalSupply=0,
             mintingDisabled=False,
-            **extra_storage
+            **extra_storage,
         )
 
     @sp.entry_point
@@ -104,6 +111,11 @@ class FA12_core(sp.Contract, FA12_common):
         sp.set_type(params, sp.TUnit)
         sp.result(self.data.totalSupply)
 
+    # CHANGED: added new onchain view to assist in voter
+    @sp.onchain_view()
+    def get_total_supply(self):
+        sp.result(self.data.totalSupply)
+
 
 class FA12_mint(FA12_core):
     @sp.entry_point
@@ -112,8 +124,14 @@ class FA12_mint(FA12_core):
         sp.verify(self.is_administrator(sp.sender), FA12_Error.NotAdmin)
         sp.verify(~self.data.mintingDisabled, FA12_Error.MintingDisabled)
         self.addAddressIfNecessary(params.address)
-        self.data.balances[params.address].balance += params.value
-        self.data.totalSupply += params.value
+
+        mint_val = sp.local("mint_val", params.value)
+        with sp.if_((self.data.totalSupply + params.value) > MAX_SUPPLY):
+            mint_val.value = sp.as_nat(MAX_SUPPLY - self.data.totalSupply)
+            sp.verify(mint_value.value != 0, FA12_Error.MaxSupplyMinted)
+
+        self.data.balances[params.address].balance += mint_val.value
+        self.data.totalSupply += mint_val.value
 
     @sp.entry_point
     def disableMint(self):
