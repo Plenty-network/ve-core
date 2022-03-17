@@ -128,7 +128,7 @@ class FA12_mint(FA12_core):
         mint_val = sp.local("mint_val", params.value)
         with sp.if_((self.data.totalSupply + params.value) > MAX_SUPPLY):
             mint_val.value = sp.as_nat(MAX_SUPPLY - self.data.totalSupply)
-            sp.verify(mint_value.value != 0, FA12_Error.MaxSupplyMinted)
+            sp.verify(mint_val.value != 0, FA12_Error.MaxSupplyMinted)
 
         self.data.balances[params.address].balance += mint_val.value
         self.data.totalSupply += mint_val.value

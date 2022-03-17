@@ -153,6 +153,7 @@ class Voter(sp.Contract):
             real=sp.nat(0),
             genesis=sp.nat(0),
         ),
+        fee_distributor=Addresses.CONTRACT,
         ply_address=Addresses.TOKEN,
         ve_address=Addresses.CONTRACT,
     ):
@@ -165,6 +166,7 @@ class Voter(sp.Contract):
             total_token_votes=total_token_votes,
             total_epoch_votes=total_epoch_votes,
             emission=emission,
+            fee_distributor=fee_distributor,
             ply_address=ply_address,
             ve_address=ve_address,
         )
@@ -305,6 +307,15 @@ class Voter(sp.Contract):
         sp.verify(self.data.epoch > params.epoch, Errors.INVALID_EPOCH)
         sp.verify(self.data.amm_to_gauge_bribe.contains(params.amm), Errors.AMM_INVALID_OR_NOT_WHITELISTED)
 
+        # Verify that the sender owns the specified token / lock
+        is_owner = sp.view(
+            "is_owner",
+            self.data.ve_address,
+            sp.record(address=sp.sender, token_id=params.token_id),
+            sp.TBool,
+        ).open_some(Errors.INVALID_VIEW)
+        sp.verify(is_owner, Errors.SENDER_DOES_NOT_OWN_LOCK)
+
         # Calculate share weightage for the vePLY token
         token_votes_for_amm = self.data.token_amm_votes[
             sp.record(token_id=params.token_id, epoch=params.epoch, amm=params.amm)
@@ -323,6 +334,15 @@ class Voter(sp.Contract):
         sp.verify(self.data.epoch > params.epoch, Errors.INVALID_EPOCH)
         sp.verify(self.data.amm_to_gauge_bribe.contains(params.amm), Errors.AMM_INVALID_OR_NOT_WHITELISTED)
 
+        # Verify that the sender owns the specified token / lock
+        is_owner = sp.view(
+            "is_owner",
+            self.data.ve_address,
+            sp.record(address=sp.sender, token_id=params.token_id),
+            sp.TBool,
+        ).open_some(Errors.INVALID_VIEW)
+        sp.verify(is_owner, Errors.SENDER_DOES_NOT_OWN_LOCK)
+
         # Calculate share weightage for the vePLY token
         token_votes_for_amm = self.data.token_amm_votes[
             sp.record(token_id=params.token_id, epoch=params.epoch, amm=params.amm)
@@ -331,7 +351,28 @@ class Voter(sp.Contract):
 
         token_vote_share = (token_votes_for_amm * VOTE_SHARE_MULTIPLIER) // total_votes_for_amm
 
-        # TODO: call the 'claim' entrypoint in fee_distributor contract
+        # call the 'claim' entrypoint in Fee Distributor to distribute the fee to the token holder
+        param_type = sp.TRecord(
+            token_id=sp.TNat,
+            owner=sp.TAddress,
+            amm=sp.TAddress,
+            epoch=sp.TNat,
+            weight_share=sp.TNat,
+        ).layout(("token_id", ("owner", ("amm", ("epoch", "weight_share")))))
+
+        c = sp.contract(param_type, self.data.fee_distributor, "claim").open_some()
+
+        sp.transfer(
+            sp.record(
+                token_id=params.token_id,
+                owner=sp.sender,
+                amm=params.amm,
+                epoch=params.epoch,
+                weight_share=token_vote_share,
+            ),
+            sp.tez(0),
+            c,
+        )
 
     @sp.entry_point
     def pull_amm_fee(self, params):

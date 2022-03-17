@@ -8,8 +8,11 @@ MIKE = sp.test_account("mike").address
 
 # Dummy addresses
 CONTRACT = sp.test_account("contract").address
+AMM = sp.test_account("amm").address
 AMM_1 = sp.test_account("amm_1").address
 AMM_2 = sp.test_account("amm_2").address
 AMM_3 = sp.test_account("amm_3").address
 TOKEN = sp.test_account("token").address
+TOKEN_1 = sp.test_account("token_1").address
+TOKEN_2 = sp.test_account("token_2").address
 ADMIN = sp.test_account("admin").address

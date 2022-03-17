@@ -43,7 +43,7 @@ code
             GET;        # option (pair (map address nat) nat) : nat : @parameter%approve : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
             IF_NONE
               {
-                PUSH int 78; # int : nat : @parameter%approve : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                PUSH int 85; # int : nat : @parameter%approve : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
                 FAILWITH;   # FAILED
               }
               {}; # @some : nat : @parameter%approve : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
@@ -88,7 +88,7 @@ code
             GET;        # option (pair (map address nat) nat) : @sender : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%approve
             IF_NONE
               {
-                PUSH int 80; # int : @sender : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%approve
+                PUSH int 87; # int : @sender : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%approve
                 FAILWITH;   # FAILED
               }
               {}; # @some : @sender : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%approve
@@ -163,7 +163,7 @@ code
                     GET;        # option (pair (map %approvals address nat) (nat %balance)) : @parameter%getAllowance : @storage
                     IF_NONE
                       {
-                        PUSH int 98; # int : @parameter%getAllowance : @storage
+                        PUSH int 105; # int : @parameter%getAllowance : @storage
                         FAILWITH;   # FAILED
                       }
                       {}; # @some : @parameter%getAllowance : @storage
@@ -227,7 +227,7 @@ code
                     GET;        # option (pair (map %approvals address nat) (nat %balance)) : @parameter%getBalance : @storage
                     IF_NONE
                       {
-                        PUSH int 90; # int : @parameter%getBalance : @storage
+                        PUSH int 97; # int : @parameter%getBalance : @storage
                         FAILWITH;   # FAILED
                       }
                       {}; # @some : @parameter%getBalance : @storage
@@ -323,42 +323,82 @@ code
                     PAIR;       # pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))) : @parameter%mint
                     SWAP;       # @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
                   }; # @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
-                SWAP;       # pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))) : @parameter%mint
-                # self.data.balances[params.address].balance += params.value # pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))) : @parameter%mint
-                UNPAIR;     # pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes)) : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
-                UNPAIR;     # address : pair (big_map address (pair (map address nat) nat)) (big_map string bytes) : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
-                SWAP;       # pair (big_map address (pair (map address nat) nat)) (big_map string bytes) : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
-                UNPAIR;     # big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
-                DUP;        # big_map address (pair (map address nat) nat) : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
-                DUP 6;      # @parameter%mint : big_map address (pair (map address nat) nat) : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
-                CAR;        # address : big_map address (pair (map address nat) nat) : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
-                DUP;        # address : address : big_map address (pair (map address nat) nat) : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
-                DUG 2;      # address : big_map address (pair (map address nat) nat) : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
-                GET;        # option (pair (map address nat) nat) : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
+                # mint_val = sp.local("mint_val", params.value) # @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                DUP;        # @parameter%mint : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                CDR;        # nat : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                # if (self.data.totalSupply + params.value) > 100000000000000000000000000: # nat : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                PUSH nat 100000000000000000000000000; # nat : nat : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                DUP 3;      # @parameter%mint : nat : nat : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                CDR;        # nat : nat : nat : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                DUP 5;      # pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))) : nat : nat : nat : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                GET 6;      # nat : nat : nat : nat : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                ADD;        # nat : nat : nat : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                COMPARE;    # int : nat : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                GT;         # bool : nat : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                IF
+                  {
+                    DROP;       # @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                    SWAP;       # pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))) : @parameter%mint
+                    # mint_val.value = sp.as_nat(100000000000000000000000000 - self.data.totalSupply) # pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))) : @parameter%mint
+                    DUP;        # pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))) : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))) : @parameter%mint
+                    DUG 2;      # pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))) : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                    GET 6;      # nat : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                    PUSH nat 100000000000000000000000000; # nat : nat : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                    SUB;        # int : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                    ISNAT;      # option nat : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                    IF_NONE
+                      {
+                        PUSH int 130; # int : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                        FAILWITH;   # FAILED
+                      }
+                      {}; # @some : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                    # sp.verify(mint_val.value != 0, 'FA1.2_MaxSupplyMinted') # @some : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                    DUP;        # @some : @some : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                    PUSH nat 0; # nat : @some : @some : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                    COMPARE;    # int : @some : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                    NEQ;        # bool : @some : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                    IF
+                      {}
+                      {
+                        PUSH string "FA1.2_MaxSupplyMinted"; # string : @some : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                        FAILWITH;   # FAILED
+                      }; # @some : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                  }
+                  {}; # nat : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                # self.data.balances[params.address].balance += mint_val.value # nat : @parameter%mint : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                DIG 2;      # pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))) : nat : @parameter%mint
+                UNPAIR;     # pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes)) : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : nat : @parameter%mint
+                UNPAIR;     # address : pair (big_map address (pair (map address nat) nat)) (big_map string bytes) : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : nat : @parameter%mint
+                SWAP;       # pair (big_map address (pair (map address nat) nat)) (big_map string bytes) : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : nat : @parameter%mint
+                UNPAIR;     # big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : nat : @parameter%mint
+                DUP;        # big_map address (pair (map address nat) nat) : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : nat : @parameter%mint
+                DIG 6;      # @parameter%mint : big_map address (pair (map address nat) nat) : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : nat
+                CAR;        # address : big_map address (pair (map address nat) nat) : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : nat
+                DUP;        # address : address : big_map address (pair (map address nat) nat) : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : nat
+                DUG 2;      # address : big_map address (pair (map address nat) nat) : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : nat
+                GET;        # option (pair (map address nat) nat) : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : nat
                 IF_NONE
                   {
-                    PUSH int 115; # int : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
+                    PUSH int 133; # int : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : nat
                     FAILWITH;   # FAILED
                   }
-                  {}; # @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
-                DUP;        # @some : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
-                CDR;        # nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
-                DUP 8;      # @parameter%mint : nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
-                CDR;        # nat : nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
-                ADD;        # nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
-                UPDATE 2;   # @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
-                SOME;       # option (pair (map address nat) nat) : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
-                SWAP;       # address : option (pair (map address nat) nat) : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
-                UPDATE;     # big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
-                PAIR;       # pair (big_map address (pair (map address nat) nat)) (big_map string bytes) : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
-                SWAP;       # address : pair (big_map address (pair (map address nat) nat)) (big_map string bytes) : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
-                PAIR;       # pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes)) : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
-                PAIR;       # pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))) : @parameter%mint
-                # self.data.totalSupply += params.value # pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))) : @parameter%mint
-                DUP;        # pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))) : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))) : @parameter%mint
-                GET 6;      # nat : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))) : @parameter%mint
-                DIG 2;      # @parameter%mint : nat : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
-                CDR;        # nat : nat : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                  {}; # @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : nat
+                DUP;        # @some : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : nat
+                CDR;        # nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : nat
+                DUP 8;      # nat : nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : nat
+                ADD;        # nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : nat
+                UPDATE 2;   # @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : nat
+                SOME;       # option (pair (map address nat) nat) : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : nat
+                SWAP;       # address : option (pair (map address nat) nat) : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : nat
+                UPDATE;     # big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : nat
+                PAIR;       # pair (big_map address (pair (map address nat) nat)) (big_map string bytes) : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : nat
+                SWAP;       # address : pair (big_map address (pair (map address nat) nat)) (big_map string bytes) : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : nat
+                PAIR;       # pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes)) : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : nat
+                PAIR;       # pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))) : nat
+                # self.data.totalSupply += mint_val.value # pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))) : nat
+                DUP;        # pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))) : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))) : nat
+                GET 6;      # nat : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))) : nat
+                DIG 2;      # nat : nat : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
                 ADD;        # nat : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
                 UPDATE 6;   # pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
               }
@@ -385,7 +425,7 @@ code
                     GET;        # option (pair (map %approvals address nat) (nat %balance)) : nat : @parameter%transfer : @storage
                     IF_NONE
                       {
-                        PUSH int 59; # int : nat : @parameter%transfer : @storage
+                        PUSH int 66; # int : nat : @parameter%transfer : @storage
                         FAILWITH;   # FAILED
                       }
                       {}; # @some : nat : @parameter%transfer : @storage
@@ -394,7 +434,7 @@ code
                     GET;        # option nat : nat : @parameter%transfer : @storage
                     IF_NONE
                       {
-                        PUSH int 59; # int : nat : @parameter%transfer : @storage
+                        PUSH int 66; # int : nat : @parameter%transfer : @storage
                         FAILWITH;   # FAILED
                       }
                       {}; # @some : nat : @parameter%transfer : @storage
@@ -478,7 +518,7 @@ code
                 GET;        # option (pair (map address nat) nat) : nat : @parameter%transfer : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
                 IF_NONE
                   {
-                    PUSH int 65; # int : nat : @parameter%transfer : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                    PUSH int 72; # int : nat : @parameter%transfer : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
                     FAILWITH;   # FAILED
                   }
                   {}; # @some : nat : @parameter%transfer : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
@@ -507,7 +547,7 @@ code
                 GET;        # option (pair (map address nat) nat) : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
                 IF_NONE
                   {
-                    PUSH int 66; # int : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                    PUSH int 73; # int : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
                     FAILWITH;   # FAILED
                   }
                   {}; # @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
@@ -521,7 +561,7 @@ code
                 GET;        # option (pair (map address nat) nat) : nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer
                 IF_NONE
                   {
-                    PUSH int 66; # int : nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer
+                    PUSH int 73; # int : nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer
                     FAILWITH;   # FAILED
                   }
                   {}; # @some : nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer
@@ -530,7 +570,7 @@ code
                 ISNAT;      # option nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer
                 IF_NONE
                   {
-                    PUSH int 66; # int : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer
+                    PUSH int 73; # int : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer
                     FAILWITH;   # FAILED
                   }
                   {}; # @some : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer
@@ -547,7 +587,7 @@ code
                 GET;        # option (pair (map address nat) nat) : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer
                 IF_NONE
                   {
-                    PUSH int 67; # int : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer
+                    PUSH int 74; # int : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer
                     FAILWITH;   # FAILED
                   }
                   {}; # @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer
@@ -589,7 +629,7 @@ code
                     GET;        # option (pair (map address nat) nat) : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
                     IF_NONE
                       {
-                        PUSH int 70; # int : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                        PUSH int 77; # int : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
                         FAILWITH;   # FAILED
                       }
                       {}; # @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
@@ -605,7 +645,7 @@ code
                     GET;        # option (pair (map address nat) nat) : nat : map address nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))
                     IF_NONE
                       {
-                        PUSH int 71; # int : nat : map address nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))
+                        PUSH int 78; # int : nat : map address nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))
                         FAILWITH;   # FAILED
                       }
                       {}; # @some : nat : map address nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))
@@ -614,7 +654,7 @@ code
                     GET;        # option nat : nat : map address nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))
                     IF_NONE
                       {
-                        PUSH int 71; # int : nat : map address nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))
+                        PUSH int 78; # int : nat : map address nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))
                         FAILWITH;   # FAILED
                       }
                       {}; # @some : nat : map address nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))
@@ -622,7 +662,7 @@ code
                     ISNAT;      # option nat : map address nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))
                     IF_NONE
                       {
-                        PUSH int 70; # int : map address nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))
+                        PUSH int 77; # int : map address nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))
                         FAILWITH;   # FAILED
                       }
                       {}; # @some : map address nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))
@@ -646,4 +686,11 @@ code
           }; # list operation : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
       }; # list operation : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
     PAIR;       # pair (list operation) (pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (bool %mintingDisabled) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))))
+  };
+view
+  "get_total_supply" unit nat
+  {
+    CDR;        # @storage
+    # sp.result(self.data.totalSupply) # @storage
+    GET 6;      # nat
   };
