@@ -324,7 +324,28 @@ class Voter(sp.Contract):
 
         token_vote_share = (token_votes_for_amm * VOTE_SHARE_MULTIPLIER) // total_votes_for_amm
 
-        # TODO: call the 'claim' entrypoint in bribe contract
+        # call the 'claim' entrypoint in bribe contract
+        param_type = sp.TRecord(
+            token_id=sp.TNat,
+            owner=sp.TAddress,
+            epoch=sp.TNat,
+            bribe_id=sp.TNat,
+            weight_share=sp.TNat,
+        ).layout(("token_id", ("owner", ("epoch", ("bribe_id", "weight_share")))))
+
+        c = sp.contract(param_type, self.data.amm_to_gauge_bribe[params.amm].bribe, "claim").open_some()
+
+        sp.transfer(
+            sp.record(
+                token_id=params.token_id,
+                owner=sp.sender,
+                epoch=params.epoch,
+                bribe_id=params.bribe_id,
+                weight_share=token_vote_share,
+            ),
+            sp.tez(0),
+            c,
+        )
 
     @sp.entry_point
     def claim_fee(self, params):
