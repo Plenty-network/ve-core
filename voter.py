@@ -5,6 +5,7 @@ VE = sp.io.import_script_from_url("file:helpers/dummy/ve.py").VE
 Ply = sp.io.import_script_from_url("file:helpers/dummy/ply.py").Ply
 TokenUtils = sp.io.import_script_from_url("file:utils/token.py")
 FA12 = sp.io.import_script_from_url("file:ply_fa12.py").FA12
+GaugeBribe = sp.io.import_script_from_url("file:helpers/dummy/gauge_bribe.py").GaugeBribe
 
 ############
 # Constants
@@ -595,6 +596,78 @@ if __name__ == "__main__":
             exception=Errors.NOT_ENOUGH_VOTING_POWER_AVAILABLE,
         )
 
+    @sp.add_test(name="vote fails if zero vote is deposited for a certain amm")
+    def test():
+        scenario = sp.test_scenario()
+
+        # Initialize dummy vote escrow with two tokens of voting powers 100 & 150
+        ve = VE(powers=sp.big_map(l={1: sp.nat(100), 2: sp.nat(150)}))
+
+        # Initialize voter with an AMM
+        voter = Voter(
+            epoch=1,
+            epoch_end=sp.big_map(l={1: sp.timestamp(10)}),
+            amm_to_gauge_bribe=sp.big_map(
+                l={
+                    Addresses.AMM_1: sp.record(gauge=Addresses.CONTRACT, bribe=Addresses.CONTRACT),
+                    Addresses.AMM_2: sp.record(gauge=Addresses.CONTRACT, bribe=Addresses.CONTRACT),
+                }
+            ),
+            ve_address=ve.address,
+        )
+
+        scenario += ve
+        scenario += voter
+
+        # When ALICE puts zero vote for AMM_1, the txn fails
+        scenario += voter.vote(
+            sp.record(
+                token_id=1,
+                vote_items=sp.list([sp.record(amm=Addresses.AMM_1, votes=0)]),
+            )
+        ).run(
+            sender=Addresses.ALICE,
+            now=sp.timestamp(5),
+            valid=False,
+            exception=Errors.ZERO_VOTE_NOT_ALLOWED,
+        )
+
+    @sp.add_test(name="vote fails if epoch has already ended")
+    def test():
+        scenario = sp.test_scenario()
+
+        # Initialize dummy vote escrow with two tokens of voting powers 100 & 150
+        ve = VE(powers=sp.big_map(l={1: sp.nat(100), 2: sp.nat(150)}))
+
+        # Initialize voter with an AMM
+        voter = Voter(
+            epoch=1,
+            epoch_end=sp.big_map(l={1: sp.timestamp(10)}),
+            amm_to_gauge_bribe=sp.big_map(
+                l={
+                    Addresses.AMM_1: sp.record(gauge=Addresses.CONTRACT, bribe=Addresses.CONTRACT),
+                    Addresses.AMM_2: sp.record(gauge=Addresses.CONTRACT, bribe=Addresses.CONTRACT),
+                }
+            ),
+            ve_address=ve.address,
+        )
+
+        scenario += ve
+        scenario += voter
+
+        # When ALICE votes after the epoch has ended, txn fails
+        scenario += voter.vote(
+            sp.record(
+                token_id=1,
+                vote_items=sp.list([sp.record(amm=Addresses.AMM_1, votes=0)]),
+            )
+        ).run(
+            sender=Addresses.ALICE,
+            now=sp.timestamp(11),
+            valid=False,
+            exception=Errors.EPOCH_ENDED,
+        )
+
     ##########################
     # next_epoch (valid test)
     ##########################
@@ -736,5 +809,131 @@ if __name__ == "__main__":
         # Emission values are updated correctly
         scenario.verify(voter.data.emission.base == 10_000 * DECIMALS)
         scenario.verify(voter.data.emission.real == 11_250 * DECIMALS)
+
+    ############################
+    # next_epoch (failure test)
+    ############################
+
+    @sp.add_test(name="next_epoch fails if called before current epoch is over")
+    def test():
+        scenario = sp.test_scenario()
+
+        voter = Voter(
+            epoch_end=sp.big_map(
+                l={
+                    1: sp.timestamp(5),
+                }
+            ),
+            epoch=sp.nat(1),
+        )
+
+        scenario += voter
+
+        # When next_epoch is called before the current epoch is over, the txn fails
+        scenario += voter.next_epoch().run(
+            now=sp.timestamp(4),
+            valid=False,
+            exception=Errors.PREVIOUS_EPOCH_YET_TO_END,
+        )
+
+    ###########################
+    # claim_bribe (valid test)
+    ###########################
+
+    # NOTE: This will also be accepted for weight share calculation in claim_fee
+
+    @sp.add_test(name="claim_bribe correctly calculates the vote weight share")
+    def test():
+        scenario = sp.test_scenario()
+
+        # Initialize dummy vote escrow for ownership checks
+        ve = VE()
+
+        # Initialize a dummy bribe contract and set it in the voter for AMM_1
+        bribe = GaugeBribe()
+
+        # Initialize with some votes for epoch 1
+        voter = Voter(
+            epoch=2,
+            epoch_end=sp.big_map(l={2: sp.timestamp(10)}),
+            amm_to_gauge_bribe=sp.big_map(
+                l={
+                    Addresses.AMM_1: sp.record(gauge=Addresses.CONTRACT, bribe=bribe.address),
+                }
+            ),
+            token_amm_votes=sp.big_map(
+                l={
+                    sp.record(token_id=1, epoch=1, amm=Addresses.AMM_1): 150,
+                }
+            ),
+            total_amm_votes=sp.big_map(
+                l={
+                    sp.record(epoch=1, amm=Addresses.AMM_1): 250,
+                }
+            ),
+            ve_address=ve.address,
+        )
+
+        scenario += ve
+        scenario += bribe
+        scenario += voter
+
+        # When ALICE calls claim_bribe for epoch 1 votes
+        scenario += voter.claim_bribe(
+            sp.record(
+                token_id=1,
+                epoch=1,
+                amm=Addresses.AMM_1,
+                bribe_id=1,
+            )
+        ).run(sender=Addresses.ALICE)
+
+        # Vote weight is calculated correctly and bribe contract is called with correct values
+        scenario.verify(
+            bribe.data.claim_val.open_some()
+            == sp.record(
+                token_id=1,
+                epoch=1,
+                owner=Addresses.ALICE,
+                bribe_id=1,
+                weight_share=int(0.6 * VOTE_SHARE_MULTIPLIER),
+            )
+        )
+
+    #############################
+    # claim_bribe (failure test)
+    #############################
+
+    # NOTE: This failure test is also accepted for claim_fee, recharge_gauge and pull_amm_fee
+
+    @sp.add_test(name="claim_bribe fails if epoch is in the future or amm is not whitelisted")
+    def test():
+        scenario = sp.test_scenario()
+
+        voter = Voter(
+            epoch=1,
+            epoch_end=sp.big_map(l={1: sp.timestamp(10)}),
+            amm_to_gauge_bribe=sp.big_map(
+                l={
+                    Addresses.AMM_1: sp.record(gauge=Addresses.CONTRACT, bribe=Addresses.CONTRACT),
+                }
+            ),
+        )
+
+        scenario += voter
+
+        # When ALICE tries to claim bribe for future epoch 2, txn fails
+        scenario += voter.claim_bribe(token_id=1, epoch=2, amm=Addresses.AMM_1, bribe_id=1).run(
+            sender=Addresses.ALICE,
+            valid=False,
+            exception=Errors.INVALID_EPOCH,
+        )
+
+        # When ALICE tries to claim bribe for non-whitelisted AMM, txn fails
+        scenario += voter.claim_bribe(token_id=1, epoch=0, amm=Addresses.AMM_2, bribe_id=1).run(
+            sender=Addresses.ALICE,
+            valid=False,
+            exception=Errors.AMM_INVALID_OR_NOT_WHITELISTED,
+        )
 
     sp.add_compilation_target("voter", Voter())

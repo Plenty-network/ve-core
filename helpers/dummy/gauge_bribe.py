@@ -1,0 +1,23 @@
+import smartpy as sp
+
+# Dummy contract to test calls to Bribe and Gauge contracts from within the Voter contract
+
+
+class GaugeBribe(sp.Contract):
+    def __init__(self):
+        self.init(claim_val=sp.none)
+
+    @sp.entry_point
+    def claim(self, params):
+        sp.set_type(
+            params,
+            sp.TRecord(
+                token_id=sp.TNat,
+                owner=sp.TAddress,
+                epoch=sp.TNat,
+                bribe_id=sp.TNat,
+                weight_share=sp.TNat,
+            ).layout(("token_id", ("owner", ("epoch", ("bribe_id", "weight_share"))))),
+        )
+
+        self.data.claim_val = sp.some(params)
