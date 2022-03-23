@@ -20,7 +20,14 @@ class VE(sp.Contract):
 
     @sp.onchain_view()
     def get_token_voting_power(self, params):
-        sp.set_type(params, sp.TRecord(token_id=sp.TNat, ts=sp.TNat))
+        sp.set_type(
+            params,
+            sp.TRecord(
+                token_id=sp.TNat,
+                ts=sp.TNat,
+                time=sp.TNat,
+            ),
+        )
 
         sp.result(self.data.powers[params.token_id])
 

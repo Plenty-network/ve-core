@@ -68,6 +68,10 @@ class Types:
         end=sp.TNat,
     ).layout(("user_address", ("base_value", "end")))
 
+    # Enumeration for voting power readers
+    CURRENT = 0
+    WHOLE_WEEK = 1
+
 
 #########
 # Errors
@@ -83,6 +87,8 @@ class Errors:
     INVALID_INCREASE_VALUE = "INVALID_INCREASE_VALUE"
     INVALID_INCREASE_END_TIMESTAMP = "INVALID_INCREASE_END_TIMESTAMP"
     TOO_EARLY_TIMESTAMP = "TOO_EARLY_TIMESTAMP"
+    INVALID_TIME = "INVALID_TIME"
+    LOCK_IS_ATTACHED = "LOCK_IS_ATTACHED"
 
 
 # TZIP-12 specified errors for FA2 standard
@@ -123,6 +129,11 @@ class VoteEscrow(sp.Contract):
             tkey=sp.TNat,
             tvalue=Types.LOCK,
         ),
+        attached=sp.big_map(
+            l={},
+            tkey=sp.TNat,
+            tvalue=sp.TBool,
+        ),
         token_checkpoints=sp.big_map(
             l={},
             tkey=sp.TPair(sp.TNat, sp.TNat),
@@ -151,6 +162,7 @@ class VoteEscrow(sp.Contract):
             ledger=ledger,
             operators=operators,
             locks=locks,
+            attached=attached,
             uid=sp.nat(0),
             token_checkpoints=token_checkpoints,
             num_token_checkpoints=num_token_checkpoints,
@@ -178,6 +190,9 @@ class VoteEscrow(sp.Contract):
                     ),
                     FA2_Errors.FA2_NOT_OPERATOR,
                 )
+
+                # Verify that lock is not attached
+                sp.verify(~self.data.attached.get(tx.token_id, sp.bool(False)), Errors.LOCK_IS_ATTACHED)
 
                 # Verify that the token id belongs to a lock
                 sp.verify(self.data.locks.contains(tx.token_id), FA2_Errors.FA2_TOKEN_UNDEFINED)
@@ -248,6 +263,25 @@ class VoteEscrow(sp.Contract):
                         FA2_Errors.FA2_NOT_OWNER,
                     )
                     del self.data.operators[upd]
+
+    @sp.entry_point
+    def attach(self, params):
+        sp.set_type(params, sp.TRecord(attachments=sp.TList(sp.TPair(sp.TNat, sp.TBool)), owner=sp.TAddress))
+
+        with sp.for_("attachment", params.attachments) as attachment:
+            sp.verify(self.data.ledger.get((sp.sender, sp.fst(attachment)), 0) == 1, Errors.NOT_AUTHORISED)
+            sp.verify(
+                (sp.sender == params.owner)
+                | self.data.operators.contains(
+                    sp.record(
+                        owner=params.owner,
+                        operator=sp.sender,
+                        token_id=sp.fst(attachment),
+                    )
+                )
+            )
+
+            self.data.attached[sp.fst(attachment)] = sp.snd(attachment)
 
     @sp.private_lambda(with_storage="read-write", wrap_call=True)
     def record_global_checkpoint(self, params):
@@ -394,6 +428,7 @@ class VoteEscrow(sp.Contract):
         sp.verify(self.data.locks.contains(token_id), Errors.LOCK_DOES_NOT_EXIST)
         sp.verify(self.data.ledger.get((sp.sender, token_id), 0) == 1, Errors.NOT_AUTHORISED)
         sp.verify(now_ > self.data.locks[token_id].end, Errors.LOCK_YET_TO_EXPIRE)
+        sp.verify(~self.data.attached.get(token_id, sp.bool(False)), Errors.LOCK_IS_ATTACHED)
 
         # Transfer underlying PLY
         TokenUtils.transfer_FA12(
@@ -538,12 +573,23 @@ class VoteEscrow(sp.Contract):
 
     @sp.onchain_view()
     def get_token_voting_power(self, params):
-        sp.set_type(params, sp.TRecord(token_id=sp.TNat, ts=sp.TNat))
+        sp.set_type(
+            params,
+            sp.TRecord(
+                token_id=sp.TNat,
+                ts=sp.TNat,
+                time=sp.TNat,
+            ),
+        )
 
-        # Find a timestamp rounded off to nearest week
-        ts = (params.ts // WEEK) * WEEK
+        # Find a operating timestamp based on user supplied time type in parameters
+        factor = sp.local("factor", WEEK)
+        with sp.if_(params.time == Types.CURRENT):
+            factor.value = 1
+        ts = (params.ts // factor.value) * factor.value
 
         # Sanity checks
+        sp.verify((params.time == Types.CURRENT) | (params.time == Types.WHOLE_WEEK), Errors.INVALID_TIME)
         sp.verify(self.data.locks.contains(params.token_id), Errors.LOCK_DOES_NOT_EXIST)
         sp.verify(ts >= self.data.token_checkpoints[(params.token_id, 1)].ts, Errors.TOO_EARLY_TIMESTAMP)
 
@@ -582,13 +628,23 @@ class VoteEscrow(sp.Contract):
                 sp.result(sp.as_nat(bias - (sp.as_nat(d_ts) * slope) // SLOPE_MULTIPLIER))
 
     @sp.onchain_view()
-    def get_total_voting_power(self, param_ts):
-        sp.set_type(param_ts, sp.TNat)
+    def get_total_voting_power(self, params):
+        sp.set_type(
+            params,
+            sp.TRecord(
+                ts=sp.TNat,
+                time=sp.TNat,
+            ),
+        )
 
-        # Find a timestamp rounded off to nearest week
-        ts = (param_ts // WEEK) * WEEK
+        # Find a operating timestamp based on user supplied time type in parameters
+        factor = sp.local("factor", WEEK)
+        with sp.if_(params.time == Types.CURRENT):
+            factor.value = 1
+        ts = (params.ts // factor.value) * factor.value
 
         # Sanity check
+        sp.verify((params.time == Types.CURRENT) | (params.time == Types.WHOLE_WEEK), Errors.INVALID_TIME)
         sp.verify(ts >= self.data.global_checkpoints[1].ts, Errors.TOO_EARLY_TIMESTAMP)
 
         # Checkpoint closest to requested ts
@@ -618,9 +674,9 @@ class VoteEscrow(sp.Contract):
         n_ts = sp.local("n_ts", ((c_cp.value.ts + WEEK) // WEEK) * WEEK)
         c_ts = sp.local("c_ts", c_cp.value.ts)
 
-        with sp.if_(n_ts.value <= ts):
+        with sp.if_(n_ts.value < ts):
             # Can go upto ts here, since ts is a whole WEEK
-            with sp.while_((n_ts.value <= ts) & (c_bias.value != 0)):
+            with sp.while_((n_ts.value < ts) & (c_bias.value != 0)):
                 d_ts = sp.as_nat(n_ts.value - c_ts.value)
                 c_bias.value = sp.as_nat(c_bias.value - (d_ts * c_slope.value) // SLOPE_MULTIPLIER)
 
@@ -630,6 +686,10 @@ class VoteEscrow(sp.Contract):
                 # Update n_ts
                 c_ts.value = n_ts.value
                 n_ts.value = n_ts.value + WEEK
+
+        with sp.if_(c_bias.value != 0):
+            d_ts = sp.as_nat(ts - c_ts.value)
+            c_bias.value = sp.as_nat(c_bias.value - (d_ts * c_slope.value) // SLOPE_MULTIPLIER)
 
         sp.result(c_bias.value)
 
@@ -1425,11 +1485,19 @@ if __name__ == "__main__":
         ts_2 = 28 * DAY  # rounded ts
         bias_2 = (700 * DECIMALS) - (4 * DAY) * 3
 
+        # Predicted voting power for unrounded current time at ts = 29 * DAY
+        bias_unrounded = (700 * DECIMALS) - (5 * DAY) * 3
+
         # Correct voting power is received for 23 * DAY
-        scenario.verify(ve.get_token_voting_power(sp.record(token_id=1, ts=ts_1)) == bias_1)
+        scenario.verify(ve.get_token_voting_power(sp.record(token_id=1, ts=ts_1, time=Types.WHOLE_WEEK)) == bias_1)
 
         # Correct voting power is received for 29 * DAY
-        scenario.verify(ve.get_token_voting_power(sp.record(token_id=1, ts=ts_2)) == bias_2)
+        scenario.verify(ve.get_token_voting_power(sp.record(token_id=1, ts=ts_2, time=Types.WHOLE_WEEK)) == bias_2)
+
+        # Correct voting power is received for 29 * DAY (unrounded)
+        scenario.verify(
+            ve.get_token_voting_power(sp.record(token_id=1, ts=29 * DAY, time=Types.CURRENT)) == bias_unrounded
+        )
 
     @sp.add_test(name="get_token_voting_power works for even number of checkpoints")
     def test():
@@ -1496,11 +1564,19 @@ if __name__ == "__main__":
         ts_2 = 35 * DAY  # rounded ts
         bias_2 = (1000 * DECIMALS) - (5 * DAY) * 6
 
+        # Predicted voting power for unrounded current time at ts = 37 * DAY
+        bias_unrounded = (900 * DECIMALS) - (1 * DAY) * 5
+
         # Correct voting power is received for 29 * DAY
-        scenario.verify(ve.get_token_voting_power(sp.record(token_id=1, ts=ts_1)) == bias_1)
+        scenario.verify(ve.get_token_voting_power(sp.record(token_id=1, ts=ts_1, time=Types.WHOLE_WEEK)) == bias_1)
 
         # Correct voting power is received for 38 * DAY
-        scenario.verify(ve.get_token_voting_power(sp.record(token_id=1, ts=ts_2)) == bias_2)
+        scenario.verify(ve.get_token_voting_power(sp.record(token_id=1, ts=ts_2, time=Types.WHOLE_WEEK)) == bias_2)
+
+        # Correct voting power is received for 37 * DAY (unrounded)
+        scenario.verify(
+            ve.get_token_voting_power(sp.record(token_id=1, ts=37 * DAY, time=Types.CURRENT)) == bias_unrounded
+        )
 
     @sp.add_test(name="get_token_voting_power works for timestamp that is within the checkpoints")
     def test():
@@ -1560,7 +1636,9 @@ if __name__ == "__main__":
         scenario += ve
 
         # Correct voting power is received for 36 * DAY
-        scenario.verify(ve.get_token_voting_power(sp.record(token_id=1, ts=36 * DAY)) == 900 * DECIMALS)
+        scenario.verify(
+            ve.get_token_voting_power(sp.record(token_id=1, ts=36 * DAY, time=Types.WHOLE_WEEK)) == 900 * DECIMALS
+        )
 
     @sp.add_test(name="get_token_voting_power works for timestamps after expiry")
     def test():
@@ -1620,7 +1698,7 @@ if __name__ == "__main__":
         scenario += ve
 
         # Correct voting power is received after expiry - i.e 0
-        scenario.verify(ve.get_token_voting_power(sp.record(token_id=1, ts=44 * DAY)) == 0)
+        scenario.verify(ve.get_token_voting_power(sp.record(token_id=1, ts=44 * DAY, time=Types.WHOLE_WEEK)) == 0)
 
     #########################
     # get_total_voting_power
@@ -1677,8 +1755,12 @@ if __name__ == "__main__":
         # Predicted global voting power (bias_2) for ts = 38 * DAY (35 * DAY if rounded)
         bias_2 = (1000 * DECIMALS) - (5 * DAY * 6)
 
-        scenario.verify(ve.get_total_voting_power(23 * DAY) == bias_1)
-        scenario.verify(ve.get_total_voting_power(38 * DAY) == bias_2)
+        # Predicted global voting power for ts = 38 * DAY (unrounded)
+        bias_unrounded = (900 * DECIMALS) - (2 * DAY * 5)
+
+        scenario.verify(ve.get_total_voting_power(sp.record(ts=23 * DAY, time=Types.WHOLE_WEEK)) == bias_1)
+        scenario.verify(ve.get_total_voting_power(sp.record(ts=38 * DAY, time=Types.WHOLE_WEEK)) == bias_2)
+        scenario.verify(ve.get_total_voting_power(sp.record(ts=38 * DAY, time=Types.CURRENT)) == bias_unrounded)
 
     @sp.add_test(name="get_total_voting_power works for even number of global checkpoints")
     def test():
@@ -1736,8 +1818,12 @@ if __name__ == "__main__":
         # Predicted global voting power (bias_2) for ts = 38 * DAY (35 * DAY if rounded)
         bias_2 = (1000 * DECIMALS) - (5 * DAY * 6)
 
-        scenario.verify(ve.get_total_voting_power(23 * DAY) == bias_1)
-        scenario.verify(ve.get_total_voting_power(38 * DAY) == bias_2)
+        # Predicted global voting power for ts = 38 * DAY (unrounded)
+        bias_unrounded = (900 * DECIMALS) - (2 * DAY * 5)
+
+        scenario.verify(ve.get_total_voting_power(sp.record(ts=23 * DAY, time=Types.WHOLE_WEEK)) == bias_1)
+        scenario.verify(ve.get_total_voting_power(sp.record(ts=38 * DAY, time=Types.WHOLE_WEEK)) == bias_2)
+        scenario.verify(ve.get_total_voting_power(sp.record(ts=38 * DAY, time=Types.CURRENT)) == bias_unrounded)
 
     @sp.add_test(name="get_total_voting_power works when given timestamp is in the global checkpoints")
     def test():
@@ -1790,7 +1876,7 @@ if __name__ == "__main__":
         scenario += ve
 
         # Voting power for 21 * DAY (rounded)
-        scenario.verify(ve.get_total_voting_power(23 * DAY) == 800 * DECIMALS)
+        scenario.verify(ve.get_total_voting_power(sp.record(ts=23 * DAY, time=Types.WHOLE_WEEK)) == 800 * DECIMALS)
 
     @sp.add_test(name="get_total_voting_power works when given timestamp is beyond the last checkpoint")
     def test():
@@ -1842,7 +1928,7 @@ if __name__ == "__main__":
         # Predicted global voting power (bias_) for ts = 52 * DAY (49 * DAY if rounded)
         bias_ = (800 * DECIMALS) - (2 * DAY * 5) - (WEEK * 3)
 
-        scenario.verify(ve.get_total_voting_power(52 * DAY) == bias_)
+        scenario.verify(ve.get_total_voting_power(sp.record(ts=52 * DAY, time=Types.WHOLE_WEEK)) == bias_)
 
     ###########
     # is_owner

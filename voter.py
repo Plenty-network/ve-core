@@ -91,6 +91,10 @@ class Types:
         amm=sp.TAddress,
     ).layout(("token_id", ("epoch", "amm")))
 
+    # Enumeration for voting power readers
+    CURRENT = sp.nat(0)
+    WHOLE_WEEK = sp.nat(1)
+
 
 #########
 # Errors
@@ -244,7 +248,7 @@ class Voter(sp.Contract):
         max_token_voting_power = sp.view(
             "get_token_voting_power",
             self.data.ve_address,
-            sp.record(token_id=params.token_id, ts=now_),
+            sp.record(token_id=params.token_id, ts=now_, time=Types.WHOLE_WEEK),
             sp.TNat,
         ).open_some(Errors.INVALID_VIEW)
 
