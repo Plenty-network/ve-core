@@ -18,12 +18,28 @@ VOTE_SHARE_MULTIPLIER = 10 ** 18
 
 class Types:
 
-    # big-map keys
+    # big-map keys/values
 
     AMM_EPOCH_FEE_KEY = sp.TRecord(
         amm=sp.TAddress,
         epoch=sp.TNat,
     ).layout(("amm", "epoch"))
+
+    # Pair type represents a (token type, token-id) pairing. Token id only relevant for FA2
+    AMM_EPOCH_FEE_VALUE = sp.TMap(
+        sp.TRecord(
+            token_address=sp.TAddress,
+            type=sp.TPair(sp.TNat, sp.TNat),
+        ).layout(("token_address", "type")),
+        sp.TNat,
+    )
+
+    AMM_TO_TOKENS_VALUE = sp.TSet(
+        sp.TRecord(
+            token_address=sp.TAddress,
+            type=sp.TPair(sp.TNat, sp.TNat),
+        ).layout(("token_address", "type"))
+    )
 
     CLAIM_LEDGER_KEY = sp.TRecord(
         token_id=sp.TNat,
@@ -35,7 +51,13 @@ class Types:
 
     ADD_FEES_PARAMS = sp.TRecord(
         epoch=sp.TNat,
-        fees=sp.TMap(sp.TAddress, sp.TNat),
+        fees=sp.TMap(
+            sp.TRecord(
+                token_address=sp.TAddress,
+                type=sp.TPair(sp.TNat, sp.TNat),
+            ).layout(("token_address", "type")),
+            sp.TNat,
+        ),
     ).layout(("epoch", "fees"))
 
     CLAIM_PARAMS = sp.TRecord(
@@ -62,6 +84,7 @@ class Errors:
     ALREADY_ADDED_FEES_FOR_EPOCH = "ALREADY_ADDED_FEES_FOR_EPOCH"
     VOTER_ALREADY_CLAIMED_FEES_FOR_EPOCH = "VOTER_ALREADY_CLAIMED_FEES_FOR_EPOCH"
     FEES_NOT_YET_ADDED = "FEES_NOT_YET_ADDED"
+    INVALID_TOKEN = "INVALID_TOKEN"
 
     # Generic
     NOT_AUTHORISED = "NOT_AUTHORISED"
@@ -78,13 +101,12 @@ class FeeDistributor(sp.Contract):
         amm_to_tokens=sp.big_map(
             l={},
             tkey=sp.TAddress,
-            # Pair type represents a (token type, token-id) pairing. Token id only relevant for FA2
-            tvalue=sp.TMap(sp.TAddress, sp.TPair(sp.TNat, sp.TNat)),
+            tvalue=Types.AMM_TO_TOKENS_VALUE,
         ),
         amm_epoch_fee=sp.big_map(
             l={},
             tkey=Types.AMM_EPOCH_FEE_KEY,
-            tvalue=sp.TMap(sp.TAddress, sp.TNat),
+            tvalue=Types.AMM_EPOCH_FEE_VALUE,
         ),
         claim_ledger=sp.big_map(
             l={},
@@ -115,6 +137,7 @@ class FeeDistributor(sp.Contract):
         key_ = sp.record(amm=sp.sender, epoch=params.epoch)
         self.data.amm_epoch_fee[key_] = {}
         with sp.for_("token", params.fees.keys()) as token:
+            sp.verify(self.data.amm_to_tokens[sp.sender].contains(token), Errors.INVALID_TOKEN)
             self.data.amm_epoch_fee[key_][token] = params.fees[token]
 
     @sp.entry_point
@@ -138,13 +161,13 @@ class FeeDistributor(sp.Contract):
             total_fees = self.data.amm_epoch_fee[key_][token]
             voter_fees_share = (total_fees * params.weight_share) // VOTE_SHARE_MULTIPLIER
 
-            with sp.if_(sp.fst(self.data.amm_to_tokens[params.amm][token]) == Types.TOKEN_FA12):
+            with sp.if_(sp.fst(token.type) == Types.TOKEN_FA12):
                 TokenUtils.transfer_FA12(
                     sp.record(
                         from_=sp.self_address,
                         to_=params.owner,
                         value=voter_fees_share,
-                        token_address=token,
+                        token_address=token.token_address,
                     )
                 )
             with sp.else_():
@@ -153,8 +176,8 @@ class FeeDistributor(sp.Contract):
                         from_=sp.self_address,
                         to_=params.owner,
                         amount=voter_fees_share,
-                        token_address=token,
-                        token_id=sp.snd(self.data.amm_to_tokens[params.amm][token]),
+                        token_address=token.token_address,
+                        token_id=sp.snd(token.type),
                     )
                 )
 
@@ -172,28 +195,29 @@ if __name__ == "__main__":
     def test():
         scenario = sp.test_scenario()
 
+        TOKEN_1 = sp.record(token_address=Addresses.TOKEN_1, type=(Types.TOKEN_FA12, 0))
+        TOKEN_2 = sp.record(token_address=Addresses.TOKEN_2, type=(Types.TOKEN_FA2, 0))
+
         fee_dist = FeeDistributor(
             amm_to_tokens=sp.big_map(
                 l={
-                    Addresses.AMM: {
-                        Addresses.TOKEN_1: (Types.TOKEN_FA12, 0),
-                        Addresses.TOKEN_2: (Types.TOKEN_FA2, 0),
-                    },
+                    Addresses.AMM: {TOKEN_1, TOKEN_2},
                 }
-            )
+            ),
         )
 
         scenario += fee_dist
 
         # When fees is added for epoch 3 (random) through AMM
-        scenario += fee_dist.add_fees(epoch=3, fees={Addresses.TOKEN_1: 100, Addresses.TOKEN_2: 200}).run(
-            sender=Addresses.AMM
-        )
+        scenario += fee_dist.add_fees(
+            epoch=3,
+            fees={TOKEN_1: 100, TOKEN_2: 200},
+        ).run(sender=Addresses.AMM)
 
         # Storage is updated correctly
         scenario.verify_equal(
             fee_dist.data.amm_epoch_fee[sp.record(amm=Addresses.AMM, epoch=3)],
-            {Addresses.TOKEN_1: 100, Addresses.TOKEN_2: 200},
+            {TOKEN_1: 100, TOKEN_2: 200},
         )
 
     ##########################
@@ -204,13 +228,13 @@ if __name__ == "__main__":
     def test():
         scenario = sp.test_scenario()
 
+        TOKEN_1 = sp.record(token_address=Addresses.TOKEN_1, type=(Types.TOKEN_FA12, 0))
+        TOKEN_2 = sp.record(token_address=Addresses.TOKEN_2, type=(Types.TOKEN_FA2, 0))
+
         fee_dist = FeeDistributor(
             amm_to_tokens=sp.big_map(
                 l={
-                    Addresses.AMM: {
-                        Addresses.TOKEN_1: (Types.TOKEN_FA12, 0),
-                        Addresses.TOKEN_2: (Types.TOKEN_FA2, 0),
-                    },
+                    Addresses.AMM: {TOKEN_1, TOKEN_2},
                 }
             ),
         )
@@ -218,7 +242,7 @@ if __name__ == "__main__":
         scenario += fee_dist
 
         # When fees is added for epoch 3 (random) through AMM_1 (not-whitelisted), the txn fails
-        scenario += fee_dist.add_fees(epoch=3, fees={Addresses.TOKEN_1: 100, Addresses.TOKEN_2: 200}).run(
+        scenario += fee_dist.add_fees(epoch=3, fees={TOKEN_1: 100, TOKEN_2: 200}).run(
             sender=Addresses.AMM_1,
             valid=False,
             exception=Errors.AMM_INVALID_OR_NOT_WHITELISTED,
@@ -228,20 +252,20 @@ if __name__ == "__main__":
     def test():
         scenario = sp.test_scenario()
 
+        TOKEN_1 = sp.record(token_address=Addresses.TOKEN_1, type=(Types.TOKEN_FA12, 0))
+        TOKEN_2 = sp.record(token_address=Addresses.TOKEN_2, type=(Types.TOKEN_FA2, 0))
+
         fee_dist = FeeDistributor(
             amm_to_tokens=sp.big_map(
                 l={
-                    Addresses.AMM: {
-                        Addresses.TOKEN_1: (Types.TOKEN_FA12, 0),
-                        Addresses.TOKEN_2: (Types.TOKEN_FA2, 0),
-                    },
+                    Addresses.AMM: {TOKEN_1, TOKEN_2},
                 }
             ),
             amm_epoch_fee=sp.big_map(
                 l={
                     sp.record(amm=Addresses.AMM, epoch=3): {
-                        Addresses.TOKEN_1: 100,
-                        Addresses.TOKEN_2: 200,
+                        TOKEN_1: 100,
+                        TOKEN_2: 200,
                     }
                 }
             ),
@@ -249,8 +273,8 @@ if __name__ == "__main__":
 
         scenario += fee_dist
 
-        # When fees is added for epoch 3 (random) through AMM_1 (not-whitelisted), the txn fails
-        scenario += fee_dist.add_fees(epoch=3, fees={Addresses.TOKEN_1: 100, Addresses.TOKEN_2: 200}).run(
+        # When fees is added again for AMM in epoch 3, txn fails
+        scenario += fee_dist.add_fees(epoch=3, fees={TOKEN_1: 100, TOKEN_2: 200}).run(
             sender=Addresses.AMM,
             valid=False,
             exception=Errors.ALREADY_ADDED_FEES_FOR_EPOCH,
@@ -272,20 +296,20 @@ if __name__ == "__main__":
             Addresses.ADMIN,
         )
 
+        TOKEN_1 = sp.record(token_address=token_1.address, type=(Types.TOKEN_FA12, 0))
+        TOKEN_2 = sp.record(token_address=token_2.address, type=(Types.TOKEN_FA2, 0))
+
         fee_dist = FeeDistributor(
             amm_to_tokens=sp.big_map(
                 l={
-                    Addresses.AMM: {
-                        token_1.address: (Types.TOKEN_FA12, 0),
-                        token_2.address: (Types.TOKEN_FA2, 0),
-                    },
+                    Addresses.AMM: {TOKEN_1, TOKEN_2},
                 }
             ),
             amm_epoch_fee=sp.big_map(
                 l={
                     sp.record(amm=Addresses.AMM, epoch=3): {
-                        token_1.address: 100,
-                        token_2.address: 200,
+                        TOKEN_1: 100,
+                        TOKEN_2: 200,
                     }
                 }
             ),
@@ -351,21 +375,24 @@ if __name__ == "__main__":
             Addresses.ADMIN,
         )
 
+        TOKEN_1 = sp.record(token_address=token_1.address, type=(Types.TOKEN_FA12, 0))
+        TOKEN_2 = sp.record(token_address=token_2.address, type=(Types.TOKEN_FA2, 0))
+
         # Initialize with BOB's token marked as claimed
         fee_dist = FeeDistributor(
             amm_to_tokens=sp.big_map(
                 l={
                     Addresses.AMM: {
-                        token_1.address: (Types.TOKEN_FA12, 0),
-                        token_2.address: (Types.TOKEN_FA2, 0),
+                        TOKEN_1: (Types.TOKEN_FA12, 0),
+                        TOKEN_2: (Types.TOKEN_FA2, 0),
                     },
                 }
             ),
             amm_epoch_fee=sp.big_map(
                 l={
                     sp.record(amm=Addresses.AMM, epoch=3): {
-                        token_1.address: 100,
-                        token_2.address: 200,
+                        TOKEN_1: 100,
+                        TOKEN_2: 200,
                     }
                 }
             ),

@@ -1,5 +1,5 @@
-parameter (or (pair %add_fees (nat %epoch) (map %fees address nat)) (pair %claim (nat %token_id) (pair (address %owner) (pair (address %amm) (pair (nat %epoch) (nat %weight_share))))));
-storage   (pair (pair (big_map %amm_epoch_fee (pair (address %amm) (nat %epoch)) (map address nat)) (big_map %amm_to_tokens address (map address (pair nat nat)))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter)));
+parameter (or (pair %add_fees (nat %epoch) (map %fees (pair (address %token_address) (pair %type nat nat)) nat)) (pair %claim (nat %token_id) (pair (address %owner) (pair (address %amm) (pair (nat %epoch) (nat %weight_share))))));
+storage   (pair (pair (big_map %amm_epoch_fee (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat)) (big_map %amm_to_tokens address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter)));
 code
   {
     UNPAIR;     # @parameter : @storage
@@ -10,9 +10,9 @@ code
         # sp.verify(self.data.amm_to_tokens.contains(sp.sender), 'AMM_INVALID_OR_NOT_WHITELISTED') # @storage : @parameter%add_fees
         DUP;        # @storage : @storage : @parameter%add_fees
         DUG 2;      # @storage : @parameter%add_fees : @storage
-        CAR;        # pair (big_map %amm_epoch_fee (pair (address %amm) (nat %epoch)) (map address nat)) (big_map %amm_to_tokens address (map address (pair nat nat))) : @parameter%add_fees : @storage
-        CDR;        # big_map address (map address (pair nat nat)) : @parameter%add_fees : @storage
-        SENDER;     # @sender : big_map address (map address (pair nat nat)) : @parameter%add_fees : @storage
+        CAR;        # pair (big_map %amm_epoch_fee (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat)) (big_map %amm_to_tokens address (set (pair (address %token_address) (pair %type nat nat)))) : @parameter%add_fees : @storage
+        CDR;        # big_map address (set (pair (address %token_address) (pair %type nat nat))) : @parameter%add_fees : @storage
+        SENDER;     # @sender : big_map address (set (pair (address %token_address) (pair %type nat nat))) : @parameter%add_fees : @storage
         MEM;        # bool : @parameter%add_fees : @storage
         IF
           {}
@@ -24,14 +24,14 @@ code
         # sp.verify(~ (self.data.amm_epoch_fee.contains(sp.record(amm = sp.sender, epoch = params.epoch))), 'ALREADY_ADDED_FEES_FOR_EPOCH') # @storage : @parameter%add_fees
         DUP;        # @storage : @storage : @parameter%add_fees
         DUG 2;      # @storage : @parameter%add_fees : @storage
-        CAR;        # pair (big_map %amm_epoch_fee (pair (address %amm) (nat %epoch)) (map address nat)) (big_map %amm_to_tokens address (map address (pair nat nat))) : @parameter%add_fees : @storage
-        CAR;        # big_map (pair (address %amm) (nat %epoch)) (map address nat) : @parameter%add_fees : @storage
-        SWAP;       # @parameter%add_fees : big_map (pair (address %amm) (nat %epoch)) (map address nat) : @storage
-        DUP;        # @parameter%add_fees : @parameter%add_fees : big_map (pair (address %amm) (nat %epoch)) (map address nat) : @storage
-        DUG 2;      # @parameter%add_fees : big_map (pair (address %amm) (nat %epoch)) (map address nat) : @parameter%add_fees : @storage
-        CAR;        # nat : big_map (pair (address %amm) (nat %epoch)) (map address nat) : @parameter%add_fees : @storage
-        SENDER;     # @sender : nat : big_map (pair (address %amm) (nat %epoch)) (map address nat) : @parameter%add_fees : @storage
-        PAIR;       # pair @sender nat : big_map (pair (address %amm) (nat %epoch)) (map address nat) : @parameter%add_fees : @storage
+        CAR;        # pair (big_map %amm_epoch_fee (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat)) (big_map %amm_to_tokens address (set (pair (address %token_address) (pair %type nat nat)))) : @parameter%add_fees : @storage
+        CAR;        # big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : @parameter%add_fees : @storage
+        SWAP;       # @parameter%add_fees : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : @storage
+        DUP;        # @parameter%add_fees : @parameter%add_fees : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : @storage
+        DUG 2;      # @parameter%add_fees : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : @parameter%add_fees : @storage
+        CAR;        # nat : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : @parameter%add_fees : @storage
+        SENDER;     # @sender : nat : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : @parameter%add_fees : @storage
+        PAIR;       # pair @sender nat : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : @parameter%add_fees : @storage
         MEM;        # bool : @parameter%add_fees : @storage
         IF
           {
@@ -41,63 +41,85 @@ code
           {}; # @parameter%add_fees : @storage
         SWAP;       # @storage : @parameter%add_fees
         # self.data.amm_epoch_fee[sp.record(amm = sp.sender, epoch = params.epoch)] = {} # @storage : @parameter%add_fees
-        UNPAIR;     # pair (big_map %amm_epoch_fee (pair (address %amm) (nat %epoch)) (map address nat)) (big_map %amm_to_tokens address (map address (pair nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
-        UNPAIR;     # big_map (pair (address %amm) (nat %epoch)) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
-        PUSH (option (map address nat)) (Some {}); # option (map address nat) : big_map (pair (address %amm) (nat %epoch)) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
-        DUP 5;      # @parameter%add_fees : option (map address nat) : big_map (pair (address %amm) (nat %epoch)) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
-        CAR;        # nat : option (map address nat) : big_map (pair (address %amm) (nat %epoch)) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
-        SENDER;     # @sender : nat : option (map address nat) : big_map (pair (address %amm) (nat %epoch)) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
-        PAIR;       # pair @sender nat : option (map address nat) : big_map (pair (address %amm) (nat %epoch)) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
-        UPDATE;     # big_map (pair address nat) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
-        PAIR;       # pair (big_map (pair address nat) (map address nat)) (big_map address (map address (pair nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
-        PAIR;       # pair (pair (big_map (pair address nat) (map address nat)) (big_map address (map address (pair nat nat)))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter)) : @parameter%add_fees
-        SWAP;       # @parameter%add_fees : pair (pair (big_map (pair address nat) (map address nat)) (big_map address (map address (pair nat nat)))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
-        # for token in params.fees.keys(): ... # @parameter%add_fees : pair (pair (big_map (pair address nat) (map address nat)) (big_map address (map address (pair nat nat)))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
-        DUP;        # @parameter%add_fees : @parameter%add_fees : pair (pair (big_map (pair address nat) (map address nat)) (big_map address (map address (pair nat nat)))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
-        CDR;        # map address nat : @parameter%add_fees : pair (pair (big_map (pair address nat) (map address nat)) (big_map address (map address (pair nat nat)))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+        UNPAIR;     # pair (big_map %amm_epoch_fee (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat)) (big_map %amm_to_tokens address (set (pair (address %token_address) (pair %type nat nat)))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
+        UNPAIR;     # big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
+        PUSH (option (map (pair address (pair nat nat)) nat)) (Some {}); # option (map (pair address (pair nat nat)) nat) : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
+        DUP 5;      # @parameter%add_fees : option (map (pair address (pair nat nat)) nat) : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
+        CAR;        # nat : option (map (pair address (pair nat nat)) nat) : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
+        SENDER;     # @sender : nat : option (map (pair address (pair nat nat)) nat) : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
+        PAIR;       # pair @sender nat : option (map (pair address (pair nat nat)) nat) : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
+        UPDATE;     # big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
+        PAIR;       # pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat)))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
+        PAIR;       # pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter)) : @parameter%add_fees
+        SWAP;       # @parameter%add_fees : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+        # for token in params.fees.keys(): ... # @parameter%add_fees : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+        DUP;        # @parameter%add_fees : @parameter%add_fees : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+        CDR;        # map (pair (address %token_address) (pair %type nat nat)) nat : @parameter%add_fees : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
         ITER
           {
-            CAR;        # address : @parameter%add_fees : pair (pair (big_map (pair address nat) (map address nat)) (big_map address (map address (pair nat nat)))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
-            # self.data.amm_epoch_fee[sp.record(amm = sp.sender, epoch = params.epoch)][token] = params.fees[token] # address : @parameter%add_fees : pair (pair (big_map (pair address nat) (map address nat)) (big_map address (map address (pair nat nat)))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
-            DIG 2;      # pair (pair (big_map (pair address nat) (map address nat)) (big_map address (map address (pair nat nat)))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter)) : address : @parameter%add_fees
-            UNPAIR;     # pair (big_map (pair address nat) (map address nat)) (big_map address (map address (pair nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : address : @parameter%add_fees
-            UNPAIR;     # big_map (pair address nat) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : address : @parameter%add_fees
-            DUP;        # big_map (pair address nat) (map address nat) : big_map (pair address nat) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : address : @parameter%add_fees
-            DUP 6;      # @parameter%add_fees : big_map (pair address nat) (map address nat) : big_map (pair address nat) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : address : @parameter%add_fees
-            CAR;        # nat : big_map (pair address nat) (map address nat) : big_map (pair address nat) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : address : @parameter%add_fees
-            SENDER;     # @sender : nat : big_map (pair address nat) (map address nat) : big_map (pair address nat) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : address : @parameter%add_fees
-            PAIR;       # pair @sender nat : big_map (pair address nat) (map address nat) : big_map (pair address nat) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : address : @parameter%add_fees
-            DUP;        # pair @sender nat : pair @sender nat : big_map (pair address nat) (map address nat) : big_map (pair address nat) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : address : @parameter%add_fees
-            DUG 2;      # pair @sender nat : big_map (pair address nat) (map address nat) : pair @sender nat : big_map (pair address nat) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : address : @parameter%add_fees
-            GET;        # option (map address nat) : pair @sender nat : big_map (pair address nat) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : address : @parameter%add_fees
+            CAR;        # pair (address %token_address) (pair %type nat nat) : @parameter%add_fees : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+            # sp.verify(self.data.amm_to_tokens[sp.sender].contains(token), 'INVALID_TOKEN') # pair (address %token_address) (pair %type nat nat) : @parameter%add_fees : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+            DUP 3;      # pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter)) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+            CAR;        # pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat)))) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+            CDR;        # big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+            SENDER;     # @sender : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+            GET;        # option (set (pair (address %token_address) (pair %type nat nat))) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
             IF_NONE
               {
-                PUSH int 118; # int : pair @sender nat : big_map (pair address nat) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : address : @parameter%add_fees
+                PUSH int 140; # int : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
                 FAILWITH;   # FAILED
               }
-              {}; # @some : pair @sender nat : big_map (pair address nat) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : address : @parameter%add_fees
-            DUP 7;      # @parameter%add_fees : @some : pair @sender nat : big_map (pair address nat) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : address : @parameter%add_fees
-            CDR;        # map address nat : @some : pair @sender nat : big_map (pair address nat) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : address : @parameter%add_fees
-            DUP 7;      # address : map address nat : @some : pair @sender nat : big_map (pair address nat) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : address : @parameter%add_fees
-            GET;        # option nat : @some : pair @sender nat : big_map (pair address nat) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : address : @parameter%add_fees
+              {}; # @some : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+            SWAP;       # pair (address %token_address) (pair %type nat nat) : @some : @parameter%add_fees : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+            DUP;        # pair (address %token_address) (pair %type nat nat) : pair (address %token_address) (pair %type nat nat) : @some : @parameter%add_fees : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+            DUG 2;      # pair (address %token_address) (pair %type nat nat) : @some : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+            MEM;        # bool : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+            IF
+              {}
+              {
+                PUSH string "INVALID_TOKEN"; # string : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+                FAILWITH;   # FAILED
+              }; # pair (address %token_address) (pair %type nat nat) : @parameter%add_fees : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+            # self.data.amm_epoch_fee[sp.record(amm = sp.sender, epoch = params.epoch)][token] = params.fees[token] # pair (address %token_address) (pair %type nat nat) : @parameter%add_fees : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+            DIG 2;      # pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter)) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
+            UNPAIR;     # pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat)))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
+            UNPAIR;     # big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
+            DUP;        # big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
+            DUP 6;      # @parameter%add_fees : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
+            CAR;        # nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
+            SENDER;     # @sender : nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
+            PAIR;       # pair @sender nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
+            DUP;        # pair @sender nat : pair @sender nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
+            DUG 2;      # pair @sender nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : pair @sender nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
+            GET;        # option (map (pair address (pair nat nat)) nat) : pair @sender nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
             IF_NONE
               {
-                PUSH int 118; # int : @some : pair @sender nat : big_map (pair address nat) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : address : @parameter%add_fees
+                PUSH int 141; # int : pair @sender nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
                 FAILWITH;   # FAILED
               }
-              {}; # @some : @some : pair @sender nat : big_map (pair address nat) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : address : @parameter%add_fees
-            SOME;       # option nat : @some : pair @sender nat : big_map (pair address nat) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : address : @parameter%add_fees
-            DIG 6;      # address : option nat : @some : pair @sender nat : big_map (pair address nat) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
-            UPDATE;     # map address nat : pair @sender nat : big_map (pair address nat) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
-            SOME;       # option (map address nat) : pair @sender nat : big_map (pair address nat) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
-            SWAP;       # pair @sender nat : option (map address nat) : big_map (pair address nat) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
-            UPDATE;     # big_map (pair address nat) (map address nat) : big_map address (map address (pair nat nat)) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
-            PAIR;       # pair (big_map (pair address nat) (map address nat)) (big_map address (map address (pair nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
-            PAIR;       # pair (pair (big_map (pair address nat) (map address nat)) (big_map address (map address (pair nat nat)))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter)) : @parameter%add_fees
-            SWAP;       # @parameter%add_fees : pair (pair (big_map (pair address nat) (map address nat)) (big_map address (map address (pair nat nat)))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
-          }; # @parameter%add_fees : pair (pair (big_map (pair address nat) (map address nat)) (big_map address (map address (pair nat nat)))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
-        DROP;       # pair (pair (big_map (pair address nat) (map address nat)) (big_map address (map address (pair nat nat)))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
-        NIL operation; # list operation : pair (pair (big_map (pair address nat) (map address nat)) (big_map address (map address (pair nat nat)))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+              {}; # @some : pair @sender nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
+            DUP 7;      # @parameter%add_fees : @some : pair @sender nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
+            CDR;        # map (pair (address %token_address) (pair %type nat nat)) nat : @some : pair @sender nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
+            DUP 7;      # pair (address %token_address) (pair %type nat nat) : map (pair (address %token_address) (pair %type nat nat)) nat : @some : pair @sender nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
+            GET;        # option nat : @some : pair @sender nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
+            IF_NONE
+              {
+                PUSH int 141; # int : @some : pair @sender nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
+                FAILWITH;   # FAILED
+              }
+              {}; # @some : @some : pair @sender nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
+            SOME;       # option nat : @some : pair @sender nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
+            DIG 6;      # pair (address %token_address) (pair %type nat nat) : option nat : @some : pair @sender nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
+            UPDATE;     # map (pair address (pair nat nat)) nat : pair @sender nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
+            SOME;       # option (map (pair address (pair nat nat)) nat) : pair @sender nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
+            SWAP;       # pair @sender nat : option (map (pair address (pair nat nat)) nat) : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
+            UPDATE;     # big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
+            PAIR;       # pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat)))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter) : @parameter%add_fees
+            PAIR;       # pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter)) : @parameter%add_fees
+            SWAP;       # @parameter%add_fees : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+          }; # @parameter%add_fees : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+        DROP;       # pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+        NIL operation; # list operation : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
       }
       {
         SWAP;       # @storage : @parameter%claim
@@ -119,16 +141,16 @@ code
         # sp.verify(self.data.amm_epoch_fee.contains(sp.record(amm = params.amm, epoch = params.epoch)), 'FEES_NOT_YET_ADDED') # @storage : @parameter%claim
         DUP;        # @storage : @storage : @parameter%claim
         DUG 2;      # @storage : @parameter%claim : @storage
-        CAR;        # pair (big_map %amm_epoch_fee (pair (address %amm) (nat %epoch)) (map address nat)) (big_map %amm_to_tokens address (map address (pair nat nat))) : @parameter%claim : @storage
-        CAR;        # big_map (pair (address %amm) (nat %epoch)) (map address nat) : @parameter%claim : @storage
-        SWAP;       # @parameter%claim : big_map (pair (address %amm) (nat %epoch)) (map address nat) : @storage
-        DUP;        # @parameter%claim : @parameter%claim : big_map (pair (address %amm) (nat %epoch)) (map address nat) : @storage
-        GET 7;      # nat : @parameter%claim : big_map (pair (address %amm) (nat %epoch)) (map address nat) : @storage
-        SWAP;       # @parameter%claim : nat : big_map (pair (address %amm) (nat %epoch)) (map address nat) : @storage
-        DUP;        # @parameter%claim : @parameter%claim : nat : big_map (pair (address %amm) (nat %epoch)) (map address nat) : @storage
-        DUG 3;      # @parameter%claim : nat : big_map (pair (address %amm) (nat %epoch)) (map address nat) : @parameter%claim : @storage
-        GET 5;      # address : nat : big_map (pair (address %amm) (nat %epoch)) (map address nat) : @parameter%claim : @storage
-        PAIR;       # pair address nat : big_map (pair (address %amm) (nat %epoch)) (map address nat) : @parameter%claim : @storage
+        CAR;        # pair (big_map %amm_epoch_fee (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat)) (big_map %amm_to_tokens address (set (pair (address %token_address) (pair %type nat nat)))) : @parameter%claim : @storage
+        CAR;        # big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : @parameter%claim : @storage
+        SWAP;       # @parameter%claim : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : @storage
+        DUP;        # @parameter%claim : @parameter%claim : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : @storage
+        GET 7;      # nat : @parameter%claim : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : @storage
+        SWAP;       # @parameter%claim : nat : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : @storage
+        DUP;        # @parameter%claim : @parameter%claim : nat : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : @storage
+        DUG 3;      # @parameter%claim : nat : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : @parameter%claim : @storage
+        GET 5;      # address : nat : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : @parameter%claim : @storage
+        PAIR;       # pair address nat : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : @parameter%claim : @storage
         MEM;        # bool : @parameter%claim : @storage
         IF
           {}
@@ -162,90 +184,72 @@ code
         # for token in self.data.amm_epoch_fee[sp.record(amm = params.amm, epoch = params.epoch)].keys(): ... # @parameter%claim : @storage
         NIL operation; # list operation : @parameter%claim : @storage
         DUP 3;      # @storage : list operation : @parameter%claim : @storage
-        CAR;        # pair (big_map %amm_epoch_fee (pair (address %amm) (nat %epoch)) (map address nat)) (big_map %amm_to_tokens address (map address (pair nat nat))) : list operation : @parameter%claim : @storage
-        CAR;        # big_map (pair (address %amm) (nat %epoch)) (map address nat) : list operation : @parameter%claim : @storage
-        DIG 2;      # @parameter%claim : big_map (pair (address %amm) (nat %epoch)) (map address nat) : list operation : @storage
-        DUP;        # @parameter%claim : @parameter%claim : big_map (pair (address %amm) (nat %epoch)) (map address nat) : list operation : @storage
-        GET 7;      # nat : @parameter%claim : big_map (pair (address %amm) (nat %epoch)) (map address nat) : list operation : @storage
-        SWAP;       # @parameter%claim : nat : big_map (pair (address %amm) (nat %epoch)) (map address nat) : list operation : @storage
-        DUP;        # @parameter%claim : @parameter%claim : nat : big_map (pair (address %amm) (nat %epoch)) (map address nat) : list operation : @storage
-        DUG 4;      # @parameter%claim : nat : big_map (pair (address %amm) (nat %epoch)) (map address nat) : list operation : @parameter%claim : @storage
-        GET 5;      # address : nat : big_map (pair (address %amm) (nat %epoch)) (map address nat) : list operation : @parameter%claim : @storage
-        PAIR;       # pair address nat : big_map (pair (address %amm) (nat %epoch)) (map address nat) : list operation : @parameter%claim : @storage
-        GET;        # option (map address nat) : list operation : @parameter%claim : @storage
+        CAR;        # pair (big_map %amm_epoch_fee (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat)) (big_map %amm_to_tokens address (set (pair (address %token_address) (pair %type nat nat)))) : list operation : @parameter%claim : @storage
+        CAR;        # big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : list operation : @parameter%claim : @storage
+        DIG 2;      # @parameter%claim : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : list operation : @storage
+        DUP;        # @parameter%claim : @parameter%claim : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : list operation : @storage
+        GET 7;      # nat : @parameter%claim : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : list operation : @storage
+        SWAP;       # @parameter%claim : nat : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : list operation : @storage
+        DUP;        # @parameter%claim : @parameter%claim : nat : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : list operation : @storage
+        DUG 4;      # @parameter%claim : nat : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : list operation : @parameter%claim : @storage
+        GET 5;      # address : nat : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : list operation : @parameter%claim : @storage
+        PAIR;       # pair address nat : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : list operation : @parameter%claim : @storage
+        GET;        # option (map (pair (address %token_address) (pair %type nat nat)) nat) : list operation : @parameter%claim : @storage
         IF_NONE
           {
-            PUSH int 137; # int : list operation : @parameter%claim : @storage
+            PUSH int 160; # int : list operation : @parameter%claim : @storage
             FAILWITH;   # FAILED
           }
           {}; # @some : list operation : @parameter%claim : @storage
         ITER
           {
-            CAR;        # address : list operation : @parameter%claim : @storage
-            # if sp.fst(self.data.amm_to_tokens[params.amm][token]) == 0: # address : list operation : @parameter%claim : @storage
-            PUSH nat 0; # nat : address : list operation : @parameter%claim : @storage
-            DUP 5;      # @storage : nat : address : list operation : @parameter%claim : @storage
-            CAR;        # pair (big_map %amm_epoch_fee (pair (address %amm) (nat %epoch)) (map address nat)) (big_map %amm_to_tokens address (map address (pair nat nat))) : nat : address : list operation : @parameter%claim : @storage
-            CDR;        # big_map address (map address (pair nat nat)) : nat : address : list operation : @parameter%claim : @storage
-            DUP 5;      # @parameter%claim : big_map address (map address (pair nat nat)) : nat : address : list operation : @parameter%claim : @storage
-            GET 5;      # address : big_map address (map address (pair nat nat)) : nat : address : list operation : @parameter%claim : @storage
-            GET;        # option (map address (pair nat nat)) : nat : address : list operation : @parameter%claim : @storage
-            IF_NONE
-              {
-                PUSH int 141; # int : nat : address : list operation : @parameter%claim : @storage
-                FAILWITH;   # FAILED
-              }
-              {}; # @some : nat : address : list operation : @parameter%claim : @storage
-            DUP 3;      # address : @some : nat : address : list operation : @parameter%claim : @storage
-            GET;        # option (pair nat nat) : nat : address : list operation : @parameter%claim : @storage
-            IF_NONE
-              {
-                PUSH int 141; # int : nat : address : list operation : @parameter%claim : @storage
-                FAILWITH;   # FAILED
-              }
-              {}; # @some : nat : address : list operation : @parameter%claim : @storage
-            CAR;        # nat : nat : address : list operation : @parameter%claim : @storage
-            COMPARE;    # int : address : list operation : @parameter%claim : @storage
-            EQ;         # bool : address : list operation : @parameter%claim : @storage
+            CAR;        # pair (address %token_address) (pair %type nat nat) : list operation : @parameter%claim : @storage
+            # if sp.fst(token.type) == 0: # pair (address %token_address) (pair %type nat nat) : list operation : @parameter%claim : @storage
+            DUP;        # pair (address %token_address) (pair %type nat nat) : pair (address %token_address) (pair %type nat nat) : list operation : @parameter%claim : @storage
+            GET 3;      # nat : pair (address %token_address) (pair %type nat nat) : list operation : @parameter%claim : @storage
+            PUSH nat 0; # nat : nat : pair (address %token_address) (pair %type nat nat) : list operation : @parameter%claim : @storage
+            COMPARE;    # int : pair (address %token_address) (pair %type nat nat) : list operation : @parameter%claim : @storage
+            EQ;         # bool : pair (address %token_address) (pair %type nat nat) : list operation : @parameter%claim : @storage
             IF
               {
-                # sp.transfer(sp.record(from_ = sp.self_address, to_ = params.owner, value = (self.data.amm_epoch_fee[sp.record(amm = params.amm, epoch = params.epoch)][token] * params.weight_share) // 1000000000000000000), sp.tez(0), sp.contract(sp.TRecord(from_ = sp.TAddress, to_ = sp.TAddress, value = sp.TNat).layout(("from_ as from", ("to_ as to", "value"))), token, entry_point='transfer').open_some()) # address : list operation : @parameter%claim : @storage
-                DUP;        # address : address : list operation : @parameter%claim : @storage
-                DUG 2;      # address : list operation : address : @parameter%claim : @storage
-                CONTRACT %transfer (pair (address %from) (pair (address %to) (nat %value))); # option (contract (pair (address %from) (pair (address %to) (nat %value)))) : list operation : address : @parameter%claim : @storage
+                # sp.transfer(sp.record(from_ = sp.self_address, to_ = params.owner, value = (self.data.amm_epoch_fee[sp.record(amm = params.amm, epoch = params.epoch)][token] * params.weight_share) // 1000000000000000000), sp.tez(0), sp.contract(sp.TRecord(from_ = sp.TAddress, to_ = sp.TAddress, value = sp.TNat).layout(("from_ as from", ("to_ as to", "value"))), token.token_address, entry_point='transfer').open_some()) # pair (address %token_address) (pair %type nat nat) : list operation : @parameter%claim : @storage
+                DUP;        # pair (address %token_address) (pair %type nat nat) : pair (address %token_address) (pair %type nat nat) : list operation : @parameter%claim : @storage
+                DUG 2;      # pair (address %token_address) (pair %type nat nat) : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                CAR;        # address : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                CONTRACT %transfer (pair (address %from) (pair (address %to) (nat %value))); # option (contract (pair (address %from) (pair (address %to) (nat %value)))) : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
                 IF_NONE
                   {
-                    PUSH int 15; # int : list operation : address : @parameter%claim : @storage
+                    PUSH int 15; # int : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
                     FAILWITH;   # FAILED
                   }
-                  {}; # @some : list operation : address : @parameter%claim : @storage
-                PUSH mutez 0; # mutez : @some : list operation : address : @parameter%claim : @storage
-                PUSH nat 1000000000000000000; # nat : mutez : @some : list operation : address : @parameter%claim : @storage
-                DUP 6;      # @parameter%claim : nat : mutez : @some : list operation : address : @parameter%claim : @storage
-                GET 8;      # nat : nat : mutez : @some : list operation : address : @parameter%claim : @storage
-                DUP 8;      # @storage : nat : nat : mutez : @some : list operation : address : @parameter%claim : @storage
-                CAR;        # pair (big_map %amm_epoch_fee (pair (address %amm) (nat %epoch)) (map address nat)) (big_map %amm_to_tokens address (map address (pair nat nat))) : nat : nat : mutez : @some : list operation : address : @parameter%claim : @storage
-                CAR;        # big_map (pair (address %amm) (nat %epoch)) (map address nat) : nat : nat : mutez : @some : list operation : address : @parameter%claim : @storage
-                DIG 7;      # @parameter%claim : big_map (pair (address %amm) (nat %epoch)) (map address nat) : nat : nat : mutez : @some : list operation : address : @storage
-                DUP;        # @parameter%claim : @parameter%claim : big_map (pair (address %amm) (nat %epoch)) (map address nat) : nat : nat : mutez : @some : list operation : address : @storage
-                GET 7;      # nat : @parameter%claim : big_map (pair (address %amm) (nat %epoch)) (map address nat) : nat : nat : mutez : @some : list operation : address : @storage
-                SWAP;       # @parameter%claim : nat : big_map (pair (address %amm) (nat %epoch)) (map address nat) : nat : nat : mutez : @some : list operation : address : @storage
-                DUP;        # @parameter%claim : @parameter%claim : nat : big_map (pair (address %amm) (nat %epoch)) (map address nat) : nat : nat : mutez : @some : list operation : address : @storage
-                DUG 9;      # @parameter%claim : nat : big_map (pair (address %amm) (nat %epoch)) (map address nat) : nat : nat : mutez : @some : list operation : address : @parameter%claim : @storage
-                GET 5;      # address : nat : big_map (pair (address %amm) (nat %epoch)) (map address nat) : nat : nat : mutez : @some : list operation : address : @parameter%claim : @storage
-                PAIR;       # pair address nat : big_map (pair (address %amm) (nat %epoch)) (map address nat) : nat : nat : mutez : @some : list operation : address : @parameter%claim : @storage
-                GET;        # option (map address nat) : nat : nat : mutez : @some : list operation : address : @parameter%claim : @storage
+                  {}; # @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                PUSH mutez 0; # mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                PUSH nat 1000000000000000000; # nat : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                DUP 6;      # @parameter%claim : nat : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                GET 8;      # nat : nat : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                DUP 8;      # @storage : nat : nat : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                CAR;        # pair (big_map %amm_epoch_fee (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat)) (big_map %amm_to_tokens address (set (pair (address %token_address) (pair %type nat nat)))) : nat : nat : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                CAR;        # big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : nat : nat : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                DIG 7;      # @parameter%claim : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : nat : nat : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @storage
+                DUP;        # @parameter%claim : @parameter%claim : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : nat : nat : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @storage
+                GET 7;      # nat : @parameter%claim : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : nat : nat : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @storage
+                SWAP;       # @parameter%claim : nat : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : nat : nat : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @storage
+                DUP;        # @parameter%claim : @parameter%claim : nat : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : nat : nat : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @storage
+                DUG 9;      # @parameter%claim : nat : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : nat : nat : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                GET 5;      # address : nat : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : nat : nat : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                PAIR;       # pair address nat : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : nat : nat : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                GET;        # option (map (pair (address %token_address) (pair %type nat nat)) nat) : nat : nat : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
                 IF_NONE
                   {
-                    PUSH int 138; # int : nat : nat : mutez : @some : list operation : address : @parameter%claim : @storage
+                    PUSH int 161; # int : nat : nat : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
                     FAILWITH;   # FAILED
                   }
-                  {}; # @some : nat : nat : mutez : @some : list operation : address : @parameter%claim : @storage
-                DIG 6;      # address : @some : nat : nat : mutez : @some : list operation : @parameter%claim : @storage
+                  {}; # @some : nat : nat : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                DIG 6;      # pair (address %token_address) (pair %type nat nat) : @some : nat : nat : mutez : @some : list operation : @parameter%claim : @storage
                 GET;        # option nat : nat : nat : mutez : @some : list operation : @parameter%claim : @storage
                 IF_NONE
                   {
-                    PUSH int 138; # int : nat : nat : mutez : @some : list operation : @parameter%claim : @storage
+                    PUSH int 161; # int : nat : nat : mutez : @some : list operation : @parameter%claim : @storage
                     FAILWITH;   # FAILED
                   }
                   {}; # @some : nat : nat : mutez : @some : list operation : @parameter%claim : @storage
@@ -253,7 +257,7 @@ code
                 EDIV;       # option (pair nat nat) : mutez : @some : list operation : @parameter%claim : @storage
                 IF_NONE
                   {
-                    PUSH int 139; # int : mutez : @some : list operation : @parameter%claim : @storage
+                    PUSH int 162; # int : mutez : @some : list operation : @parameter%claim : @storage
                     FAILWITH;   # FAILED
                   }
                   {
@@ -267,79 +271,61 @@ code
                 CONS;       # list operation : @parameter%claim : @storage
               }
               {
-                # sp.transfer(sp.list([sp.record(from_ = sp.self_address, txs = sp.list([sp.record(to_ = params.owner, token_id = sp.snd(self.data.amm_to_tokens[params.amm][token]), amount = (self.data.amm_epoch_fee[sp.record(amm = params.amm, epoch = params.epoch)][token] * params.weight_share) // 1000000000000000000)]))]), sp.tez(0), sp.contract(sp.TList(sp.TRecord(from_ = sp.TAddress, txs = sp.TList(sp.TRecord(amount = sp.TNat, to_ = sp.TAddress, token_id = sp.TNat).layout(("to_", ("token_id", "amount"))))).layout(("from_", "txs"))), token, entry_point='transfer').open_some()) # address : list operation : @parameter%claim : @storage
-                DUP;        # address : address : list operation : @parameter%claim : @storage
-                DUG 2;      # address : list operation : address : @parameter%claim : @storage
-                CONTRACT %transfer (list (pair (address %from_) (list %txs (pair (address %to_) (pair (nat %token_id) (nat %amount)))))); # option (contract (list (pair (address %from_) (list %txs (pair (address %to_) (pair (nat %token_id) (nat %amount))))))) : list operation : address : @parameter%claim : @storage
+                # sp.transfer(sp.list([sp.record(from_ = sp.self_address, txs = sp.list([sp.record(to_ = params.owner, token_id = sp.snd(token.type), amount = (self.data.amm_epoch_fee[sp.record(amm = params.amm, epoch = params.epoch)][token] * params.weight_share) // 1000000000000000000)]))]), sp.tez(0), sp.contract(sp.TList(sp.TRecord(from_ = sp.TAddress, txs = sp.TList(sp.TRecord(amount = sp.TNat, to_ = sp.TAddress, token_id = sp.TNat).layout(("to_", ("token_id", "amount"))))).layout(("from_", "txs"))), token.token_address, entry_point='transfer').open_some()) # pair (address %token_address) (pair %type nat nat) : list operation : @parameter%claim : @storage
+                DUP;        # pair (address %token_address) (pair %type nat nat) : pair (address %token_address) (pair %type nat nat) : list operation : @parameter%claim : @storage
+                DUG 2;      # pair (address %token_address) (pair %type nat nat) : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                CAR;        # address : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                CONTRACT %transfer (list (pair (address %from_) (list %txs (pair (address %to_) (pair (nat %token_id) (nat %amount)))))); # option (contract (list (pair (address %from_) (list %txs (pair (address %to_) (pair (nat %token_id) (nat %amount))))))) : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
                 IF_NONE
                   {
-                    PUSH int 51; # int : list operation : address : @parameter%claim : @storage
+                    PUSH int 51; # int : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
                     FAILWITH;   # FAILED
                   }
-                  {}; # @some : list operation : address : @parameter%claim : @storage
-                PUSH mutez 0; # mutez : @some : list operation : address : @parameter%claim : @storage
-                NIL (pair address (list (pair address (pair nat nat)))); # list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
-                NIL (pair address (pair nat nat)); # list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
-                PUSH nat 1000000000000000000; # nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
-                DUP 8;      # @parameter%claim : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
-                GET 8;      # nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
-                DUP 10;     # @storage : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
-                CAR;        # pair (big_map %amm_epoch_fee (pair (address %amm) (nat %epoch)) (map address nat)) (big_map %amm_to_tokens address (map address (pair nat nat))) : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
-                CAR;        # big_map (pair (address %amm) (nat %epoch)) (map address nat) : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
-                DIG 9;      # @parameter%claim : big_map (pair (address %amm) (nat %epoch)) (map address nat) : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @storage
-                DUP;        # @parameter%claim : @parameter%claim : big_map (pair (address %amm) (nat %epoch)) (map address nat) : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @storage
-                GET 7;      # nat : @parameter%claim : big_map (pair (address %amm) (nat %epoch)) (map address nat) : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @storage
-                SWAP;       # @parameter%claim : nat : big_map (pair (address %amm) (nat %epoch)) (map address nat) : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @storage
-                DUP;        # @parameter%claim : @parameter%claim : nat : big_map (pair (address %amm) (nat %epoch)) (map address nat) : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @storage
-                DUG 11;     # @parameter%claim : nat : big_map (pair (address %amm) (nat %epoch)) (map address nat) : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
-                GET 5;      # address : nat : big_map (pair (address %amm) (nat %epoch)) (map address nat) : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
-                PAIR;       # pair address nat : big_map (pair (address %amm) (nat %epoch)) (map address nat) : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
-                GET;        # option (map address nat) : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
+                  {}; # @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                PUSH mutez 0; # mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                NIL (pair address (list (pair address (pair nat nat)))); # list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                NIL (pair address (pair nat nat)); # list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                PUSH nat 1000000000000000000; # nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                DUP 8;      # @parameter%claim : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                GET 8;      # nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                DUP 10;     # @storage : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                CAR;        # pair (big_map %amm_epoch_fee (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat)) (big_map %amm_to_tokens address (set (pair (address %token_address) (pair %type nat nat)))) : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                CAR;        # big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                DIG 9;      # @parameter%claim : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @storage
+                DUP;        # @parameter%claim : @parameter%claim : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @storage
+                GET 7;      # nat : @parameter%claim : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @storage
+                SWAP;       # @parameter%claim : nat : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @storage
+                DUP;        # @parameter%claim : @parameter%claim : nat : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @storage
+                DUG 11;     # @parameter%claim : nat : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                GET 5;      # address : nat : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                PAIR;       # pair address nat : big_map (pair (address %amm) (nat %epoch)) (map (pair (address %token_address) (pair %type nat nat)) nat) : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                GET;        # option (map (pair (address %token_address) (pair %type nat nat)) nat) : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
                 IF_NONE
                   {
-                    PUSH int 138; # int : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
+                    PUSH int 161; # int : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
                     FAILWITH;   # FAILED
                   }
-                  {}; # @some : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
-                DUP 9;      # address : @some : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
-                GET;        # option nat : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
+                  {}; # @some : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                DUP 9;      # pair (address %token_address) (pair %type nat nat) : @some : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                GET;        # option nat : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
                 IF_NONE
                   {
-                    PUSH int 138; # int : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
+                    PUSH int 161; # int : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
                     FAILWITH;   # FAILED
                   }
-                  {}; # @some : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
-                MUL;        # nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
-                EDIV;       # option (pair nat nat) : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
+                  {}; # @some : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                MUL;        # nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                EDIV;       # option (pair nat nat) : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
                 IF_NONE
                   {
-                    PUSH int 139; # int : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
+                    PUSH int 162; # int : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
                     FAILWITH;   # FAILED
                   }
                   {
-                    CAR;        # nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
-                  }; # nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
-                DUP 9;      # @storage : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
-                CAR;        # pair (big_map %amm_epoch_fee (pair (address %amm) (nat %epoch)) (map address nat)) (big_map %amm_to_tokens address (map address (pair nat nat))) : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
-                CDR;        # big_map address (map address (pair nat nat)) : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
-                DUP 9;      # @parameter%claim : big_map address (map address (pair nat nat)) : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
-                GET 5;      # address : big_map address (map address (pair nat nat)) : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
-                GET;        # option (map address (pair nat nat)) : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
-                IF_NONE
-                  {
-                    PUSH int 157; # int : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
-                    FAILWITH;   # FAILED
-                  }
-                  {}; # @some : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : address : @parameter%claim : @storage
-                DIG 7;      # address : @some : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%claim : @storage
-                GET;        # option (pair nat nat) : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%claim : @storage
-                IF_NONE
-                  {
-                    PUSH int 157; # int : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%claim : @storage
-                    FAILWITH;   # FAILED
-                  }
-                  {}; # @some : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%claim : @storage
-                CDR;        # nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%claim : @storage
+                    CAR;        # nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                  }; # nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                DIG 6;      # pair (address %token_address) (pair %type nat nat) : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%claim : @storage
+                GET 4;      # nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%claim : @storage
                 DUP 8;      # @parameter%claim : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%claim : @storage
                 GET 3;      # address : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%claim : @storage
                 PAIR 3;     # pair address (pair nat nat) : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%claim : @storage
@@ -368,12 +354,12 @@ code
         UPDATE;     # big_map (pair nat (pair address nat)) unit : @storage : list operation
         UPDATE 3;   # @storage : list operation
         SWAP;       # list operation : @storage
-      }; # list operation : pair (pair (big_map (pair address nat) (map address nat)) (big_map address (map address (pair nat nat)))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
-    NIL operation; # list operation : list operation : pair (pair (big_map (pair address nat) (map address nat)) (big_map address (map address (pair nat nat)))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
-    SWAP;       # list operation : list operation : pair (pair (big_map (pair address nat) (map address nat)) (big_map address (map address (pair nat nat)))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+      }; # list operation : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+    NIL operation; # list operation : list operation : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+    SWAP;       # list operation : list operation : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
     ITER
       {
-        CONS;       # list operation : pair (pair (big_map (pair address nat) (map address nat)) (big_map address (map address (pair nat nat)))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
-      }; # list operation : pair (pair (big_map (pair address nat) (map address nat)) (big_map address (map address (pair nat nat)))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
-    PAIR;       # pair (list operation) (pair (pair (big_map (pair address nat) (map address nat)) (big_map address (map address (pair nat nat)))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter)))
+        CONS;       # list operation : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+      }; # list operation : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter))
+    PAIR;       # pair (list operation) (pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (address %voter)))
   };
