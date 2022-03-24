@@ -844,17 +844,93 @@ code
                 CAR;        # pair (pair (big_map %amm_to_gauge_bribe address (pair (address %gauge) (address %bribe))) (pair %emission (nat %base) (pair (nat %genesis) (nat %real)))) (pair (nat %epoch) (pair (big_map %epoch_end nat timestamp) (address %fee_distributor))) : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
                 CAR;        # pair (big_map %amm_to_gauge_bribe address (pair (address %gauge) (address %bribe))) (pair %emission (nat %base) (pair (nat %genesis) (nat %real))) : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
                 CAR;        # big_map address (pair (address %gauge) (address %bribe)) : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
-                DIG 5;      # @parameter%recharge_gauge : big_map address (pair (address %gauge) (address %bribe)) : nat : mutez : @some : list operation : @storage
-                CAR;        # address : big_map address (pair (address %gauge) (address %bribe)) : nat : mutez : @some : list operation : @storage
-                GET;        # option (pair (address %gauge) (address %bribe)) : nat : mutez : @some : list operation : @storage
+                DUP 6;      # @parameter%recharge_gauge : big_map address (pair (address %gauge) (address %bribe)) : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
+                CAR;        # address : big_map address (pair (address %gauge) (address %bribe)) : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
+                GET;        # option (pair (address %gauge) (address %bribe)) : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
                 IF_NONE
                   {
-                    PUSH int 436; # int : nat : mutez : @some : list operation : @storage
+                    PUSH int 436; # int : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
                     FAILWITH;   # FAILED
                   }
-                  {}; # @some : nat : mutez : @some : list operation : @storage
-                CAR;        # address : nat : mutez : @some : list operation : @storage
-                PAIR;       # pair address nat : mutez : @some : list operation : @storage
+                  {}; # @some : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
+                CAR;        # address : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
+                PAIR;       # pair address nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
+                TRANSFER_TOKENS; # operation : list operation : @parameter%recharge_gauge : @storage
+                CONS;       # list operation : @parameter%recharge_gauge : @storage
+                # sp.transfer(sp.record(amount = (self.data.emission.real * ((self.data.total_amm_votes[sp.record(amm = params.amm, epoch = params.epoch)] * 1000000000000000000) // self.data.total_epoch_votes[params.epoch])) // 1000000000000000000, epoch = params.epoch), sp.tez(0), sp.contract(sp.TRecord(amount = sp.TNat, epoch = sp.TNat).layout(("amount", "epoch")), self.data.amm_to_gauge_bribe[params.amm].gauge, entry_point='recharge').open_some()) # list operation : @parameter%recharge_gauge : @storage
+                DUP 3;      # @storage : list operation : @parameter%recharge_gauge : @storage
+                CAR;        # pair (pair (big_map %amm_to_gauge_bribe address (pair (address %gauge) (address %bribe))) (pair %emission (nat %base) (pair (nat %genesis) (nat %real)))) (pair (nat %epoch) (pair (big_map %epoch_end nat timestamp) (address %fee_distributor))) : list operation : @parameter%recharge_gauge : @storage
+                CAR;        # pair (big_map %amm_to_gauge_bribe address (pair (address %gauge) (address %bribe))) (pair %emission (nat %base) (pair (nat %genesis) (nat %real))) : list operation : @parameter%recharge_gauge : @storage
+                CAR;        # big_map address (pair (address %gauge) (address %bribe)) : list operation : @parameter%recharge_gauge : @storage
+                DUP 3;      # @parameter%recharge_gauge : big_map address (pair (address %gauge) (address %bribe)) : list operation : @parameter%recharge_gauge : @storage
+                CAR;        # address : big_map address (pair (address %gauge) (address %bribe)) : list operation : @parameter%recharge_gauge : @storage
+                GET;        # option (pair (address %gauge) (address %bribe)) : list operation : @parameter%recharge_gauge : @storage
+                IF_NONE
+                  {
+                    PUSH int 444; # int : list operation : @parameter%recharge_gauge : @storage
+                    FAILWITH;   # FAILED
+                  }
+                  {}; # @some : list operation : @parameter%recharge_gauge : @storage
+                CAR;        # address : list operation : @parameter%recharge_gauge : @storage
+                CONTRACT %recharge (pair (nat %amount) (nat %epoch)); # option (contract (pair (nat %amount) (nat %epoch))) : list operation : @parameter%recharge_gauge : @storage
+                IF_NONE
+                  {
+                    PUSH int 442; # int : list operation : @parameter%recharge_gauge : @storage
+                    FAILWITH;   # FAILED
+                  }
+                  {}; # @some : list operation : @parameter%recharge_gauge : @storage
+                PUSH mutez 0; # mutez : @some : list operation : @parameter%recharge_gauge : @storage
+                DUP 4;      # @parameter%recharge_gauge : mutez : @some : list operation : @parameter%recharge_gauge : @storage
+                CDR;        # nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
+                PUSH nat 1000000000000000000; # nat : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
+                DUP 7;      # @storage : nat : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
+                GET 5;      # big_map nat nat : nat : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
+                DUP 7;      # @parameter%recharge_gauge : big_map nat nat : nat : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
+                CDR;        # nat : big_map nat nat : nat : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
+                GET;        # option nat : nat : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
+                IF_NONE
+                  {
+                    PUSH int 423; # int : nat : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
+                    FAILWITH;   # FAILED
+                  }
+                  {}; # @some : nat : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
+                PUSH nat 1000000000000000000; # nat : @some : nat : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
+                DUP 9;      # @storage : nat : @some : nat : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
+                GET 3;      # pair (address %ply_address) (pair (big_map %token_amm_votes (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat) (big_map %total_amm_votes (pair (address %amm) (nat %epoch)) nat)) : nat : @some : nat : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
+                GET 4;      # big_map (pair (address %amm) (nat %epoch)) nat : nat : @some : nat : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
+                DIG 8;      # @parameter%recharge_gauge : big_map (pair (address %amm) (nat %epoch)) nat : nat : @some : nat : nat : mutez : @some : list operation : @storage
+                GET;        # option nat : nat : @some : nat : nat : mutez : @some : list operation : @storage
+                IF_NONE
+                  {
+                    PUSH int 422; # int : nat : @some : nat : nat : mutez : @some : list operation : @storage
+                    FAILWITH;   # FAILED
+                  }
+                  {}; # @some : nat : @some : nat : nat : mutez : @some : list operation : @storage
+                MUL;        # nat : @some : nat : nat : mutez : @some : list operation : @storage
+                EDIV;       # option (pair nat nat) : nat : nat : mutez : @some : list operation : @storage
+                IF_NONE
+                  {
+                    PUSH int 424; # int : nat : nat : mutez : @some : list operation : @storage
+                    FAILWITH;   # FAILED
+                  }
+                  {
+                    CAR;        # nat : nat : nat : mutez : @some : list operation : @storage
+                  }; # nat : nat : nat : mutez : @some : list operation : @storage
+                DUP 7;      # @storage : nat : nat : nat : mutez : @some : list operation : @storage
+                CAR;        # pair (pair (big_map %amm_to_gauge_bribe address (pair (address %gauge) (address %bribe))) (pair %emission (nat %base) (pair (nat %genesis) (nat %real)))) (pair (nat %epoch) (pair (big_map %epoch_end nat timestamp) (address %fee_distributor))) : nat : nat : nat : mutez : @some : list operation : @storage
+                CAR;        # pair (big_map %amm_to_gauge_bribe address (pair (address %gauge) (address %bribe))) (pair %emission (nat %base) (pair (nat %genesis) (nat %real))) : nat : nat : nat : mutez : @some : list operation : @storage
+                GET 6;      # nat : nat : nat : nat : mutez : @some : list operation : @storage
+                MUL;        # nat : nat : nat : mutez : @some : list operation : @storage
+                EDIV;       # option (pair nat nat) : nat : mutez : @some : list operation : @storage
+                IF_NONE
+                  {
+                    PUSH int 427; # int : nat : mutez : @some : list operation : @storage
+                    FAILWITH;   # FAILED
+                  }
+                  {
+                    CAR;        # nat : nat : mutez : @some : list operation : @storage
+                  }; # nat : nat : mutez : @some : list operation : @storage
+                PAIR;       # pair nat nat : mutez : @some : list operation : @storage
                 TRANSFER_TOKENS; # operation : list operation : @storage
                 CONS;       # list operation : @storage
               }
@@ -1280,6 +1356,12 @@ code
               }; # list operation : @storage
           }; # list operation : @storage
       }; # list operation : pair (pair (pair (big_map address (pair (address %gauge) (address %bribe))) (pair (nat %base) (pair (nat %genesis) (nat %real)))) (pair nat (pair (big_map nat timestamp) address))) (pair (pair (address %ply_address) (pair (big_map %token_amm_votes (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat) (big_map %total_amm_votes (pair (address %amm) (nat %epoch)) nat))) (pair (big_map %total_epoch_votes nat nat) (pair (big_map %total_token_votes (pair (nat %token_id) (nat %epoch)) nat) (address %ve_address))))
+    NIL operation; # list operation : list operation : pair (pair (pair (big_map address (pair (address %gauge) (address %bribe))) (pair (nat %base) (pair (nat %genesis) (nat %real)))) (pair nat (pair (big_map nat timestamp) address))) (pair (pair (address %ply_address) (pair (big_map %token_amm_votes (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat) (big_map %total_amm_votes (pair (address %amm) (nat %epoch)) nat))) (pair (big_map %total_epoch_votes nat nat) (pair (big_map %total_token_votes (pair (nat %token_id) (nat %epoch)) nat) (address %ve_address))))
+    SWAP;       # list operation : list operation : pair (pair (pair (big_map address (pair (address %gauge) (address %bribe))) (pair (nat %base) (pair (nat %genesis) (nat %real)))) (pair nat (pair (big_map nat timestamp) address))) (pair (pair (address %ply_address) (pair (big_map %token_amm_votes (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat) (big_map %total_amm_votes (pair (address %amm) (nat %epoch)) nat))) (pair (big_map %total_epoch_votes nat nat) (pair (big_map %total_token_votes (pair (nat %token_id) (nat %epoch)) nat) (address %ve_address))))
+    ITER
+      {
+        CONS;       # list operation : pair (pair (pair (big_map address (pair (address %gauge) (address %bribe))) (pair (nat %base) (pair (nat %genesis) (nat %real)))) (pair nat (pair (big_map nat timestamp) address))) (pair (pair (address %ply_address) (pair (big_map %token_amm_votes (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat) (big_map %total_amm_votes (pair (address %amm) (nat %epoch)) nat))) (pair (big_map %total_epoch_votes nat nat) (pair (big_map %total_token_votes (pair (nat %token_id) (nat %epoch)) nat) (address %ve_address))))
+      }; # list operation : pair (pair (pair (big_map address (pair (address %gauge) (address %bribe))) (pair (nat %base) (pair (nat %genesis) (nat %real)))) (pair nat (pair (big_map nat timestamp) address))) (pair (pair (address %ply_address) (pair (big_map %token_amm_votes (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat) (big_map %total_amm_votes (pair (address %amm) (nat %epoch)) nat))) (pair (big_map %total_epoch_votes nat nat) (pair (big_map %total_token_votes (pair (nat %token_id) (nat %epoch)) nat) (address %ve_address))))
     PAIR;       # pair (list operation) (pair (pair (pair (big_map address (pair (address %gauge) (address %bribe))) (pair (nat %base) (pair (nat %genesis) (nat %real)))) (pair nat (pair (big_map nat timestamp) address))) (pair (pair (address %ply_address) (pair (big_map %token_amm_votes (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat) (big_map %total_amm_votes (pair (address %amm) (nat %epoch)) nat))) (pair (big_map %total_epoch_votes nat nat) (pair (big_map %total_token_votes (pair (nat %token_id) (nat %epoch)) nat) (address %ve_address)))))
   };
 view
@@ -1298,7 +1380,7 @@ view
     GET;        # option timestamp : @storage
     IF_NONE
       {
-        PUSH int 445; # int : @storage
+        PUSH int 455; # int : @storage
         FAILWITH;   # FAILED
       }
       {}; # @some : @storage

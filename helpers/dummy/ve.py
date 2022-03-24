@@ -11,10 +11,12 @@ class VE(sp.Contract):
             tkey=sp.TNat,
             tvalue=sp.TNat,
         ),
+        total_power=sp.nat(0),
         locked_supply=sp.nat(0),
     ):
         self.init(
             powers=powers,
+            total_power=total_power,
             locked_supply=locked_supply,
         )
 
@@ -30,6 +32,24 @@ class VE(sp.Contract):
         )
 
         sp.result(self.data.powers[params.token_id])
+
+    @sp.onchain_view()
+    def get_total_voting_power(self, params):
+        sp.set_type(
+            params,
+            sp.TRecord(
+                ts=sp.TNat,
+                time=sp.TNat,
+            ),
+        )
+
+        sp.result(self.data.total_power)
+
+    @sp.entry_point
+    def attach(self, params):
+        sp.set_type(params, sp.TRecord(attachments=sp.TList(sp.TPair(sp.TNat, sp.TBool)), owner=sp.TAddress))
+
+        pass
 
     @sp.onchain_view()
     def is_owner(self, params):

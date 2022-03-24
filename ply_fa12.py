@@ -50,6 +50,7 @@ class FA12_core(sp.Contract, FA12_common):
                 tvalue=sp.TRecord(approvals=sp.TMap(sp.TAddress, sp.TNat), balance=sp.TNat),
             ),
             totalSupply=0,
+            mintAdmins=sp.set(),
             mintingDisabled=False,
             **extra_storage,
         )
@@ -121,7 +122,7 @@ class FA12_mint(FA12_core):
     @sp.entry_point
     def mint(self, params):
         sp.set_type(params, sp.TRecord(address=sp.TAddress, value=sp.TNat))
-        sp.verify(self.is_administrator(sp.sender), FA12_Error.NotAdmin)
+        sp.verify(self.is_administrator(sp.sender) | self.data.mintAdmins.contains(sp.sender), FA12_Error.NotAdmin)
         sp.verify(~self.data.mintingDisabled, FA12_Error.MintingDisabled)
         self.addAddressIfNecessary(params.address)
 
@@ -142,6 +143,20 @@ class FA12_mint(FA12_core):
 class FA12_administrator(FA12_core):
     def is_administrator(self, sender):
         return sender == self.data.administrator
+
+    # CHANGED: entrypoint to insert mint admins
+    @sp.entry_point
+    def addMintAdmin(self, address):
+        sp.verify(self.is_administrator(sp.sender), FA12_Error.NotAdmin)
+
+        self.data.mintAdmins.add(address)
+
+    # CHANGED: entrypoint to remove mint admins
+    @sp.entry_point
+    def removeMintAdmin(self, address):
+        sp.verify(self.is_administrator(sp.sender), FA12_Error.NotAdmin)
+
+        self.data.mintAdmins.remove(address)
 
 
 class FA12_token_metadata(FA12_core):

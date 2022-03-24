@@ -438,7 +438,17 @@ class Voter(sp.Contract):
             c,
         )
 
-        # TODO: call 'recharge' entrypoint in concerned gauge
+        # Call 'recharge' entrypoint in concerned gauge
+        c_gauge = sp.contract(
+            sp.TRecord(amount=sp.TNat, epoch=sp.TNat),
+            self.data.amm_to_gauge_bribe[params.amm].gauge,
+            "recharge",
+        ).open_some()
+        sp.transfer(
+            sp.record(amount=recharge_amount, epoch=params.epoch),
+            sp.tez(0),
+            c_gauge,
+        )
 
     @sp.onchain_view()
     def get_current_epoch(self):
@@ -939,5 +949,64 @@ if __name__ == "__main__":
             valid=False,
             exception=Errors.AMM_INVALID_OR_NOT_WHITELISTED,
         )
+
+    ##############################
+    # recharge_gauge (valid test)
+    ##############################
+
+    @sp.add_test(name="recharge_gauge correctly calculates the amm vote share and recharges the gauge")
+    def test():
+        scenario = sp.test_scenario()
+
+        ply_token = FA12(Addresses.ADMIN)
+
+        # Initialize a dummy gauge contract and set it in the voter for AMM_1
+        gauge = GaugeBribe()
+
+        # Initialize with some votes for epoch 1
+        voter = Voter(
+            epoch=2,
+            epoch_end=sp.big_map(l={2: sp.timestamp(10)}),
+            emission=sp.record(
+                base=INITIAL_INFLATION,
+                real=INITIAL_INFLATION,
+                genesis=2 * WEEK,
+            ),
+            amm_to_gauge_bribe=sp.big_map(
+                l={
+                    Addresses.AMM_1: sp.record(gauge=gauge.address, bribe=Addresses.CONTRACT),
+                }
+            ),
+            total_amm_votes=sp.big_map(
+                l={
+                    sp.record(epoch=1, amm=Addresses.AMM_1): 250,
+                }
+            ),
+            total_epoch_votes=sp.big_map(l={1: 500}),
+            ply_address=ply_token.address,
+        )
+
+        scenario += gauge
+        scenario += voter
+        scenario += ply_token
+
+        # Make voter contract a mint admin
+        scenario += ply_token.addMintAdmin(voter.address).run(sender=Addresses.ADMIN)
+
+        # When gauge is recharged for epoch 1
+        scenario += voter.recharge_gauge(
+            sp.record(
+                epoch=1,
+                amm=Addresses.AMM_1,
+            )
+        ).run(sender=Addresses.ALICE)
+
+        # AMM's vote share is calculated correctly and gauge contract is called with correct amount value
+        scenario.verify(
+            gauge.data.recharge_val.open_some() == sp.record(amount=1_000_000 * DECIMALS, epoch=1)
+        )  # 0.5 of the real emission
+
+        # PLY tokens are minted correctly for gauge
+        scenario.verify(ply_token.data.balances[gauge.address].balance == 1_000_000 * DECIMALS)
 
     sp.add_compilation_target("voter", Voter())
