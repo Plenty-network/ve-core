@@ -68,6 +68,12 @@ class Types:
 
     # Param types
 
+    ADD_AMM_PARAMS = sp.TRecord(
+        amm=sp.TAddress,
+        gauge=sp.TAddress,
+        bribe=sp.TAddress,
+    ).layout(("amm", ("gauge", "bribe")))
+
     VOTE_PARAMS = sp.TRecord(
         token_id=sp.TNat,
         vote_items=sp.TList(
@@ -112,6 +118,7 @@ class Errors:
 
     # Generic
     INVALID_VIEW = "INVALID_VIEW"
+    NOT_AUTHORISED = "NOT_AUTHORISED"
 
 
 ###########
@@ -158,7 +165,8 @@ class Voter(sp.Contract):
             real=sp.nat(0),
             genesis=sp.nat(0),
         ),
-        fee_distributor=Addresses.CONTRACT,
+        core_factory=Addresses.DUMMY,
+        fee_distributor=Addresses.DUMMY,
         ply_address=Addresses.TOKEN,
         ve_address=Addresses.CONTRACT,
     ):
@@ -171,6 +179,7 @@ class Voter(sp.Contract):
             total_token_votes=total_token_votes,
             total_epoch_votes=total_epoch_votes,
             emission=emission,
+            core_factory=core_factory,
             fee_distributor=fee_distributor,
             ply_address=ply_address,
             ve_address=ve_address,
@@ -231,6 +240,40 @@ class Voter(sp.Contract):
             # Update weekly epoch
             self.data.epoch += 1
             self.data.epoch_end[self.data.epoch] = self.data.epoch_end[sp.as_nat(self.data.epoch - 1)].add_seconds(WEEK)
+
+    # NOTE: This is called only once during origination sequence
+    @sp.entry_point
+    def set_factory_and_fee_dist(self, params):
+        sp.set_type(params, sp.TRecord(factory=sp.TAddress, fee_dist=sp.TAddress))
+
+        with sp.if_(self.data.core_factory == Addresses.DUMMY):
+            self.data.core_factory = params.factory
+            self.data.fee_distributor = params.fee_dist
+
+    # NOTE: This is tested in CoreFactory
+    @sp.entry_point
+    def add_amm(self, params):
+        sp.set_type(params, Types.ADD_AMM_PARAMS)
+
+        # Verify that the sender is the core factory
+        sp.verify(sp.sender == self.data.core_factory, Errors.NOT_AUTHORISED)
+
+        # Add to storage
+        self.data.amm_to_gauge_bribe[params.amm] = sp.record(
+            gauge=params.gauge,
+            bribe=params.bribe,
+        )
+
+    # NOTE: This is tested in CoreFactory
+    @sp.entry_point
+    def remove_amm(self, amm):
+        sp.set_type(amm, sp.TAddress)
+
+        # Verify that the sender is the core factory
+        sp.verify(sp.sender == self.data.core_factory, Errors.NOT_AUTHORISED)
+
+        # Delete AMM from storage
+        del self.data.amm_to_gauge_bribe[amm]
 
     @sp.entry_point
     def vote(self, params):

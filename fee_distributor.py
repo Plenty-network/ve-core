@@ -49,6 +49,16 @@ class Types:
 
     # parameter types
 
+    ADD_AMM_PARAMS = sp.TRecord(
+        amm=sp.TAddress,
+        tokens=sp.TSet(
+            sp.TRecord(
+                token_address=sp.TAddress,
+                type=sp.TPair(sp.TNat, sp.TNat),
+            ).layout(("token_address", "type"))
+        ),
+    ).layout(("amm", "tokens"))
+
     ADD_FEES_PARAMS = sp.TRecord(
         epoch=sp.TNat,
         fees=sp.TMap(
@@ -114,13 +124,37 @@ class FeeDistributor(sp.Contract):
             tvalue=sp.TUnit,
         ),
         voter=Addresses.CONTRACT,
+        core_factory=Addresses.CONTRACT,
     ):
         self.init(
             amm_to_tokens=amm_to_tokens,
             amm_epoch_fee=amm_epoch_fee,
             claim_ledger=claim_ledger,
             voter=voter,
+            core_factory=core_factory,
         )
+
+    # NOTE: This is tested in CoreFactory
+    @sp.entry_point
+    def add_amm(self, params):
+        sp.set_type(params, Types.ADD_AMM_PARAMS)
+
+        # Verify that the sender is the core factory
+        sp.verify(sp.sender == self.data.core_factory, Errors.NOT_AUTHORISED)
+
+        # Add amm and tokens to storage
+        self.data.amm_to_tokens[params.amm] = params.tokens
+
+    # NOTE: This is tested in CoreFactory
+    @sp.entry_point
+    def remove_amm(self, amm):
+        sp.set_type(amm, sp.TAddress)
+
+        # Verify that the sender is the core factory
+        sp.verify(sp.sender == self.data.core_factory, Errors.NOT_AUTHORISED)
+
+        # Delete AMM from storage
+        del self.data.amm_to_tokens[amm]
 
     @sp.entry_point
     def add_fees(self, params):
@@ -382,10 +416,7 @@ if __name__ == "__main__":
         fee_dist = FeeDistributor(
             amm_to_tokens=sp.big_map(
                 l={
-                    Addresses.AMM: {
-                        TOKEN_1: (Types.TOKEN_FA12, 0),
-                        TOKEN_2: (Types.TOKEN_FA2, 0),
-                    },
+                    Addresses.AMM: {TOKEN_1, TOKEN_2},
                 }
             ),
             amm_epoch_fee=sp.big_map(
