@@ -108,6 +108,8 @@ class Errors:
 class FeeDistributor(sp.Contract):
     def __init__(
         self,
+        voter=Addresses.CONTRACT,
+        core_factory=Addresses.CONTRACT,
         amm_to_tokens=sp.big_map(
             l={},
             tkey=sp.TAddress,
@@ -123,15 +125,23 @@ class FeeDistributor(sp.Contract):
             tkey=Types.CLAIM_LEDGER_KEY,
             tvalue=sp.TUnit,
         ),
-        voter=Addresses.CONTRACT,
-        core_factory=Addresses.CONTRACT,
     ):
         self.init(
+            voter=voter,
+            core_factory=core_factory,
             amm_to_tokens=amm_to_tokens,
             amm_epoch_fee=amm_epoch_fee,
             claim_ledger=claim_ledger,
-            voter=voter,
-            core_factory=core_factory,
+        )
+
+        self.init_type(
+            sp.TRecord(
+                voter=sp.TAddress,
+                core_factory=sp.TAddress,
+                amm_to_tokens=sp.TBigMap(sp.TAddress, Types.AMM_TO_TOKENS_VALUE),
+                amm_epoch_fee=sp.TBigMap(Types.AMM_EPOCH_FEE_KEY, Types.AMM_EPOCH_FEE_VALUE),
+                claim_ledger=sp.TBigMap(Types.CLAIM_LEDGER_KEY, sp.TUnit),
+            )
         )
 
     # NOTE: This is tested in CoreFactory

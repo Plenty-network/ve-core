@@ -112,6 +112,27 @@ class Gauge(sp.Contract):
             derived_supply=derived_supply,
         )
 
+        self.init_type(
+            sp.TRecord(
+                lp_token_address=sp.TAddress,
+                ply_address=sp.TAddress,
+                ve_address=sp.TAddress,
+                voter=sp.TAddress,
+                reward_rate=sp.TNat,
+                reward_per_token=sp.TNat,
+                last_update_time=sp.TNat,
+                period_finish=sp.TNat,
+                recharge_ledger=sp.TBigMap(sp.TNat, sp.TUnit),
+                user_reward_per_token_debt=sp.TBigMap(sp.TAddress, sp.TNat),
+                balances=sp.TBigMap(sp.TAddress, sp.TNat),
+                derived_balances=sp.TBigMap(sp.TAddress, sp.TNat),
+                attached_tokens=sp.TBigMap(sp.TAddress, sp.TNat),
+                rewards=sp.TBigMap(sp.TAddress, sp.TNat),
+                total_supply=sp.TNat,
+                derived_supply=sp.TNat,
+            )
+        )
+
     @sp.private_lambda(with_storage="read-write", wrap_call=True)
     def update_reward(self, address):
         sp.set_type(address, sp.TAddress)

@@ -250,7 +250,7 @@ code
         GET;        # option (pair (address %token_address) (pair (pair %type nat nat) (nat %amount))) : nat : @parameter%claim : @storage
         IF_NONE
           {
-            PUSH int 169; # int : nat : @parameter%claim : @storage
+            PUSH int 178; # int : nat : @parameter%claim : @storage
             FAILWITH;   # FAILED
           }
           {}; # @some : nat : @parameter%claim : @storage
@@ -276,7 +276,7 @@ code
             GET;        # option (pair (address %token_address) (pair (pair %type nat nat) (nat %amount))) : list operation : @parameter%claim : @storage
             IF_NONE
               {
-                PUSH int 169; # int : list operation : @parameter%claim : @storage
+                PUSH int 178; # int : list operation : @parameter%claim : @storage
                 FAILWITH;   # FAILED
               }
               {}; # @some : list operation : @parameter%claim : @storage
@@ -306,7 +306,7 @@ code
             GET;        # option (pair (address %token_address) (pair (pair %type nat nat) (nat %amount))) : nat : nat : mutez : @some : list operation : @parameter%claim : @storage
             IF_NONE
               {
-                PUSH int 169; # int : nat : nat : mutez : @some : list operation : @parameter%claim : @storage
+                PUSH int 178; # int : nat : nat : mutez : @some : list operation : @parameter%claim : @storage
                 FAILWITH;   # FAILED
               }
               {}; # @some : nat : nat : mutez : @some : list operation : @parameter%claim : @storage
@@ -315,7 +315,7 @@ code
             EDIV;       # option (pair nat nat) : mutez : @some : list operation : @parameter%claim : @storage
             IF_NONE
               {
-                PUSH int 171; # int : mutez : @some : list operation : @parameter%claim : @storage
+                PUSH int 180; # int : mutez : @some : list operation : @parameter%claim : @storage
                 FAILWITH;   # FAILED
               }
               {
@@ -345,7 +345,7 @@ code
             GET;        # option (pair (address %token_address) (pair (pair %type nat nat) (nat %amount))) : list operation : @parameter%claim : @storage
             IF_NONE
               {
-                PUSH int 169; # int : list operation : @parameter%claim : @storage
+                PUSH int 178; # int : list operation : @parameter%claim : @storage
                 FAILWITH;   # FAILED
               }
               {}; # @some : list operation : @parameter%claim : @storage
@@ -377,7 +377,7 @@ code
             GET;        # option (pair (address %token_address) (pair (pair %type nat nat) (nat %amount))) : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%claim : @storage
             IF_NONE
               {
-                PUSH int 169; # int : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%claim : @storage
+                PUSH int 178; # int : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%claim : @storage
                 FAILWITH;   # FAILED
               }
               {}; # @some : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%claim : @storage
@@ -386,7 +386,7 @@ code
             EDIV;       # option (pair nat nat) : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%claim : @storage
             IF_NONE
               {
-                PUSH int 171; # int : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%claim : @storage
+                PUSH int 180; # int : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%claim : @storage
                 FAILWITH;   # FAILED
               }
               {
@@ -406,7 +406,7 @@ code
             GET;        # option (pair (address %token_address) (pair (pair %type nat nat) (nat %amount))) : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%claim : @storage
             IF_NONE
               {
-                PUSH int 169; # int : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%claim : @storage
+                PUSH int 178; # int : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%claim : @storage
                 FAILWITH;   # FAILED
               }
               {}; # @some : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%claim : @storage

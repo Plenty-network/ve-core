@@ -99,7 +99,7 @@ code
                 GET;        # option (set (pair (address %token_address) (pair %type nat nat))) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter)))
                 IF_NONE
                   {
-                    PUSH int 172; # int : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter)))
+                    PUSH int 184; # int : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter)))
                     FAILWITH;   # FAILED
                   }
                   {}; # @some : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees : pair (pair (big_map (pair address nat) (map (pair address (pair nat nat)) nat)) (big_map address (set (pair (address %token_address) (pair %type nat nat))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter)))
@@ -127,7 +127,7 @@ code
                 GET;        # option (map (pair address (pair nat nat)) nat) : pair @sender nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter)) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
                 IF_NONE
                   {
-                    PUSH int 173; # int : pair @sender nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter)) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
+                    PUSH int 185; # int : pair @sender nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter)) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
                     FAILWITH;   # FAILED
                   }
                   {}; # @some : pair @sender nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter)) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
@@ -137,7 +137,7 @@ code
                 GET;        # option nat : @some : pair @sender nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter)) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
                 IF_NONE
                   {
-                    PUSH int 173; # int : @some : pair @sender nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter)) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
+                    PUSH int 185; # int : @some : pair @sender nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter)) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
                     FAILWITH;   # FAILED
                   }
                   {}; # @some : @some : pair @sender nat : big_map (pair address nat) (map (pair address (pair nat nat)) nat) : big_map address (set (pair (address %token_address) (pair %type nat nat))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter)) : pair (address %token_address) (pair %type nat nat) : @parameter%add_fees
@@ -233,7 +233,7 @@ code
             GET;        # option (map (pair (address %token_address) (pair %type nat nat)) nat) : list operation : @parameter%claim : @storage
             IF_NONE
               {
-                PUSH int 192; # int : list operation : @parameter%claim : @storage
+                PUSH int 204; # int : list operation : @parameter%claim : @storage
                 FAILWITH;   # FAILED
               }
               {}; # @some : list operation : @parameter%claim : @storage
@@ -277,7 +277,7 @@ code
                     GET;        # option (map (pair (address %token_address) (pair %type nat nat)) nat) : nat : nat : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
                     IF_NONE
                       {
-                        PUSH int 193; # int : nat : nat : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                        PUSH int 205; # int : nat : nat : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
                         FAILWITH;   # FAILED
                       }
                       {}; # @some : nat : nat : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
@@ -285,7 +285,7 @@ code
                     GET;        # option nat : nat : nat : mutez : @some : list operation : @parameter%claim : @storage
                     IF_NONE
                       {
-                        PUSH int 193; # int : nat : nat : mutez : @some : list operation : @parameter%claim : @storage
+                        PUSH int 205; # int : nat : nat : mutez : @some : list operation : @parameter%claim : @storage
                         FAILWITH;   # FAILED
                       }
                       {}; # @some : nat : nat : mutez : @some : list operation : @parameter%claim : @storage
@@ -293,7 +293,7 @@ code
                     EDIV;       # option (pair nat nat) : mutez : @some : list operation : @parameter%claim : @storage
                     IF_NONE
                       {
-                        PUSH int 194; # int : mutez : @some : list operation : @parameter%claim : @storage
+                        PUSH int 206; # int : mutez : @some : list operation : @parameter%claim : @storage
                         FAILWITH;   # FAILED
                       }
                       {
@@ -338,7 +338,7 @@ code
                     GET;        # option (map (pair (address %token_address) (pair %type nat nat)) nat) : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
                     IF_NONE
                       {
-                        PUSH int 193; # int : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                        PUSH int 205; # int : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
                         FAILWITH;   # FAILED
                       }
                       {}; # @some : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
@@ -346,7 +346,7 @@ code
                     GET;        # option nat : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
                     IF_NONE
                       {
-                        PUSH int 193; # int : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                        PUSH int 205; # int : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
                         FAILWITH;   # FAILED
                       }
                       {}; # @some : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
@@ -354,7 +354,7 @@ code
                     EDIV;       # option (pair nat nat) : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
                     IF_NONE
                       {
-                        PUSH int 194; # int : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
+                        PUSH int 206; # int : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair (address %token_address) (pair %type nat nat) : @parameter%claim : @storage
                         FAILWITH;   # FAILED
                       }
                       {

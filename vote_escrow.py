@@ -173,6 +173,32 @@ class VoteEscrow(sp.Contract):
             locked_supply=locked_supply,
         )
 
+        self.init_type(
+            sp.TRecord(
+                # FA2 specific
+                ledger=sp.TBigMap(sp.TPair(sp.TAddress, sp.TNat), sp.TNat),
+                operators=sp.TBigMap(
+                    sp.TRecord(
+                        token_id=sp.TNat,
+                        owner=sp.TAddress,
+                        operator=sp.TAddress,
+                    ),
+                    sp.TUnit,
+                ),
+                # VE specific
+                locks=sp.TBigMap(sp.TNat, Types.LOCK),
+                attached=sp.TBigMap(sp.TNat, sp.TBool),
+                uid=sp.TNat,
+                token_checkpoints=sp.TBigMap(sp.TPair(sp.TNat, sp.TNat), Types.POINT),
+                num_token_checkpoints=sp.TBigMap(sp.TNat, sp.TNat),
+                gc_index=sp.TNat,
+                global_checkpoints=sp.TBigMap(sp.TNat, Types.POINT),
+                slope_changes=sp.TBigMap(sp.TNat, sp.TNat),
+                base_token=sp.TAddress,
+                locked_supply=sp.TNat,
+            )
+        )
+
     # Default tzip-12 specified transfer for NFTs
     @sp.entry_point
     def transfer(self, params):

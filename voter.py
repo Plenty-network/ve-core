@@ -129,11 +129,20 @@ class Errors:
 class Voter(sp.Contract):
     def __init__(
         self,
+        core_factory=Addresses.DUMMY,
+        fee_distributor=Addresses.DUMMY,
+        ply_address=Addresses.TOKEN,
+        ve_address=Addresses.CONTRACT,
         epoch=sp.nat(0),
         epoch_end=sp.big_map(
             l={},
             tkey=sp.TNat,
             tvalue=sp.TTimestamp,
+        ),
+        emission=sp.record(
+            base=INITIAL_INFLATION,
+            real=sp.nat(0),
+            genesis=sp.nat(0),
         ),
         amm_to_gauge_bribe=sp.big_map(
             l={},
@@ -160,29 +169,37 @@ class Voter(sp.Contract):
             tkey=sp.TNat,
             tvalue=sp.TNat,
         ),
-        emission=sp.record(
-            base=INITIAL_INFLATION,
-            real=sp.nat(0),
-            genesis=sp.nat(0),
-        ),
-        core_factory=Addresses.DUMMY,
-        fee_distributor=Addresses.DUMMY,
-        ply_address=Addresses.TOKEN,
-        ve_address=Addresses.CONTRACT,
     ):
         self.init(
+            core_factory=core_factory,
+            fee_distributor=fee_distributor,
+            ply_address=ply_address,
+            ve_address=ve_address,
             epoch=epoch,
             epoch_end=epoch_end,
+            emission=emission,
             amm_to_gauge_bribe=amm_to_gauge_bribe,
             total_amm_votes=total_amm_votes,
             token_amm_votes=token_amm_votes,
             total_token_votes=total_token_votes,
             total_epoch_votes=total_epoch_votes,
-            emission=emission,
-            core_factory=core_factory,
-            fee_distributor=fee_distributor,
-            ply_address=ply_address,
-            ve_address=ve_address,
+        )
+
+        self.init_type(
+            sp.TRecord(
+                core_factory=sp.TAddress,
+                fee_distributor=sp.TAddress,
+                ply_address=sp.TAddress,
+                ve_address=sp.TAddress,
+                epoch=sp.TNat,
+                epoch_end=sp.TBigMap(sp.TNat, sp.TTimestamp),
+                emission=sp.TRecord(base=sp.TNat, real=sp.TNat, genesis=sp.TNat),
+                amm_to_gauge_bribe=sp.TBigMap(sp.TAddress, Types.AMM_TO_GAUGE_BRIBE),
+                total_amm_votes=sp.TBigMap(Types.TOTAL_AMM_VOTES_KEY, sp.TNat),
+                token_amm_votes=sp.TBigMap(Types.TOKEN_AMM_VOTES_KEY, sp.TNat),
+                total_token_votes=sp.TBigMap(Types.TOTAL_TOKEN_VOTES_KEY, sp.TNat),
+                total_epoch_votes=sp.TBigMap(sp.TNat, sp.TNat),
+            )
         )
 
     @sp.entry_point

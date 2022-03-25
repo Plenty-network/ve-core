@@ -66,6 +66,17 @@ class CoreFactory(sp.Contract):
             amm_registered=amm_registered,
         )
 
+        self.init_type(
+            sp.TRecord(
+                admin=sp.TAddress,
+                voter=sp.TAddress,
+                ply_address=sp.TAddress,
+                ve_address=sp.TAddress,
+                fee_distributor=sp.TAddress,
+                amm_registered=sp.TBigMap(sp.TAddress, sp.TUnit),
+            )
+        )
+
         self.gauge = Gauge()
         self.bribe = Bribe()
 

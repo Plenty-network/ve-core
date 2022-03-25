@@ -26,6 +26,7 @@ class Types:
         bribe_id=sp.TNat,
     ).layout(("epoch", "bribe_id"))
 
+    # Pair type represents a (token type, token-id) pairing. Token id only relevant for FA2
     EPOCH_BRIBES_VALUE = sp.TRecord(
         token_address=sp.TAddress,
         type=sp.TPair(sp.TNat, sp.TNat),
@@ -82,10 +83,11 @@ class Errors:
 class Bribe(sp.Contract):
     def __init__(
         self,
+        uid=sp.nat(0),
+        voter=Addresses.CONTRACT,
         epoch_bribes=sp.big_map(
             l={},
             tkey=Types.EPOCH_BRIBES_KEY,
-            # Pair type represents a (token type, token-id) pairing. Token id only relevant for FA2
             tvalue=Types.EPOCH_BRIBES_VALUE,
         ),
         claim_ledger=sp.big_map(
@@ -93,14 +95,21 @@ class Bribe(sp.Contract):
             tkey=Types.CLAIM_LEDGER_KEY,
             tvalue=sp.TUnit,
         ),
-        uid=sp.nat(0),
-        voter=Addresses.CONTRACT,
     ):
         self.init(
             uid=uid,
+            voter=voter,
             epoch_bribes=epoch_bribes,
             claim_ledger=claim_ledger,
-            voter=voter,
+        )
+
+        self.init_type(
+            sp.TRecord(
+                uid=sp.TNat,
+                voter=sp.TAddress,
+                epoch_bribes=sp.TBigMap(Types.EPOCH_BRIBES_KEY, Types.EPOCH_BRIBES_VALUE),
+                claim_ledger=sp.TBigMap(Types.CLAIM_LEDGER_KEY, sp.TUnit),
+            )
         )
 
     @sp.entry_point
