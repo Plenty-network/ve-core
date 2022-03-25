@@ -295,7 +295,7 @@ class VoteEscrow(sp.Contract):
         sp.set_type(params, sp.TRecord(attachments=sp.TList(sp.TPair(sp.TNat, sp.TBool)), owner=sp.TAddress))
 
         with sp.for_("attachment", params.attachments) as attachment:
-            sp.verify(self.data.ledger.get((sp.sender, sp.fst(attachment)), 0) == 1, Errors.NOT_AUTHORISED)
+            sp.verify(self.data.ledger.get((params.owner, sp.fst(attachment)), 0) == 1, Errors.NOT_AUTHORISED)
             sp.verify(
                 (sp.sender == params.owner)
                 | self.data.operators.contains(
@@ -304,7 +304,8 @@ class VoteEscrow(sp.Contract):
                         operator=sp.sender,
                         token_id=sp.fst(attachment),
                     )
-                )
+                ),
+                Errors.NOT_AUTHORISED,
             )
 
             self.data.attached[sp.fst(attachment)] = sp.snd(attachment)
@@ -1447,6 +1448,46 @@ if __name__ == "__main__":
         scenario.verify(ve.data.slope_changes[2 * YEAR] == lock_1_slope)
         scenario.verify(ve.data.slope_changes[3 * YEAR] == lock_2_slope)
 
+    #########
+    # attach
+    #########
+
+    @sp.add_test(name="attach works correctly")
+    def test():
+        scenario = sp.test_scenario()
+
+        ve = VoteEscrow(
+            ledger=sp.big_map(l={(Addresses.ALICE, 1): 1, (Addresses.BOB, 2): 1}),
+            operators=sp.big_map(
+                l={
+                    sp.record(
+                        token_id=1,
+                        owner=Addresses.ALICE,
+                        operator=Addresses.CONTRACT,
+                    ): sp.unit
+                },
+            ),
+        )
+
+        scenario += ve
+
+        # When CONTRACT (operator for ALICE's token) attaches token/lock 1
+        scenario += ve.attach(owner=Addresses.ALICE, attachments=[(1, True)]).run(sender=Addresses.CONTRACT)
+
+        # and BOB attaches his own token/lock 2
+        scenario += ve.attach(owner=Addresses.BOB, attachments=[(2, True)]).run(sender=Addresses.BOB)
+
+        # Storage is updated correctly
+        scenario.verify(ve.data.attached[1] == True)
+        scenario.verify(ve.data.attached[2] == True)
+
+        # When JOHN (not operator for ALICE's token) tries changing attachment status of token/lock 1, txn fails
+        scenario += ve.attach(owner=Addresses.ALICE, attachments=[(1, True)]).run(
+            sender=Addresses.JOHN,
+            valid=False,
+            exception=Errors.NOT_AUTHORISED,
+        )
+
     #########################
     # get_token_voting_power
     #########################
@@ -1990,5 +2031,142 @@ if __name__ == "__main__":
 
         # Verify that correct value is returned
         scenario.verify(ve.get_locked_supply() == 100)
+
+    #################
+    # FA2 - transfer
+    #################
+
+    @sp.add_test(name="FA2 transfer works correctly")
+    def test():
+        scenario = sp.test_scenario()
+
+        ve = VoteEscrow(
+            ledger=sp.big_map(
+                l={
+                    (Addresses.ALICE, 1): 1,
+                    (Addresses.BOB, 2): 1,
+                    (Addresses.JOHN, 3): 1,
+                    (Addresses.JOHN, 4): 1,
+                    (Addresses.JOHN, 5): 0,
+                }
+            ),
+            locks=sp.big_map(
+                l={
+                    1: sp.record(base_value=sp.nat(0), end=sp.nat(0)),
+                    2: sp.record(base_value=sp.nat(0), end=sp.nat(0)),
+                    3: sp.record(base_value=sp.nat(0), end=sp.nat(0)),
+                    4: sp.record(base_value=sp.nat(0), end=sp.nat(0)),
+                    5: sp.record(base_value=sp.nat(0), end=sp.nat(0)),
+                }
+            ),
+            operators=sp.big_map(
+                l={
+                    sp.record(
+                        token_id=1,
+                        owner=Addresses.ALICE,
+                        operator=Addresses.CONTRACT,
+                    ): sp.unit
+                },
+            ),
+            attached=sp.big_map(l={3: True}),
+        )
+
+        scenario += ve
+
+        # When CONTRACT transfers ALICE's token to JOHN
+        scenario += ve.transfer(
+            [sp.record(from_=Addresses.ALICE, txs=[sp.record(to_=Addresses.JOHN, token_id=1, amount=1)])]
+        ).run(sender=Addresses.CONTRACT)
+
+        # and BOB transfer his token to JOHN
+        scenario += ve.transfer(
+            [sp.record(from_=Addresses.BOB, txs=[sp.record(to_=Addresses.JOHN, token_id=2, amount=1)])]
+        ).run(sender=Addresses.BOB)
+
+        # JOHN received the tokens
+        scenario.verify(ve.data.ledger[(Addresses.JOHN, 1)] == 1)
+        scenario.verify(ve.data.ledger[(Addresses.JOHN, 2)] == 1)
+
+        # Transfer attempt by non-operator fails
+        scenario += ve.transfer(
+            [sp.record(from_=Addresses.JOHN, txs=[sp.record(to_=Addresses.BOB, token_id=4, amount=1)])]
+        ).run(
+            sender=Addresses.ALICE,
+            valid=False,
+            exception=FA2_Errors.FA2_NOT_OPERATOR,
+        )
+
+        # Transfer of attached token 3 fails
+        scenario += ve.transfer(
+            [sp.record(from_=Addresses.JOHN, txs=[sp.record(to_=Addresses.BOB, token_id=3, amount=1)])]
+        ).run(
+            sender=Addresses.JOHN,
+            valid=False,
+            exception=Errors.LOCK_IS_ATTACHED,
+        )
+
+        # Transfer of amount > 1 fails
+        scenario += ve.transfer(
+            [sp.record(from_=Addresses.JOHN, txs=[sp.record(to_=Addresses.BOB, token_id=4, amount=2)])]
+        ).run(
+            sender=Addresses.JOHN,
+            valid=False,
+            exception=FA2_Errors.FA2_INVALID_AMOUNT,
+        )
+
+        # Transfer of amount > balance fails
+        scenario += ve.transfer(
+            [sp.record(from_=Addresses.JOHN, txs=[sp.record(to_=Addresses.BOB, token_id=5, amount=1)])]
+        ).run(
+            sender=Addresses.JOHN,
+            valid=False,
+            exception=FA2_Errors.FA2_INSUFFICIENT_BALANCE,
+        )
+
+    #########################
+    # FA2 - update_operators
+    #########################
+
+    @sp.add_test(name="FA2 update_operators works correctly")
+    def test():
+        scenario = sp.test_scenario()
+
+        ve = VoteEscrow(
+            ledger=sp.big_map(
+                l={
+                    (Addresses.ALICE, 1): 1,
+                    (Addresses.ALICE, 2): 1,
+                }
+            ),
+            operators=sp.big_map(
+                l={
+                    sp.record(
+                        token_id=1,
+                        owner=Addresses.ALICE,
+                        operator=Addresses.CONTRACT,
+                    ): sp.unit
+                },
+            ),
+        )
+
+        scenario += ve
+
+        # When ALICE makes CONTRACT the operator of token 2 and remove operator for token 1
+        scenario += ve.update_operators(
+            [
+                sp.variant("add_operator", sp.record(owner=Addresses.ALICE, token_id=2, operator=Addresses.CONTRACT)),
+                sp.variant(
+                    "remove_operator", sp.record(owner=Addresses.ALICE, token_id=1, operator=Addresses.CONTRACT)
+                ),
+            ]
+        ).run(sender=Addresses.ALICE)
+
+        # Storage is update correctly
+        scenario.verify(
+            ve.data.operators.contains(sp.record(owner=Addresses.ALICE, token_id=2, operator=Addresses.CONTRACT))
+        )
+        scenario.verify(
+            ~ve.data.operators.contains(sp.record(owner=Addresses.ALICE, token_id=1, operator=Addresses.CONTRACT))
+        )
 
     sp.add_compilation_target("vote_escrow", VoteEscrow())

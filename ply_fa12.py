@@ -6,7 +6,8 @@ Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
 # Constants
 ############
 
-MAX_SUPPLY = 100_000_000 * (10 ** 18)
+DECIMALS = 10 ** 18
+MAX_SUPPLY = 100_000_000 * DECIMALS
 
 # TODO: Update icon url
 TOKEN_METADATA = {
@@ -30,7 +31,6 @@ class FA12_Error:
     InsufficientBalance = make("InsufficientBalance")
     UnsafeAllowanceChange = make("UnsafeAllowanceChange")
     NotAllowed = make("NotAllowed")
-    MintingDisabled = make("MintingDisabled")
     MaxSupplyMinted = make("MaxSupplyMinted")
 
 
@@ -51,7 +51,6 @@ class FA12_core(sp.Contract, FA12_common):
             ),
             totalSupply=0,
             mintAdmins=sp.set(),
-            mintingDisabled=False,
             **extra_storage,
         )
 
@@ -123,21 +122,13 @@ class FA12_mint(FA12_core):
     def mint(self, params):
         sp.set_type(params, sp.TRecord(address=sp.TAddress, value=sp.TNat))
         sp.verify(self.is_administrator(sp.sender) | self.data.mintAdmins.contains(sp.sender), FA12_Error.NotAdmin)
-        sp.verify(~self.data.mintingDisabled, FA12_Error.MintingDisabled)
         self.addAddressIfNecessary(params.address)
 
-        mint_val = sp.local("mint_val", params.value)
-        with sp.if_((self.data.totalSupply + params.value) > MAX_SUPPLY):
-            mint_val.value = sp.as_nat(MAX_SUPPLY - self.data.totalSupply)
-            sp.verify(mint_val.value != 0, FA12_Error.MaxSupplyMinted)
+        # CHANGED: insert a minting limit
+        sp.verify((self.data.totalSupply + params.value) <= MAX_SUPPLY, FA12_Error.MaxSupplyMinted)
 
-        self.data.balances[params.address].balance += mint_val.value
-        self.data.totalSupply += mint_val.value
-
-    @sp.entry_point
-    def disableMint(self):
-        sp.verify(self.is_administrator(sp.sender), FA12_Error.NotAdmin)
-        self.data.mintingDisabled = True
+        self.data.balances[params.address].balance += params.value
+        self.data.totalSupply += params.value
 
 
 class FA12_administrator(FA12_core):
@@ -272,5 +263,40 @@ if __name__ == "__main__":
             (sp.record(owner=alice.address, spender=bob.address), view_allowance.typed.target),
         )
         scenario.verify_equal(view_allowance.data.last, sp.some(1))
+
+    ######################
+    # CHANGED entrypoints
+    ######################
+
+    @sp.add_test(name="CHANGED entrypoints work correctly")
+    def test():
+        scenario = sp.test_scenario()
+
+        token = FA12(Addresses.ADMIN)
+
+        scenario += token
+
+        # Add mint admins
+        scenario += token.addMintAdmin(Addresses.CONTRACT).run(sender=Addresses.ADMIN)
+
+        # Mint admin mints 90_000_000 tokens
+        scenario += token.mint(address=Addresses.ALICE, value=90_000_000 * DECIMALS).run(sender=Addresses.CONTRACT)
+
+        # Mint admin mints 20_000_000 tokens (overshoots max supply, so value gets adjusted), txn fails
+        scenario += token.mint(address=Addresses.ALICE, value=20_000_000 * DECIMALS).run(
+            sender=Addresses.CONTRACT,
+            valid=False,
+            exception=FA12_Error.MaxSupplyMinted,
+        )
+
+        # Remove mint admin
+        scenario += token.removeMintAdmin(Addresses.CONTRACT).run(sender=Addresses.ADMIN)
+
+        # Removed mint admin tries to mint, txn fails
+        scenario += token.mint(address=Addresses.ALICE, value=10_000_000 * DECIMALS).run(
+            sender=Addresses.CONTRACT,
+            valid=False,
+            exception=FA12_Error.NotAdmin,
+        )
 
     sp.add_compilation_target("ply_fa12", FA12())
