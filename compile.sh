@@ -16,7 +16,7 @@ OUT_DIR=./test_outputs
 COMP_DIR=./michelson
 
 # Array of files to compile.
-CONTRACTS_ARRAY=(voter)
+CONTRACTS_ARRAY=(fee_distributor voter ply_fa12 vote_escrow bribe gauge core_factory)
 
 # Ensure we have a SmartPy binary.
 if [ ! -f "$SMART_PY_CLI" ]; then
@@ -30,7 +30,9 @@ function processContract {
     OUT_DIR=$2
     CONTRACT_IN="${CONTRACT_NAME}.py"
     CONTRACT_OUT="${CONTRACT_NAME}.tz"
+    STORAGE_OUT="${CONTRACT_NAME}_storage.tz"
     CONTRACT_COMPILED="${CONTRACT_NAME}/step_000_cont_0_contract.tz"
+    STORAGE_COMPILED="${CONTRACT_NAME}/step_000_cont_0_storage.tz"
 
     echo ">> Processing ${CONTRACT_NAME}"
 
@@ -50,7 +52,8 @@ function processContract {
 
     echo ">>> [3 / 3] Copying Artifacts"
     cp $OUT_DIR/$CONTRACT_COMPILED $COMP_DIR/$CONTRACT_OUT
-    echo ">>> Written to ${CONTRACT_OUT}"
+    cp $OUT_DIR/$STORAGE_COMPILED $COMP_DIR/$STORAGE_OUT
+    echo ">>> Written to ${CONTRACT_OUT} & ${STORAGE_OUT}"
 }
 
 echo "> [1 / 3] Unit Testing and Compiling Contracts."

@@ -1,0 +1,18 @@
+{
+  "name": "deploy",
+  "version": "1.0.0",
+  "description": "Deplyment scripts for Plenty's PLY/vePLY system",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "deploy:testnet": "ts-node ./src/index.ts hangzhounet"
+  },
+  "dependencies": {
+    "@taquito/signer": "^12.0.0",
+    "@taquito/taquito": "^12.0.0"
+  },
+  "devDependencies": {
+    "ts-node": "^10.7.0",
+    "typescript": "^4.6.3"
+  }
+}
