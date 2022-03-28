@@ -514,6 +514,26 @@ class Voter(sp.Contract):
     def get_current_epoch(self):
         sp.result((self.data.epoch, self.data.epoch_end[self.data.epoch]))
 
+    @sp.onchain_view()
+    def get_token_amm_votes(self, params):
+        sp.set_type(params, Types.TOKEN_AMM_VOTES_KEY)
+        sp.result(self.data.token_amm_votes.get(params, 0))
+
+    @sp.onchain_view()
+    def get_total_amm_votes(self, params):
+        sp.set_type(params, Types.TOTAL_AMM_VOTES_KEY)
+        sp.result(self.data.total_amm_votes.get(params, 0))
+
+    @sp.onchain_view()
+    def get_total_token_votes(self, params):
+        sp.set_type(params, Types.TOTAL_TOKEN_VOTES_KEY)
+        sp.result(self.data.total_token_votes.get(params, 0))
+
+    @sp.onchain_view()
+    def get_total_epoch_votes(self, param):
+        sp.set_type(param, sp.TNat)
+        sp.result(self.data.total_epoch_votes.get(param, 0))
+
 
 if __name__ == "__main__":
 
@@ -1068,5 +1088,47 @@ if __name__ == "__main__":
 
         # PLY tokens are minted correctly for gauge
         scenario.verify(ply_token.data.balances[gauge.address].balance == 1_000_000 * DECIMALS)
+
+    ####################
+    # onchain_view test
+    ####################
+
+    @sp.add_test(name="onchain views work correctly")
+    def test():
+        scenario = sp.test_scenario()
+
+        voter = Voter(
+            epoch=sp.nat(2),
+            epoch_end=sp.big_map(
+                l={
+                    2: sp.timestamp(5),
+                }
+            ),
+            token_amm_votes=sp.big_map(
+                l={
+                    sp.record(token_id=1, epoch=1, amm=Addresses.AMM_1): 150,
+                }
+            ),
+            total_amm_votes=sp.big_map(
+                l={
+                    sp.record(epoch=1, amm=Addresses.AMM_1): 250,
+                }
+            ),
+            total_token_votes=sp.big_map(l={sp.record(epoch=1, token_id=1): 300}),
+            total_epoch_votes=sp.big_map(
+                l={
+                    1: 500,
+                }
+            ),
+        )
+
+        scenario += voter
+
+        # All views return correct values
+        scenario.verify(voter.get_current_epoch() == (2, sp.timestamp(5)))
+        scenario.verify(voter.get_token_amm_votes(sp.record(token_id=1, epoch=1, amm=Addresses.AMM_1)) == 150)
+        scenario.verify(voter.get_total_amm_votes(sp.record(epoch=1, amm=Addresses.AMM_1)) == 250)
+        scenario.verify(voter.get_total_token_votes(sp.record(epoch=1, token_id=1)) == 300)
+        scenario.verify(voter.get_total_epoch_votes(1) == 500)
 
     sp.add_compilation_target("voter", Voter())

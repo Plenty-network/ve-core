@@ -1531,3 +1531,65 @@ view
     GET 3;      # nat : @some
     PAIR;       # pair nat @some
   };
+view
+  "get_token_amm_votes" (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat
+  {
+    UNPAIR;     # @parameter : @storage
+    SWAP;       # @storage : @parameter
+    # sp.result(self.data.token_amm_votes.get(params, default_value = 0)) # @storage : @parameter
+    GET 3;      # pair (address %ply_address) (pair (big_map %token_amm_votes (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat) (big_map %total_amm_votes (pair (address %amm) (nat %epoch)) nat)) : @parameter
+    GET 3;      # big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat : @parameter
+    SWAP;       # @parameter : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat
+    GET;        # option nat
+    IF_NONE
+      {
+        PUSH nat 0; # nat
+      }
+      {}; # nat
+  };
+view
+  "get_total_amm_votes" (pair (address %amm) (nat %epoch)) nat
+  {
+    UNPAIR;     # @parameter : @storage
+    SWAP;       # @storage : @parameter
+    # sp.result(self.data.total_amm_votes.get(params, default_value = 0)) # @storage : @parameter
+    GET 3;      # pair (address %ply_address) (pair (big_map %token_amm_votes (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat) (big_map %total_amm_votes (pair (address %amm) (nat %epoch)) nat)) : @parameter
+    GET 4;      # big_map (pair (address %amm) (nat %epoch)) nat : @parameter
+    SWAP;       # @parameter : big_map (pair (address %amm) (nat %epoch)) nat
+    GET;        # option nat
+    IF_NONE
+      {
+        PUSH nat 0; # nat
+      }
+      {}; # nat
+  };
+view
+  "get_total_epoch_votes" nat nat
+  {
+    UNPAIR;     # @parameter : @storage
+    SWAP;       # @storage : @parameter
+    # sp.result(self.data.total_epoch_votes.get(params, default_value = 0)) # @storage : @parameter
+    GET 5;      # big_map nat nat : @parameter
+    SWAP;       # @parameter : big_map nat nat
+    GET;        # option nat
+    IF_NONE
+      {
+        PUSH nat 0; # nat
+      }
+      {}; # nat
+  };
+view
+  "get_total_token_votes" (pair (nat %token_id) (nat %epoch)) nat
+  {
+    UNPAIR;     # @parameter : @storage
+    SWAP;       # @storage : @parameter
+    # sp.result(self.data.total_token_votes.get(params, default_value = 0)) # @storage : @parameter
+    GET 7;      # big_map (pair (nat %token_id) (nat %epoch)) nat : @parameter
+    SWAP;       # @parameter : big_map (pair (nat %token_id) (nat %epoch)) nat
+    GET;        # option nat
+    IF_NONE
+      {
+        PUSH nat 0; # nat
+      }
+      {}; # nat
+  };
