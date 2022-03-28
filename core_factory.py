@@ -81,14 +81,6 @@ class CoreFactory(sp.Contract):
         self.bribe = Bribe()
 
     @sp.entry_point
-    def set_voter(self, address):
-        sp.set_type(address, sp.TAddress)
-
-        sp.verify(sp.sender == self.data.admin, Errors.NOT_AUTHORISED)
-
-        self.data.voter = address
-
-    @sp.entry_point
     def set_fee_distributor(self, address):
         sp.set_type(address, sp.TAddress)
 
@@ -217,16 +209,16 @@ if __name__ == "__main__":
     def test():
         scenario = sp.test_scenario()
 
-        factory = CoreFactory()
-        voter = Voter(core_factory=factory.address)
+        voter = Voter()
+        factory = CoreFactory(voter=voter.address)
         fee_dist = FeeDistributor(core_factory=factory.address)
 
         scenario += factory
         scenario += voter
         scenario += fee_dist
 
-        # Set voter and fee dist in factory
-        scenario += factory.set_voter(voter.address).run(sender=Addresses.ADMIN)
+        # Set factory in voter and fee dist in factory
+        scenario += voter.set_factory_and_fee_dist(factory=factory.address, fee_dist=fee_dist.address)
         scenario += factory.set_fee_distributor(fee_dist.address).run(sender=Addresses.ADMIN)
 
         TOKENS = sp.set(
@@ -263,20 +255,20 @@ if __name__ == "__main__":
             ]
         )
 
-        factory = CoreFactory(
-            amm_registered=sp.big_map(
-                l={
-                    Addresses.AMM: sp.unit,
-                }
-            )
-        )
         voter = Voter(
-            core_factory=factory.address,
             amm_to_gauge_bribe=sp.big_map(
                 l={
                     Addresses.AMM: sp.record(gauge=Addresses.CONTRACT, bribe=Addresses.CONTRACT),
                 }
             ),
+        )
+        factory = CoreFactory(
+            amm_registered=sp.big_map(
+                l={
+                    Addresses.AMM: sp.unit,
+                }
+            ),
+            voter=voter.address,
         )
         fee_dist = FeeDistributor(
             core_factory=factory.address,
@@ -291,8 +283,8 @@ if __name__ == "__main__":
         scenario += voter
         scenario += fee_dist
 
-        # Set voter and fee dist in factory
-        scenario += factory.set_voter(voter.address).run(sender=Addresses.ADMIN)
+        # Set factory in voter and fee dist in factory
+        scenario += voter.set_factory_and_fee_dist(factory=factory.address, fee_dist=fee_dist.address)
         scenario += factory.set_fee_distributor(fee_dist.address).run(sender=Addresses.ADMIN)
 
         # When ADMIN removes AMM
