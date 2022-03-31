@@ -13,11 +13,13 @@ class VE(sp.Contract):
         ),
         total_power=sp.nat(0),
         locked_supply=sp.nat(0),
+        inflation=sp.nat(0),
     ):
         self.init(
             powers=powers,
             total_power=total_power,
             locked_supply=locked_supply,
+            inflation=inflation,
         )
 
     @sp.onchain_view()
@@ -61,6 +63,12 @@ class VE(sp.Contract):
         )
 
         pass
+
+    @sp.entry_point
+    def add_inflation(self, params):
+        sp.set_type(params, sp.TRecord(epoch=sp.TNat, value=sp.TNat).layout(("epoch", "value")))
+
+        self.data.inflation = params.value
 
     @sp.onchain_view()
     def is_owner(self, params):

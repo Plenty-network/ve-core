@@ -8,3 +8,8 @@ class Voter(sp.Contract):
     @sp.onchain_view()
     def get_current_epoch(self):
         sp.result((self.data.epoch, self.data.end))
+
+    @sp.onchain_view()
+    def get_epoch_end(self, param):
+        sp.set_type(param, sp.TNat)
+        sp.result(sp.as_nat(self.data.end - sp.timestamp(0)))

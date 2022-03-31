@@ -11,7 +11,7 @@ GaugeBribe = sp.io.import_script_from_url("file:helpers/dummy/gauge_bribe.py").G
 # Constants
 ############
 
-DECIMALS = 10 ** 18
+DECIMALS = PRECISION = 10 ** 18
 
 DAY = 86400
 WEEK = 7 * DAY
@@ -245,6 +245,34 @@ class Voter(sp.Contract):
             # Calculate real emission for the epoch that just ended
             real_emission = sp.as_nat(self.data.emission.base - emission_offset)
             self.data.emission.real = real_emission
+
+            # Calculate growth due to the emission
+            growth = (real_emission * PRECISION) // ply_total_supply
+            lockers_inflation = (growth * ply_locked_supply) // PRECISION
+
+            # Mint required number of PLY tokens (lockers inflation) for VoteEscrow
+            c = sp.contract(
+                sp.TRecord(address=sp.TAddress, value=sp.TNat),
+                self.data.ply_address,
+                "mint",
+            ).open_some()
+            sp.transfer(
+                sp.record(address=self.data.ve_address, value=lockers_inflation),
+                sp.tez(0),
+                c,
+            )
+
+            # Inflate lockers proportionally
+            c = sp.contract(
+                sp.TRecord(epoch=sp.TNat, value=sp.TNat).layout(("epoch", "value")),
+                self.data.ve_address,
+                "add_inflation",
+            ).open_some()
+            sp.transfer(
+                sp.record(epoch=self.data.epoch, value=lockers_inflation),
+                sp.tez(0),
+                c,
+            )
 
             # Adjust base emission value based on inflation drop
             with sp.if_((rounded_now - self.data.emission.genesis) == (4 * WEEK)):
@@ -513,6 +541,11 @@ class Voter(sp.Contract):
     @sp.onchain_view()
     def get_current_epoch(self):
         sp.result((self.data.epoch, self.data.epoch_end[self.data.epoch]))
+
+    @sp.onchain_view()
+    def get_epoch_end(self, param):
+        sp.set_type(param, sp.TNat)
+        sp.result(sp.as_nat(self.data.epoch_end[param] - sp.timestamp(0)))
 
     @sp.onchain_view()
     def get_token_amm_votes(self, params):
@@ -787,10 +820,10 @@ if __name__ == "__main__":
         scenario = sp.test_scenario()
 
         # Initialize vote escrow with locked supply of 100 tokens
-        ve = VE(locked_supply=sp.nat(100 * DECIMALS))
+        ve = VE(locked_supply=sp.nat(1_000_000 * DECIMALS))
 
         # Initialize Ply token with total supply 400
-        ply = Ply(total_supply=sp.nat(400 * DECIMALS))
+        ply = Ply(total_supply=sp.nat(4_000_000 * DECIMALS))
 
         voter = Voter(
             epoch=5,
@@ -819,6 +852,13 @@ if __name__ == "__main__":
         scenario.verify(voter.data.emission.base == 700_000 * DECIMALS)
         scenario.verify(voter.data.emission.real == 1_500_000 * DECIMALS)
 
+        # Predicted locker inflation
+        growth = (1_500_000 * DECIMALS * PRECISION) // (4_000_000 * DECIMALS)
+        locker_inflation = (1_000_000 * DECIMALS * growth) // PRECISION
+
+        # Correct inflation is record
+        scenario.verify(ve.data.inflation == locker_inflation)
+
         # When next epoch is called again at the end of 7 Weeks
         scenario += voter.next_epoch().run(now=sp.timestamp(7 * WEEK + 73))
 
@@ -830,15 +870,22 @@ if __name__ == "__main__":
         scenario.verify(voter.data.emission.base == 700_000 * DECIMALS)
         scenario.verify(voter.data.emission.real == 525_000 * DECIMALS)
 
+        # Predicted locker inflation
+        growth = (525_000 * DECIMALS * PRECISION) // (4_000_000 * DECIMALS)
+        locker_inflation = (1_000_000 * DECIMALS * growth) // PRECISION
+
+        # Correct inflation is record
+        scenario.verify(ve.data.inflation == locker_inflation)
+
     @sp.add_test(name="next_epoch correctly updates epoch during yearly inflation drop")
     def test():
         scenario = sp.test_scenario()
 
         # Initialize vote escrow with locked supply of 100 tokens
-        ve = VE(locked_supply=sp.nat(100 * DECIMALS))
+        ve = VE(locked_supply=sp.nat(1_000_000 * DECIMALS))
 
         # Initialize Ply token with total supply 400
-        ply = Ply(total_supply=sp.nat(400 * DECIMALS))
+        ply = Ply(total_supply=sp.nat(4_000_000 * DECIMALS))
 
         voter = Voter(
             epoch=53,
@@ -867,15 +914,22 @@ if __name__ == "__main__":
         scenario.verify(voter.data.emission.base == 385_000 * DECIMALS)
         scenario.verify(voter.data.emission.real == 525_000 * DECIMALS)
 
+        # Predicted locker inflation
+        growth = (525_000 * DECIMALS * PRECISION) // (4_000_000 * DECIMALS)
+        locker_inflation = (1_000_000 * DECIMALS * growth) // PRECISION
+
+        # Correct inflation is record
+        scenario.verify(ve.data.inflation == locker_inflation)
+
     @sp.add_test(name="next_epoch correctly sets trail inflation")
     def test():
         scenario = sp.test_scenario()
 
         # Initialize vote escrow with locked supply of 100 tokens
-        ve = VE(locked_supply=sp.nat(100 * DECIMALS))
+        ve = VE(locked_supply=sp.nat(1_000_000 * DECIMALS))
 
         # Initialize Ply token with total supply 400
-        ply = Ply(total_supply=sp.nat(400 * DECIMALS))
+        ply = Ply(total_supply=sp.nat(4_000_000 * DECIMALS))
 
         voter = Voter(
             epoch=53,
@@ -903,6 +957,13 @@ if __name__ == "__main__":
         # Emission values are updated correctly
         scenario.verify(voter.data.emission.base == 10_000 * DECIMALS)
         scenario.verify(voter.data.emission.real == 11_250 * DECIMALS)
+
+        # Predicted locker inflation
+        growth = (11_250 * DECIMALS * PRECISION) // (4_000_000 * DECIMALS)
+        locker_inflation = (1_000_000 * DECIMALS * growth) // PRECISION
+
+        # Correct inflation is record
+        scenario.verify(ve.data.inflation == locker_inflation)
 
     ############################
     # next_epoch (failure test)
