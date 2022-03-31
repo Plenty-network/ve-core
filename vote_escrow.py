@@ -132,7 +132,7 @@ class VoteEscrow(sp.Contract):
         attached=sp.big_map(
             l={},
             tkey=sp.TNat,
-            tvalue=sp.TBool,
+            tvalue=sp.TUnit,
         ),
         token_checkpoints=sp.big_map(
             l={},
@@ -187,7 +187,7 @@ class VoteEscrow(sp.Contract):
                 ),
                 # VE specific
                 locks=sp.TBigMap(sp.TNat, Types.LOCK),
-                attached=sp.TBigMap(sp.TNat, sp.TBool),
+                attached=sp.TBigMap(sp.TNat, sp.TUnit),
                 uid=sp.TNat,
                 token_checkpoints=sp.TBigMap(sp.TPair(sp.TNat, sp.TNat), Types.POINT),
                 num_token_checkpoints=sp.TBigMap(sp.TNat, sp.TNat),
@@ -218,7 +218,7 @@ class VoteEscrow(sp.Contract):
                 )
 
                 # Verify that lock is not attached
-                sp.verify(~self.data.attached.get(tx.token_id, sp.bool(False)), Errors.LOCK_IS_ATTACHED)
+                sp.verify(~self.data.attached.contains(tx.token_id), Errors.LOCK_IS_ATTACHED)
 
                 # Verify that the token id belongs to a lock
                 sp.verify(self.data.locks.contains(tx.token_id), FA2_Errors.FA2_TOKEN_UNDEFINED)
@@ -291,24 +291,49 @@ class VoteEscrow(sp.Contract):
                     del self.data.operators[upd]
 
     @sp.entry_point
-    def attach(self, params):
-        sp.set_type(params, sp.TRecord(attachments=sp.TList(sp.TPair(sp.TNat, sp.TBool)), owner=sp.TAddress))
-
-        with sp.for_("attachment", params.attachments) as attachment:
-            sp.verify(self.data.ledger.get((params.owner, sp.fst(attachment)), 0) == 1, Errors.NOT_AUTHORISED)
-            sp.verify(
-                (sp.sender == params.owner)
-                | self.data.operators.contains(
-                    sp.record(
-                        owner=params.owner,
-                        operator=sp.sender,
-                        token_id=sp.fst(attachment),
+    def update_attachments(self, params):
+        sp.set_type(
+            params,
+            sp.TRecord(
+                attachments=sp.TList(
+                    sp.TVariant(
+                        add_attachment=sp.TNat,
+                        remove_attachment=sp.TNat,
                     )
                 ),
-                Errors.NOT_AUTHORISED,
-            )
+                owner=sp.TAddress,
+            ),
+        )
 
-            self.data.attached[sp.fst(attachment)] = sp.snd(attachment)
+        with sp.for_("attachment", params.attachments) as attachment:
+            with attachment.match_cases() as arg:
+                with arg.match("add_attachment") as token_id:
+                    # Sanity checks
+                    sp.verify(~self.data.attached.contains(token_id), Errors.LOCK_IS_ATTACHED)
+                    sp.verify(self.data.ledger.get((params.owner, token_id), 0) == 1, Errors.NOT_AUTHORISED)
+                    sp.verify(
+                        (sp.sender == params.owner)
+                        | self.data.operators.contains(
+                            sp.record(owner=params.owner, operator=sp.sender, token_id=token_id)
+                        ),
+                        Errors.NOT_AUTHORISED,
+                    )
+
+                    # Attach token/lock
+                    self.data.attached[token_id] = sp.unit
+                with arg.match("remove_attachment") as token_id:
+                    # Sanity checks
+                    sp.verify(self.data.ledger.get((params.owner, token_id), 0) == 1, Errors.NOT_AUTHORISED)
+                    sp.verify(
+                        (sp.sender == params.owner)
+                        | self.data.operators.contains(
+                            sp.record(owner=params.owner, operator=sp.sender, token_id=token_id)
+                        ),
+                        Errors.NOT_AUTHORISED,
+                    )
+                    with sp.if_(self.data.attached.contains(token_id)):
+                        # Detach token/lock
+                        del self.data.attached[token_id]
 
     @sp.private_lambda(with_storage="read-write", wrap_call=True)
     def record_global_checkpoint(self, params):
@@ -455,7 +480,7 @@ class VoteEscrow(sp.Contract):
         sp.verify(self.data.locks.contains(token_id), Errors.LOCK_DOES_NOT_EXIST)
         sp.verify(self.data.ledger.get((sp.sender, token_id), 0) == 1, Errors.NOT_AUTHORISED)
         sp.verify(now_ > self.data.locks[token_id].end, Errors.LOCK_YET_TO_EXPIRE)
-        sp.verify(~self.data.attached.get(token_id, sp.bool(False)), Errors.LOCK_IS_ATTACHED)
+        sp.verify(~self.data.attached.contains(token_id), Errors.LOCK_IS_ATTACHED)
 
         # Transfer underlying PLY
         TokenUtils.transfer_FA12(
@@ -1472,21 +1497,33 @@ if __name__ == "__main__":
         scenario += ve
 
         # When CONTRACT (operator for ALICE's token) attaches token/lock 1
-        scenario += ve.attach(owner=Addresses.ALICE, attachments=[(1, True)]).run(sender=Addresses.CONTRACT)
+        scenario += ve.update_attachments(owner=Addresses.ALICE, attachments=[sp.variant("add_attachment", 1)]).run(
+            sender=Addresses.CONTRACT
+        )
 
         # and BOB attaches his own token/lock 2
-        scenario += ve.attach(owner=Addresses.BOB, attachments=[(2, True)]).run(sender=Addresses.BOB)
+        scenario += ve.update_attachments(owner=Addresses.BOB, attachments=[sp.variant("add_attachment", 2)]).run(
+            sender=Addresses.BOB
+        )
 
         # Storage is updated correctly
-        scenario.verify(ve.data.attached[1] == True)
-        scenario.verify(ve.data.attached[2] == True)
+        scenario.verify(ve.data.attached[1] == sp.unit)
+        scenario.verify(ve.data.attached[2] == sp.unit)
 
         # When JOHN (not operator for ALICE's token) tries changing attachment status of token/lock 1, txn fails
-        scenario += ve.attach(owner=Addresses.ALICE, attachments=[(1, True)]).run(
+        scenario += ve.update_attachments(owner=Addresses.ALICE, attachments=[sp.variant("remove_attachment", 1)]).run(
             sender=Addresses.JOHN,
             valid=False,
             exception=Errors.NOT_AUTHORISED,
         )
+
+        # When ALICE removes her attachment
+        scenario += ve.update_attachments(owner=Addresses.ALICE, attachments=[sp.variant("remove_attachment", 1)]).run(
+            sender=Addresses.ALICE
+        )
+
+        # Storage is updated correctly
+        scenario.verify(~ve.data.attached.contains(1))
 
     #########################
     # get_token_voting_power
@@ -2068,7 +2105,7 @@ if __name__ == "__main__":
                     ): sp.unit
                 },
             ),
-            attached=sp.big_map(l={3: True}),
+            attached=sp.big_map(l={3: sp.unit}),
         )
 
         scenario += ve

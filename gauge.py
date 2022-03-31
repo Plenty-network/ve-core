@@ -227,34 +227,27 @@ class Gauge(sp.Contract):
         self.update_derived(sp.record(address=sp.sender, token_id=params.token_id))
 
         with sp.if_(params.token_id != 0):
-            # Verify that the sender owns the specified token / lock
-            is_owner = sp.view(
-                "is_owner",
-                self.data.ve_address,
-                sp.record(address=sp.sender, token_id=params.token_id),
-                sp.TBool,
-            ).open_some(Errors.INVALID_VIEW)
-            sp.verify(is_owner, Errors.SENDER_DOES_NOT_OWN_LOCK)
-
+            # If there is no token attached
             with sp.if_(~self.data.attached_tokens.contains(sp.sender)):
                 # Attach first token
                 self.data.attached_tokens[sp.sender] = params.token_id
 
                 # Attach tokens in ve
-                TokenUtils.attach_tokens(
+                TokenUtils.update_token_attachments(
                     sp.record(
-                        attachments=[(params.token_id, sp.bool(True))],
+                        attachments=[sp.variant("add_attachment", params.token_id)],
                         ve_address=self.data.ve_address,
                         owner=sp.sender,
                     )
                 )
+            # If a new token is being attached
             with sp.if_(self.data.attached_tokens[sp.sender] != params.token_id):
                 # Remove current attachment and attach fresh token in ve
-                TokenUtils.attach_tokens(
+                TokenUtils.update_token_attachments(
                     sp.record(
                         attachments=[
-                            (self.data.attached_tokens[sp.sender], sp.bool(False)),
-                            (params.token_id, sp.bool(True)),
+                            sp.variant("remove_attachment", self.data.attached_tokens[sp.sender]),
+                            sp.variant("add_attachment", params.token_id),
                         ],
                         ve_address=self.data.ve_address,
                         owner=sp.sender,
@@ -262,6 +255,20 @@ class Gauge(sp.Contract):
                 )
 
                 self.data.attached_tokens[sp.sender] = params.token_id
+        with sp.else_():
+            # If a token is attached, then detach it
+            with sp.if_(self.data.attached_tokens.contains(sp.sender)):
+                TokenUtils.update_token_attachments(
+                    sp.record(
+                        attachments=[
+                            sp.variant("remove_attachment", self.data.attached_tokens[sp.sender]),
+                        ],
+                        ve_address=self.data.ve_address,
+                        owner=sp.sender,
+                    )
+                )
+
+                del self.data.attached_tokens[sp.sender]
 
         # Retrieve lp tokens
         TokenUtils.transfer_FA12(
@@ -309,9 +316,11 @@ class Gauge(sp.Contract):
         with sp.if_(self.data.balances[sp.sender] == 0):
             with sp.if_(self.data.attached_tokens.contains(sp.sender)):
                 # Detach tokens in ve
-                TokenUtils.attach_tokens(
+                TokenUtils.update_token_attachments(
                     sp.record(
-                        attachments=[(self.data.attached_tokens[sp.sender], sp.bool(False))],
+                        attachments=[
+                            sp.variant("remove_attachment", self.data.attached_tokens[sp.sender]),
+                        ],
                         ve_address=self.data.ve_address,
                         owner=sp.sender,
                     )
@@ -346,7 +355,7 @@ class Gauge(sp.Contract):
         # Verify that the voter is the sender
         sp.verify(sp.sender == self.data.voter, Errors.NOT_AUTHORISED)
 
-        # verify that recharge is not already done for current epoch
+        # verify that recharge is not already done for required epoch
         sp.verify(~self.data.recharge_ledger.contains(params.epoch), Errors.ALREADY_RECHARGED_FOR_EPOCH)
 
         # Update global reward metrics
@@ -355,15 +364,23 @@ class Gauge(sp.Contract):
         # nat version of block timestamp
         now_ = sp.as_nat(sp.now - sp.timestamp(0))
 
+        final_amount = sp.local("final_amount", params.amount)
+
+        # If period has not ended (possible only when a past missed recharge is being done)
+        with sp.if_(now_ < self.data.period_finish):
+            remaining_rewards = self.data.reward_rate * sp.as_nat(self.data.period_finish - now_)
+            final_amount.value = remaining_rewards + params.amount
+
         # Calculate current finish period
         # NOTE: Since new recharge period must start after previous epoch ends, no two periods would overlap.
+        # Missed past recharges are accumulated within the current period itself.
         self.data.period_finish = ((now_ + WEEK) // WEEK) * WEEK
 
         # Calculate duration of rewards distribution. Should be ~ 7 days
         duration = sp.as_nat(self.data.period_finish - now_)
 
         # Set new reward rate for the week
-        self.data.reward_rate = params.amount // duration
+        self.data.reward_rate = final_amount.value // duration
 
         # Set last update time to now
         self.data.last_update_time = now_
@@ -542,6 +559,26 @@ if __name__ == "__main__":
 
         # Gauge retrieves the LP tokens
         scenario.verify(lp_token.data.balances[gauge.address].balance == 75 * DECIMALS)
+
+        # When ALICE stakes more LP tokens and remove a boost lock
+        scenario += gauge.stake(amount=25 * DECIMALS, token_id=0).run(
+            sender=Addresses.ALICE,
+            now=sp.timestamp(3 * DAY),  # One day later to second stake
+        )
+
+        # Predicted values
+        reward_per_token__ = reward_per_token_ + (DAY * 500 * PRECISION) // (57 * DECIMALS)
+        reward__ = reward_ + ((reward_per_token__ - reward_per_token_) * 57 * DECIMALS) // PRECISION
+
+        # The storage is updated correctly
+        scenario.verify(gauge.data.total_supply == 100 * DECIMALS)
+        scenario.verify(gauge.data.balances[Addresses.ALICE] == 100 * DECIMALS)
+        scenario.verify(gauge.data.reward_per_token == reward_per_token__)
+        scenario.verify(gauge.data.last_update_time == 3 * DAY)
+        scenario.verify(gauge.data.user_reward_per_token_debt[Addresses.ALICE] == reward_per_token__)
+        scenario.verify(gauge.data.rewards[Addresses.ALICE] == reward__)
+        scenario.verify(gauge.data.derived_balances[Addresses.ALICE] == 40 * DECIMALS)
+        scenario.verify(gauge.data.derived_supply == 40 * DECIMALS)
 
     #######################
     # stake (failure test)
@@ -947,7 +984,7 @@ if __name__ == "__main__":
         scenario += gauge
 
         # When the gauge is recharged with 10 PLY tokens after epoch completion
-        scenario += gauge.recharge(amount=10 * DECIMALS, epoch=1).run(
+        scenario += gauge.recharge(amount=10 * DECIMALS, epoch=2).run(
             sender=Addresses.CONTRACT,
             now=sp.timestamp(WEEK + 5),  # 5 is random. Timestamp must be higher than a week
         )
@@ -960,6 +997,21 @@ if __name__ == "__main__":
         scenario.verify(gauge.data.reward_per_token == reward_per_token_)
         scenario.verify(gauge.data.last_update_time == WEEK + 5)
         scenario.verify(gauge.data.reward_rate == reward_rate_)
+
+        # When the gauge is recharged with 10 PLY tokens for a past missed epoch 1
+        scenario += gauge.recharge(amount=10 * DECIMALS, epoch=1).run(
+            sender=Addresses.CONTRACT,
+            now=sp.timestamp(WEEK + 7),  # 7 is random. Timestamp must be higher than a week and previous recharge
+        )
+
+        # Predicted values
+        reward_per_token__ = reward_per_token_ + ((7 - 5) * reward_rate_ * PRECISION) // (32 * DECIMALS)
+        reward_rate__ = (10 * DECIMALS + ((WEEK - 7) * reward_rate_)) // (WEEK - 7)
+
+        # Storage is updated correctly
+        scenario.verify(gauge.data.reward_per_token == reward_per_token__)
+        scenario.verify(gauge.data.last_update_time == WEEK + 7)
+        scenario.verify(gauge.data.reward_rate == reward_rate__)
 
     ##########################
     # recharge (failure test)

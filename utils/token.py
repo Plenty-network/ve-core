@@ -66,20 +66,33 @@ def transfer_FA2(params):
 
 
 # VE attachment for Gauge LP boosting
-def attach_tokens(params):
+def update_token_attachments(params):
     sp.set_type(
         params,
         sp.TRecord(
             owner=sp.TAddress,
-            attachments=sp.TList(sp.TPair(sp.TNat, sp.TBool)),
+            attachments=sp.TList(
+                sp.TVariant(
+                    add_attachment=sp.TNat,
+                    remove_attachment=sp.TNat,
+                )
+            ),
             ve_address=sp.TAddress,
         ),
     )
 
     c = sp.contract(
-        sp.TRecord(attachments=sp.TList(sp.TPair(sp.TNat, sp.TBool)), owner=sp.TAddress),
+        sp.TRecord(
+            attachments=sp.TList(
+                sp.TVariant(
+                    add_attachment=sp.TNat,
+                    remove_attachment=sp.TNat,
+                )
+            ),
+            owner=sp.TAddress,
+        ),
         params.ve_address,
-        "attach",
+        "update_attachments",
     ).open_some()
 
     sp.transfer(

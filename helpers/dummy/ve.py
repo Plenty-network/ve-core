@@ -46,8 +46,19 @@ class VE(sp.Contract):
         sp.result(self.data.total_power)
 
     @sp.entry_point
-    def attach(self, params):
-        sp.set_type(params, sp.TRecord(attachments=sp.TList(sp.TPair(sp.TNat, sp.TBool)), owner=sp.TAddress))
+    def update_attachments(self, params):
+        sp.set_type(
+            params,
+            sp.TRecord(
+                attachments=sp.TList(
+                    sp.TVariant(
+                        add_attachment=sp.TNat,
+                        remove_attachment=sp.TNat,
+                    )
+                ),
+                owner=sp.TAddress,
+            ),
+        )
 
         pass
 
