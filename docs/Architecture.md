@@ -16,7 +16,7 @@ At its core, the `VoteEscrow` contract is based on the FA2 standard. It maintain
 
 ## vePLY Holder
 
-A **vePLY** NFT holder can vote on the distribution of weekly PLY emission across the `Gauges`, and in return collect fees and bribes for the AMM they vote for. This is explained well with examples in the Scenarios section.
+A **vePLY** NFT holder can vote on the distribution of weekly PLY emission across the `Gauges`, and in return collect fees and bribes for the AMM they vote for. This is explained well with examples in the [Scenarios section](https://github.com/Plenty-DeFi/ve-core/blob/master/docs/Scenarios.md). Besides, the holder can also claim inflation for their locked PLY, that is proportional to the global supply inflation. This is required in order to prevent dilution of locked stake overtime.
 
 Every vePLY NFT has a voting power that can be retrieved through the `get_token_voting_power` onchain view in the `VoteEscrow` contract. The voting power can be distributed as voting weights across different gauges the owner is intending to receive fees from and direct emissions to.
 
@@ -24,9 +24,11 @@ Voting is handled by the `Voter` contract. vePLY holders can call the `vote` ent
 
 An `epoch` is a voting period that is a week long and ideally starts at every Thursday, 12 AM (UTC). When a vePLY holder votes, their voting power at 12 AM (UTC) on the past Thursday is used.
 
-Once a previous epoch is over, the next epoch can be started by permissionalessly calling the `next_epoch` entrypoint in `Voter`. Besides updating the epoch, this entrypoint also calculates and updates current PLY inflation value.
+Once a previous epoch is over, the next epoch can be started by permissionalessly calling the `next_epoch` entrypoint in `Voter`. Besides updating the epoch, this entrypoint also calculates and updates current PLY inflation value, and adds a proportional inflation to the PLY lockers.
 
 To claim bribes and AMM fees for a specific epoch, the vePLY holder (who has voted) can call the `claim_bribe` and `claim_fees` entrypoints respectively, in `Voter`. These entrypoints send internal transactions to `FeeDistributor` and associated `Bribe` contract, and they in turn transfer the required amount to the holder.
+
+To claim inflation, the holder can call `claim_inflation` entrypoint in `VoteEscrow`, once for every epoch. The inflation is added directly to the underlying lock with the bias and slope being adjusted.
 
 ## AMM Liquidity Provider
 
@@ -65,3 +67,7 @@ For stakers who do not attach a vePLY NFT to their stake, their derived balance 
 ### How does 'attaching' affect the vePLY NFT?
 
 When a vePLY NFT is attached to an LP stake in a particular gauge, it becomes un-transferrable and cannot be used as boost in any other gauge.
+
+### Why are timestamps stored as `nat`?
+
+The operations in the vePLY system require a ton of arithmetic calculations to be made on timestamps. Since Michelson `timestamp` is not versatile when it comes to arithmetic calculations, `nat` is chosen at the primary type to store UNIX timestamp values.

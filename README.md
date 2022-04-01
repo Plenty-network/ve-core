@@ -6,8 +6,9 @@
 - `michelson` : Compiled michelson code.
 - `utils` : Utilities like token transfer calls.
 - `deploy` : Scripts to assist contract deployment.
+- `docs` : Elaborate documentation explaining the system and contract design.
 
-## Contracts
+## Contract Files
 
 All contracts are written in [SmartPy](https://smartpy.io) version `0.9.0`. Refer to their elaborate [documentation](https://smartpy.io/docs) for further understanding.
 
