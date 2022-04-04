@@ -13,15 +13,17 @@ FeeDistributor = sp.io.import_script_from_url("file:fee_distributor.py").FeeDist
 
 class Types:
 
+    # Token types on Tezos
+    TOKEN_VARIANT = sp.TVariant(
+        fa12=sp.TAddress,
+        fa2=sp.TPair(sp.TAddress, sp.TNat),
+        tez=sp.TUnit,
+    )
+
     ADD_AMM_PARAMS = sp.TRecord(
         amm=sp.TAddress,
         lp_token_address=sp.TAddress,
-        tokens=sp.TSet(
-            sp.TRecord(
-                token_address=sp.TAddress,
-                type=sp.TPair(sp.TNat, sp.TNat),
-            ).layout(("token_address", "type")),
-        ),
+        tokens=sp.TSet(TOKEN_VARIANT),
     ).layout(("amm", ("lp_token_address", "tokens")))
 
 
@@ -121,12 +123,7 @@ class CoreFactory(sp.Contract):
         c_fee = sp.contract(
             sp.TRecord(
                 amm=sp.TAddress,
-                tokens=sp.TSet(
-                    sp.TRecord(
-                        token_address=sp.TAddress,
-                        type=sp.TPair(sp.TNat, sp.TNat),
-                    ).layout(("token_address", "type"))
-                ),
+                tokens=sp.TSet(Types.TOKEN_VARIANT),
             ).layout(("amm", "tokens")),
             self.data.fee_distributor,
             "add_amm",
@@ -223,8 +220,8 @@ if __name__ == "__main__":
 
         TOKENS = sp.set(
             [
-                sp.record(token_address=Addresses.TOKEN_1, type=(0, 0)),
-                sp.record(token_address=Addresses.TOKEN_2, type=(1, 1)),
+                sp.variant("fa12", Addresses.TOKEN_1),
+                sp.variant("fa2", (Addresses.TOKEN_2, 0)),
             ]
         )
 
@@ -250,8 +247,8 @@ if __name__ == "__main__":
 
         TOKENS = sp.set(
             [
-                sp.record(token_address=Addresses.TOKEN_1, type=(0, 0)),
-                sp.record(token_address=Addresses.TOKEN_2, type=(1, 1)),
+                sp.variant("fa12", Addresses.TOKEN_1),
+                sp.variant("fa2", (Addresses.TOKEN_2, 0)),
             ]
         )
 

@@ -4,6 +4,7 @@ Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
 TokenUtils = sp.io.import_script_from_url("file:utils/token.py")
 FA12 = sp.io.import_script_from_url("file:helpers/tokens/fa12.py").FA12
 FA2 = sp.io.import_script_from_url("file:helpers/tokens/fa2.py")
+Pure = sp.io.import_script_from_url("file:helpers/dummy/pure.py").Pure
 
 ############
 # Constants
@@ -18,6 +19,13 @@ VOTE_SHARE_MULTIPLIER = 10 ** 18
 
 class Types:
 
+    # Token types on Tezos
+    TOKEN_VARIANT = sp.TVariant(
+        fa12=sp.TAddress,
+        fa2=sp.TPair(sp.TAddress, sp.TNat),
+        tez=sp.TUnit,
+    )
+
     # big-map keys/values
 
     AMM_EPOCH_FEE_KEY = sp.TRecord(
@@ -25,21 +33,9 @@ class Types:
         epoch=sp.TNat,
     ).layout(("amm", "epoch"))
 
-    # Pair type represents a (token type, token-id) pairing. Token id only relevant for FA2
-    AMM_EPOCH_FEE_VALUE = sp.TMap(
-        sp.TRecord(
-            token_address=sp.TAddress,
-            type=sp.TPair(sp.TNat, sp.TNat),
-        ).layout(("token_address", "type")),
-        sp.TNat,
-    )
+    AMM_EPOCH_FEE_VALUE = sp.TMap(TOKEN_VARIANT, sp.TNat)
 
-    AMM_TO_TOKENS_VALUE = sp.TSet(
-        sp.TRecord(
-            token_address=sp.TAddress,
-            type=sp.TPair(sp.TNat, sp.TNat),
-        ).layout(("token_address", "type"))
-    )
+    AMM_TO_TOKENS_VALUE = sp.TSet(TOKEN_VARIANT)
 
     CLAIM_LEDGER_KEY = sp.TRecord(
         token_id=sp.TNat,
@@ -51,23 +47,12 @@ class Types:
 
     ADD_AMM_PARAMS = sp.TRecord(
         amm=sp.TAddress,
-        tokens=sp.TSet(
-            sp.TRecord(
-                token_address=sp.TAddress,
-                type=sp.TPair(sp.TNat, sp.TNat),
-            ).layout(("token_address", "type"))
-        ),
+        tokens=sp.TSet(TOKEN_VARIANT),
     ).layout(("amm", "tokens"))
 
     ADD_FEES_PARAMS = sp.TRecord(
         epoch=sp.TNat,
-        fees=sp.TMap(
-            sp.TRecord(
-                token_address=sp.TAddress,
-                type=sp.TPair(sp.TNat, sp.TNat),
-            ).layout(("token_address", "type")),
-            sp.TNat,
-        ),
+        fees=sp.TMap(TOKEN_VARIANT, sp.TNat),
     ).layout(("epoch", "fees"))
 
     CLAIM_PARAMS = sp.TRecord(
@@ -77,11 +62,6 @@ class Types:
         epoch=sp.TNat,
         weight_share=sp.TNat,
     ).layout(("token_id", ("owner", ("amm", ("epoch", "weight_share")))))
-
-    # Token types enumeration
-
-    TOKEN_FA12 = 0
-    TOKEN_FA2 = 1
 
 
 #########
@@ -205,25 +185,28 @@ class FeeDistributor(sp.Contract):
             total_fees = self.data.amm_epoch_fee[key_][token]
             voter_fees_share = (total_fees * params.weight_share) // VOTE_SHARE_MULTIPLIER
 
-            with sp.if_(sp.fst(token.type) == Types.TOKEN_FA12):
-                TokenUtils.transfer_FA12(
-                    sp.record(
-                        from_=sp.self_address,
-                        to_=params.owner,
-                        value=voter_fees_share,
-                        token_address=token.token_address,
+            with token.match_cases() as arg:
+                with arg.match("fa12") as address:
+                    TokenUtils.transfer_FA12(
+                        sp.record(
+                            from_=sp.self_address,
+                            to_=params.owner,
+                            value=voter_fees_share,
+                            token_address=address,
+                        )
                     )
-                )
-            with sp.else_():
-                TokenUtils.transfer_FA2(
-                    sp.record(
-                        from_=sp.self_address,
-                        to_=params.owner,
-                        amount=voter_fees_share,
-                        token_address=token.token_address,
-                        token_id=sp.snd(token.type),
+                with arg.match("fa2") as fa2_args:
+                    TokenUtils.transfer_FA2(
+                        sp.record(
+                            from_=sp.self_address,
+                            to_=params.owner,
+                            amount=voter_fees_share,
+                            token_address=sp.fst(fa2_args),
+                            token_id=sp.snd(fa2_args),
+                        )
                     )
-                )
+                with arg.match("tez") as _:
+                    sp.send(params.owner, sp.utils.nat_to_mutez(voter_fees_share))
 
         # Mark the voter (vePLY token id) as claimed
         self.data.claim_ledger[sp.record(token_id=params.token_id, amm=params.amm, epoch=params.epoch)] = sp.unit
@@ -235,17 +218,17 @@ if __name__ == "__main__":
     # add_fees (valid test)
     ########################
 
-    @sp.add_test(name="add_fees correctly adds fees for an epoch")
+    @sp.add_test(name="add_fees correctly adds fees for an epoch with fa12 and fa2 tokens")
     def test():
         scenario = sp.test_scenario()
 
-        TOKEN_1 = sp.record(token_address=Addresses.TOKEN_1, type=(Types.TOKEN_FA12, 0))
-        TOKEN_2 = sp.record(token_address=Addresses.TOKEN_2, type=(Types.TOKEN_FA2, 0))
+        TOKEN_1 = sp.variant("fa12", Addresses.TOKEN_1)
+        TOKEN_2 = sp.variant("fa2", (Addresses.TOKEN_2, 0))
 
         fee_dist = FeeDistributor(
             amm_to_tokens=sp.big_map(
                 l={
-                    Addresses.AMM: {TOKEN_1, TOKEN_2},
+                    Addresses.AMM: sp.set([TOKEN_1, TOKEN_2]),
                 }
             ),
         )
@@ -264,6 +247,35 @@ if __name__ == "__main__":
             {TOKEN_1: 100, TOKEN_2: 200},
         )
 
+    @sp.add_test(name="add_fees correctly adds fees for an epoch with fa12 token and tez")
+    def test():
+        scenario = sp.test_scenario()
+
+        TOKEN_1 = sp.variant("fa12", Addresses.TOKEN_1)
+        TEZ = sp.variant("tez", sp.unit)
+
+        fee_dist = FeeDistributor(
+            amm_to_tokens=sp.big_map(
+                l={
+                    Addresses.AMM: sp.set([TOKEN_1, TEZ]),
+                }
+            ),
+        )
+
+        scenario += fee_dist
+
+        # When fees is added for epoch 3 (random) through AMM
+        scenario += fee_dist.add_fees(
+            epoch=3,
+            fees={TOKEN_1: 100, TEZ: 10},
+        ).run(sender=Addresses.AMM)
+
+        # Storage is updated correctly
+        scenario.verify_equal(
+            fee_dist.data.amm_epoch_fee[sp.record(amm=Addresses.AMM, epoch=3)],
+            {TOKEN_1: 100, TEZ: 10},
+        )
+
     ##########################
     # add_fees (failure test)
     ##########################
@@ -272,13 +284,13 @@ if __name__ == "__main__":
     def test():
         scenario = sp.test_scenario()
 
-        TOKEN_1 = sp.record(token_address=Addresses.TOKEN_1, type=(Types.TOKEN_FA12, 0))
-        TOKEN_2 = sp.record(token_address=Addresses.TOKEN_2, type=(Types.TOKEN_FA2, 0))
+        TOKEN_1 = sp.variant("fa12", Addresses.TOKEN_1)
+        TOKEN_2 = sp.variant("fa2", (Addresses.TOKEN_2, 0))
 
         fee_dist = FeeDistributor(
             amm_to_tokens=sp.big_map(
                 l={
-                    Addresses.AMM: {TOKEN_1, TOKEN_2},
+                    Addresses.AMM: sp.set([TOKEN_1, TOKEN_2]),
                 }
             ),
         )
@@ -296,13 +308,13 @@ if __name__ == "__main__":
     def test():
         scenario = sp.test_scenario()
 
-        TOKEN_1 = sp.record(token_address=Addresses.TOKEN_1, type=(Types.TOKEN_FA12, 0))
-        TOKEN_2 = sp.record(token_address=Addresses.TOKEN_2, type=(Types.TOKEN_FA2, 0))
+        TOKEN_1 = sp.variant("fa12", Addresses.TOKEN_1)
+        TOKEN_2 = sp.variant("fa2", (Addresses.TOKEN_2, 0))
 
         fee_dist = FeeDistributor(
             amm_to_tokens=sp.big_map(
                 l={
-                    Addresses.AMM: {TOKEN_1, TOKEN_2},
+                    Addresses.AMM: sp.set([TOKEN_1, TOKEN_2]),
                 }
             ),
             amm_epoch_fee=sp.big_map(
@@ -328,7 +340,7 @@ if __name__ == "__main__":
     # claim (valid test)
     #####################
 
-    @sp.add_test(name="claim works correctly for both fa12 and fa2 tokens")
+    @sp.add_test(name="claim works correctly for fa12 and fa2 tokens")
     def test():
         scenario = sp.test_scenario()
 
@@ -340,13 +352,13 @@ if __name__ == "__main__":
             Addresses.ADMIN,
         )
 
-        TOKEN_1 = sp.record(token_address=token_1.address, type=(Types.TOKEN_FA12, 0))
-        TOKEN_2 = sp.record(token_address=token_2.address, type=(Types.TOKEN_FA2, 0))
+        TOKEN_1 = sp.variant("fa12", token_1.address)
+        TOKEN_2 = sp.variant("fa2", (token_2.address, 0))
 
         fee_dist = FeeDistributor(
             amm_to_tokens=sp.big_map(
                 l={
-                    Addresses.AMM: {TOKEN_1, TOKEN_2},
+                    Addresses.AMM: sp.set([TOKEN_1, TOKEN_2]),
                 }
             ),
             amm_epoch_fee=sp.big_map(
@@ -403,6 +415,78 @@ if __name__ == "__main__":
         scenario.verify(token_2.data.ledger[Addresses.ALICE].balance == 80)
         scenario.verify(token_2.data.ledger[Addresses.BOB].balance == 120)
 
+    @sp.add_test(name="claim works correctly for fa12 token and tez")
+    def test():
+        scenario = sp.test_scenario()
+
+        # Initialize FA1.2
+        token_1 = FA12(admin=Addresses.ADMIN)
+
+        TOKEN_1 = sp.variant("fa12", token_1.address)
+        TEZ = sp.variant("tez", sp.unit)
+
+        fee_dist = FeeDistributor(
+            amm_to_tokens=sp.big_map(
+                l={
+                    Addresses.AMM: sp.set([TOKEN_1, TEZ]),
+                }
+            ),
+            amm_epoch_fee=sp.big_map(
+                l={
+                    sp.record(amm=Addresses.AMM, epoch=3): {
+                        TOKEN_1: 100,
+                        TEZ: 200,
+                    }
+                }
+            ),
+            voter=Addresses.CONTRACT,
+        )
+
+        # Set tez balance for fee_dist
+        fee_dist.set_initial_balance(sp.tez(1))
+
+        # Initialize dummy claimers
+        alice_dummy = Pure()
+        bob_dummy = Pure()
+
+        scenario += token_1
+        scenario += fee_dist
+        scenario += alice_dummy
+        scenario += bob_dummy
+
+        # Mint fa1.2 tokens for fee_dist
+        scenario += token_1.mint(address=fee_dist.address, value=100).run(sender=Addresses.ADMIN)
+
+        # When ALICE (40% share) and BOB (60% share) claim fee for epoch 3
+        scenario += fee_dist.claim(
+            sp.record(
+                token_id=1,
+                owner=alice_dummy.address,
+                amm=Addresses.AMM,
+                epoch=3,
+                weight_share=int(0.4 * VOTE_SHARE_MULTIPLIER),
+            )
+        ).run(sender=Addresses.CONTRACT)
+        scenario += fee_dist.claim(
+            sp.record(
+                token_id=2,
+                owner=bob_dummy.address,
+                amm=Addresses.AMM,
+                epoch=3,
+                weight_share=int(0.6 * VOTE_SHARE_MULTIPLIER),
+            )
+        ).run(sender=Addresses.CONTRACT)
+
+        # Storage is updated clearly
+        scenario.verify(fee_dist.data.claim_ledger[sp.record(token_id=1, amm=Addresses.AMM, epoch=3)] == sp.unit)
+        scenario.verify(fee_dist.data.claim_ledger[sp.record(token_id=2, amm=Addresses.AMM, epoch=3)] == sp.unit)
+
+        # ALICE and BOB get their tokens
+        scenario.verify(token_1.data.balances[alice_dummy.address].balance == 40)
+        scenario.verify(token_1.data.balances[bob_dummy.address].balance == 60)
+        scenario.verify(alice_dummy.balance == sp.mutez(80))
+        scenario.verify(bob_dummy.balance == sp.mutez(120))
+
     #######################
     # claim (failure test)
     #######################
@@ -412,21 +496,14 @@ if __name__ == "__main__":
         scenario = sp.test_scenario()
 
         # Initialize FA1.2 and FA2 token pair for the AMM
-        token_1 = FA12(admin=Addresses.ADMIN)
-        token_2 = FA2.FA2(
-            FA2.FA2_config(),
-            sp.utils.metadata_of_url("https://example.com"),
-            Addresses.ADMIN,
-        )
-
-        TOKEN_1 = sp.record(token_address=token_1.address, type=(Types.TOKEN_FA12, 0))
-        TOKEN_2 = sp.record(token_address=token_2.address, type=(Types.TOKEN_FA2, 0))
+        TOKEN_1 = sp.variant("fa12", Addresses.TOKEN_1)
+        TOKEN_2 = sp.variant("fa2", (Addresses.TOKEN_2, 0))
 
         # Initialize with BOB's token marked as claimed
         fee_dist = FeeDistributor(
             amm_to_tokens=sp.big_map(
                 l={
-                    Addresses.AMM: {TOKEN_1, TOKEN_2},
+                    Addresses.AMM: sp.set([TOKEN_1, TOKEN_2]),
                 }
             ),
             amm_epoch_fee=sp.big_map(
@@ -445,8 +522,6 @@ if __name__ == "__main__":
             voter=Addresses.CONTRACT,
         )
 
-        scenario += token_1
-        scenario += token_2
         scenario += fee_dist
 
         # When BOB tries to claim twice, txn fails

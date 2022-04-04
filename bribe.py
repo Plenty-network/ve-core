@@ -5,6 +5,7 @@ TokenUtils = sp.io.import_script_from_url("file:utils/token.py")
 Voter = sp.io.import_script_from_url("file:helpers/dummy/voter.py").Voter
 FA12 = sp.io.import_script_from_url("file:helpers/tokens/fa12.py").FA12
 FA2 = sp.io.import_script_from_url("file:helpers/tokens/fa2.py")
+Pure = sp.io.import_script_from_url("file:helpers/dummy/pure.py").Pure
 
 ############
 # Constants
@@ -19,6 +20,13 @@ VOTE_SHARE_MULTIPLIER = 10 ** 18
 
 class Types:
 
+    # Token types on Tezos
+    TOKEN_VARIANT = sp.TVariant(
+        fa12=sp.TAddress,
+        fa2=sp.TPair(sp.TAddress, sp.TNat),
+        tez=sp.TUnit,
+    )
+
     # big-map key/value types
 
     EPOCH_BRIBES_KEY = sp.TRecord(
@@ -26,12 +34,10 @@ class Types:
         bribe_id=sp.TNat,
     ).layout(("epoch", "bribe_id"))
 
-    # Pair type represents a (token type, token-id) pairing. Token id only relevant for FA2
     EPOCH_BRIBES_VALUE = sp.TRecord(
-        token_address=sp.TAddress,
-        type=sp.TPair(sp.TNat, sp.TNat),
-        amount=sp.TNat,
-    ).layout(("token_address", ("type", "amount")))
+        type=TOKEN_VARIANT,
+        value=sp.TNat,
+    ).layout(("type", "value"))
 
     CLAIM_LEDGER_KEY = sp.TRecord(
         token_id=sp.TNat,
@@ -42,10 +48,9 @@ class Types:
 
     ADD_BRIBE_PARAMS = sp.TRecord(
         epoch=sp.TNat,
-        token_address=sp.TAddress,
-        type=sp.TPair(sp.TNat, sp.TNat),
-        amount=sp.TNat,
-    ).layout(("epoch", ("token_address", ("type", "amount"))))
+        type=TOKEN_VARIANT,
+        value=sp.TNat,
+    ).layout(("epoch", ("type", "value")))
 
     CLAIM_PARAMS = sp.TRecord(
         token_id=sp.TNat,
@@ -54,10 +59,6 @@ class Types:
         bribe_id=sp.TNat,
         weight_share=sp.TNat,
     ).layout(("token_id", ("owner", ("epoch", ("bribe_id", "weight_share")))))
-
-    # Token-type enumeration
-    TOKEN_FA12 = 0
-    TOKEN_FA2 = 1
 
 
 #########
@@ -69,6 +70,7 @@ class Errors:
     EPOCH_IN_THE_PAST = "EPOCH_IN_THE_PAST"
     INVALID_BRIBE_ID_OR_EPOCH = "INVALID_BRIBE_ID_OR_EPOCH"
     VOTER_HAS_ALREADY_CLAIMED_BRIBE = "VOTER_HAS_ALREADY_CLAIMED_BRIBE"
+    INCORRECT_TEZ_VALUE_SENT = "INCORRECT_TEZ_VALUE_SENT"
 
     # Generic
     INVALID_VIEW = "INVALID_VIEW"
@@ -133,31 +135,34 @@ class Bribe(sp.Contract):
         # Insert bribe in storage
         self.data.uid += 1
         self.data.epoch_bribes[sp.record(epoch=params.epoch, bribe_id=self.data.uid)] = sp.record(
-            token_address=params.token_address,
             type=params.type,
-            amount=params.amount,
+            value=params.value,
         )
 
         # Retrieve bribe amount from sender
-        with sp.if_(sp.fst(params.type) == Types.TOKEN_FA12):
-            TokenUtils.transfer_FA12(
-                sp.record(
-                    from_=sp.sender,
-                    to_=sp.self_address,
-                    value=params.amount,
-                    token_address=params.token_address,
+        with params.type.match_cases() as arg:
+            with arg.match("fa12") as address:
+                TokenUtils.transfer_FA12(
+                    sp.record(
+                        from_=sp.sender,
+                        to_=sp.self_address,
+                        value=params.value,
+                        token_address=address,
+                    )
                 )
-            )
-        with sp.else_():
-            TokenUtils.transfer_FA2(
-                sp.record(
-                    from_=sp.sender,
-                    to_=sp.self_address,
-                    amount=params.amount,
-                    token_address=params.token_address,
-                    token_id=sp.snd(params.type),
+            with arg.match("fa2") as fa2_args:
+                TokenUtils.transfer_FA2(
+                    sp.record(
+                        from_=sp.sender,
+                        to_=sp.self_address,
+                        amount=params.value,
+                        token_address=sp.fst(fa2_args),
+                        token_id=sp.snd(fa2_args),
+                    )
                 )
-            )
+            with arg.match("tez") as _:
+                # verify if correct amount has been sent over
+                sp.verify(sp.amount == sp.utils.nat_to_mutez(params.value), Errors.INCORRECT_TEZ_VALUE_SENT)
 
     @sp.entry_point
     def claim(self, params):
@@ -176,29 +181,32 @@ class Bribe(sp.Contract):
 
         # Calculate bribe share for voter
         bribe_ = self.data.epoch_bribes[sp.record(epoch=params.epoch, bribe_id=params.bribe_id)]
-        bribe_amount = bribe_.amount
-        voter_bribe_share = (bribe_amount * params.weight_share) // VOTE_SHARE_MULTIPLIER
+        bribe_value = bribe_.value
+        voter_bribe_share = (bribe_value * params.weight_share) // VOTE_SHARE_MULTIPLIER
 
         # Transfer bribe to voter
-        with sp.if_(sp.fst(bribe_.type) == Types.TOKEN_FA12):
-            TokenUtils.transfer_FA12(
-                sp.record(
-                    from_=sp.self_address,
-                    to_=params.owner,
-                    value=voter_bribe_share,
-                    token_address=bribe_.token_address,
+        with bribe_.type.match_cases() as arg:
+            with arg.match("fa12") as address:
+                TokenUtils.transfer_FA12(
+                    sp.record(
+                        from_=sp.self_address,
+                        to_=params.owner,
+                        value=voter_bribe_share,
+                        token_address=address,
+                    )
                 )
-            )
-        with sp.else_():
-            TokenUtils.transfer_FA2(
-                sp.record(
-                    from_=sp.self_address,
-                    to_=params.owner,
-                    amount=voter_bribe_share,
-                    token_address=bribe_.token_address,
-                    token_id=sp.snd(bribe_.type),
+            with arg.match("fa2") as fa2_args:
+                TokenUtils.transfer_FA2(
+                    sp.record(
+                        from_=sp.self_address,
+                        to_=params.owner,
+                        amount=voter_bribe_share,
+                        token_address=sp.fst(fa2_args),
+                        token_id=sp.snd(fa2_args),
+                    )
                 )
-            )
+            with arg.match("tez") as _:
+                sp.send(params.owner, sp.utils.nat_to_mutez(voter_bribe_share))
 
         # Mark the lock token as claimed
         self.data.claim_ledger[sp.record(token_id=params.token_id, bribe_id=params.bribe_id)] = sp.unit
@@ -210,7 +218,7 @@ if __name__ == "__main__":
     # add_bribe (valid test)
     #########################
 
-    @sp.add_test(name="add_bribe correctly adds a bribe for ongoing and future epochs")
+    @sp.add_test(name="add_bribe correctly adds a bribe for ongoing and future epochs in all token variants")
     def test():
         scenario = sp.test_scenario()
 
@@ -248,27 +256,36 @@ if __name__ == "__main__":
         # When ALICE creates a bribe in current epoch
         scenario += bribe.add_bribe(
             epoch=1,
-            token_address=token_1.address,
-            type=(Types.TOKEN_FA12, 0),
-            amount=100,
+            type=sp.variant("fa12", token_1.address),
+            value=100,
         ).run(sender=Addresses.ALICE, now=sp.timestamp(5))
 
         # and future epoch
         scenario += bribe.add_bribe(
             epoch=3,
-            token_address=token_2.address,
-            type=(Types.TOKEN_FA2, 0),
-            amount=150,
+            type=sp.variant("fa2", (token_2.address, 0)),
+            value=150,
         ).run(sender=Addresses.ALICE, now=sp.timestamp(6))
+
+        # and another one with tez
+        scenario += bribe.add_bribe(
+            epoch=4,
+            type=sp.variant("tez", sp.unit),
+            value=200,
+        ).run(sender=Addresses.ALICE, now=sp.timestamp(6), amount=sp.mutez(200))
 
         # Storage is updated correctly
         scenario.verify(
             bribe.data.epoch_bribes[sp.record(epoch=1, bribe_id=1)]
-            == sp.record(token_address=token_1.address, type=(Types.TOKEN_FA12, 0), amount=100)
+            == sp.record(type=sp.variant("fa12", token_1.address), value=100)
         )
         scenario.verify(
             bribe.data.epoch_bribes[sp.record(epoch=3, bribe_id=2)]
-            == sp.record(token_address=token_2.address, type=(Types.TOKEN_FA2, 0), amount=150)
+            == sp.record(type=sp.variant("fa2", (token_2.address, 0)), value=150)
+        )
+        scenario.verify(
+            bribe.data.epoch_bribes[sp.record(epoch=4, bribe_id=3)]
+            == sp.record(type=sp.variant("tez", sp.unit), value=200)
         )
 
         # Tokens are correctly retrieved from ALICE
@@ -290,12 +307,7 @@ if __name__ == "__main__":
         scenario += bribe
 
         # When ALICE creates a bribe for a past epoch, txn fails
-        scenario += bribe.add_bribe(
-            epoch=1,
-            token_address=Addresses.TOKEN,
-            type=(Types.TOKEN_FA12, 0),
-            amount=100,
-        ).run(
+        scenario += bribe.add_bribe(epoch=1, type=sp.variant("fa12", Addresses.TOKEN), value=100,).run(
             sender=Addresses.ALICE,
             now=sp.timestamp(5),
             valid=False,
@@ -303,12 +315,7 @@ if __name__ == "__main__":
         )
 
         # When ALICE creates a bribe for current epoch, but after it is over, txn fails again
-        scenario += bribe.add_bribe(
-            epoch=2,
-            token_address=Addresses.TOKEN,
-            type=(Types.TOKEN_FA12, 0),
-            amount=100,
-        ).run(
+        scenario += bribe.add_bribe(epoch=2, type=sp.variant("fa12", Addresses.TOKEN), value=100,).run(
             sender=Addresses.ALICE,
             now=sp.timestamp(12),
             valid=False,
@@ -319,7 +326,7 @@ if __name__ == "__main__":
     # claim (valid test)
     #####################
 
-    @sp.add_test(name="claim works correctly for both fa12 and fa2 tokens")
+    @sp.add_test(name="claim works correctly for all token variants")
     def test():
         scenario = sp.test_scenario()
 
@@ -334,20 +341,26 @@ if __name__ == "__main__":
         bribe = Bribe(
             epoch_bribes=sp.big_map(
                 l={
-                    sp.record(epoch=1, bribe_id=1): sp.record(
-                        token_address=token_1.address, type=(Types.TOKEN_FA12, 0), amount=100
-                    ),
-                    sp.record(epoch=3, bribe_id=2): sp.record(
-                        token_address=token_2.address, type=(Types.TOKEN_FA2, 0), amount=150
-                    ),
+                    sp.record(epoch=1, bribe_id=1): sp.record(type=sp.variant("fa12", token_1.address), value=100),
+                    sp.record(epoch=3, bribe_id=2): sp.record(type=sp.variant("fa2", (token_2.address, 0)), value=150),
+                    sp.record(epoch=4, bribe_id=3): sp.record(type=sp.variant("tez", sp.unit), value=150),
                 }
             ),
             voter=Addresses.CONTRACT,
         )
 
+        # Create claim dummies for tez claim
+        alice_dummy = Pure()
+        bob_dummy = Pure()
+
+        # Set tez balance for bribe contract
+        bribe.set_initial_balance(sp.tez(1))
+
         scenario += token_1
         scenario += token_2
         scenario += bribe
+        scenario += alice_dummy
+        scenario += bob_dummy
 
         # Mint tokens for bribe contract
         scenario += token_1.mint(address=bribe.address, value=100).run(sender=Addresses.ADMIN)
@@ -402,17 +415,43 @@ if __name__ == "__main__":
             )
         ).run(sender=Addresses.CONTRACT)
 
+        # and ALICE (dummy) claims bribe 3 using her lock token
+        scenario += bribe.claim(
+            sp.record(
+                token_id=1,
+                owner=alice_dummy.address,
+                epoch=4,
+                bribe_id=3,
+                weight_share=int(0.2 * VOTE_SHARE_MULTIPLIER),
+            )
+        ).run(sender=Addresses.CONTRACT)
+
+        # and BOB (dummy) claims bribe 3 using his lock token
+        scenario += bribe.claim(
+            sp.record(
+                token_id=2,
+                owner=bob_dummy.address,
+                epoch=4,
+                bribe_id=3,
+                weight_share=int(0.8 * VOTE_SHARE_MULTIPLIER),
+            )
+        ).run(sender=Addresses.CONTRACT)
+
         # Storage is updated correctly
         scenario.verify(bribe.data.claim_ledger[sp.record(token_id=1, bribe_id=1)] == sp.unit)
         scenario.verify(bribe.data.claim_ledger[sp.record(token_id=1, bribe_id=2)] == sp.unit)
+        scenario.verify(bribe.data.claim_ledger[sp.record(token_id=1, bribe_id=3)] == sp.unit)
         scenario.verify(bribe.data.claim_ledger[sp.record(token_id=2, bribe_id=1)] == sp.unit)
         scenario.verify(bribe.data.claim_ledger[sp.record(token_id=2, bribe_id=2)] == sp.unit)
+        scenario.verify(bribe.data.claim_ledger[sp.record(token_id=2, bribe_id=3)] == sp.unit)
 
         # ALICE & BOB receive their tokens correctly
         scenario.verify(token_1.data.balances[Addresses.ALICE].balance == 35)
         scenario.verify(token_1.data.balances[Addresses.BOB].balance == 65)
         scenario.verify(token_2.data.ledger[Addresses.ALICE].balance == 30)
         scenario.verify(token_2.data.ledger[Addresses.BOB].balance == 120)
+        scenario.verify(alice_dummy.balance == sp.mutez(30))
+        scenario.verify(bob_dummy.balance == sp.mutez(120))
 
     #######################
     # claim (failure test)
@@ -425,11 +464,9 @@ if __name__ == "__main__":
         bribe = Bribe(
             epoch_bribes=sp.big_map(
                 l={
-                    sp.record(epoch=1, bribe_id=1): sp.record(
-                        token_address=Addresses.TOKEN, type=(Types.TOKEN_FA12, 0), amount=100
-                    ),
+                    sp.record(epoch=1, bribe_id=1): sp.record(type=sp.variant("fa12", Addresses.TOKEN_1), value=100),
                     sp.record(epoch=3, bribe_id=2): sp.record(
-                        token_address=Addresses.TOKEN, type=(Types.TOKEN_FA2, 0), amount=150
+                        type=sp.variant("fa2", (Addresses.TOKEN_2, 0)), value=150
                     ),
                 }
             ),
