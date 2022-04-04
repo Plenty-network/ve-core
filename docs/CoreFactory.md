@@ -18,8 +18,8 @@
 
 ## Entrypoints
 
-| Entrypoint            | Parameters                                                                                                                    | Description                                                                                 |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `add_amm`             | `(pair (address %amm) (pair (address %lp_token_address) (set %tokens (pair (address %token_address) (pair %type nat nat)))))` | Called by the `admin` to insert a new AMM into the vote-escrow system                       |
-| `remove_amm`          | `address`                                                                                                                     | Called by the `admin` to remove an AMM from the system.                                     |
-| `set_fee_distributor` | `address`                                                                                                                     | Called by the admin to set the `FeeDistributor` contract, once during origination sequence. |
+| Entrypoint            | Parameters                                                                                                                             | Description                                                                                 |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `add_amm`             | `(pair (address %amm) (pair (address %lp_token_address) (set %tokens (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))))))` | Called by the `admin` to insert a new AMM into the vote-escrow system                       |
+| `remove_amm`          | `address`                                                                                                                              | Called by the `admin` to remove an AMM from the system.                                     |
+| `set_fee_distributor` | `address`                                                                                                                              | Called by the admin to set the `FeeDistributor` contract, once during origination sequence. |
