@@ -1,0 +1,256 @@
+parameter (or (nat %approve_ply_ve) (pair %exchange (nat %token) (nat %value)));
+storage   (pair (pair (pair (address %admin) (address %plenty_address)) (pair (nat %plenty_exchange_val) (address %ply_address))) (pair (pair (address %ve_address) (nat %ve_lock_period)) (pair (address %wrap_address) (nat %wrap_exchange_val))));
+code
+  {
+    UNPAIR;     # @parameter : @storage
+    IF_LEFT
+      {
+        SWAP;       # @storage : @parameter%approve_ply_ve
+        # == approve_ply_ve ==
+        # sp.verify(sp.sender == self.data.admin) # @storage : @parameter%approve_ply_ve
+        DUP;        # @storage : @storage : @parameter%approve_ply_ve
+        DUG 2;      # @storage : @parameter%approve_ply_ve : @storage
+        CAR;        # pair (pair (address %admin) (address %plenty_address)) (pair (nat %plenty_exchange_val) (address %ply_address)) : @parameter%approve_ply_ve : @storage
+        CAR;        # pair (address %admin) (address %plenty_address) : @parameter%approve_ply_ve : @storage
+        CAR;        # address : @parameter%approve_ply_ve : @storage
+        SENDER;     # @sender : address : @parameter%approve_ply_ve : @storage
+        COMPARE;    # int : @parameter%approve_ply_ve : @storage
+        EQ;         # bool : @parameter%approve_ply_ve : @storage
+        IF
+          {}
+          {
+            PUSH string "WrongCondition: sp.sender == self.data.admin"; # string : @parameter%approve_ply_ve : @storage
+            FAILWITH;   # FAILED
+          }; # @parameter%approve_ply_ve : @storage
+        # sp.transfer(sp.record(spender = self.data.ve_address, value = params), sp.tez(0), sp.contract(sp.TRecord(spender = sp.TAddress, value = sp.TNat).layout(("spender", "value")), self.data.ply_address, entry_point='approve').open_some()) # @parameter%approve_ply_ve : @storage
+        NIL operation; # list operation : @parameter%approve_ply_ve : @storage
+        DUP 3;      # @storage : list operation : @parameter%approve_ply_ve : @storage
+        CAR;        # pair (pair (address %admin) (address %plenty_address)) (pair (nat %plenty_exchange_val) (address %ply_address)) : list operation : @parameter%approve_ply_ve : @storage
+        GET 4;      # address : list operation : @parameter%approve_ply_ve : @storage
+        CONTRACT %approve (pair (address %spender) (nat %value)); # option (contract (pair (address %spender) (nat %value))) : list operation : @parameter%approve_ply_ve : @storage
+        IF_NONE
+          {
+            PUSH int 75; # int : list operation : @parameter%approve_ply_ve : @storage
+            FAILWITH;   # FAILED
+          }
+          {}; # @some : list operation : @parameter%approve_ply_ve : @storage
+        PUSH mutez 0; # mutez : @some : list operation : @parameter%approve_ply_ve : @storage
+        DIG 3;      # @parameter%approve_ply_ve : mutez : @some : list operation : @storage
+        DUP 5;      # @storage : @parameter%approve_ply_ve : mutez : @some : list operation : @storage
+        GET 3;      # pair (address %ve_address) (nat %ve_lock_period) : @parameter%approve_ply_ve : mutez : @some : list operation : @storage
+        CAR;        # address : @parameter%approve_ply_ve : mutez : @some : list operation : @storage
+        PAIR;       # pair address @parameter%approve_ply_ve : mutez : @some : list operation : @storage
+        TRANSFER_TOKENS; # operation : list operation : @storage
+        CONS;       # list operation : @storage
+      }
+      {
+        # == exchange ==
+        # ply_converted = sp.local("ply_converted", 0)
+        # if params.token == 0: # @parameter%exchange : @storage
+        DUP;        # @parameter%exchange : @parameter%exchange : @storage
+        CAR;        # nat : @parameter%exchange : @storage
+        PUSH nat 0; # nat : nat : @parameter%exchange : @storage
+        COMPARE;    # int : @parameter%exchange : @storage
+        EQ;         # bool : @parameter%exchange : @storage
+        IF
+          {
+            # ply_converted.value = (self.data.plenty_exchange_val * params.value) // 1000000000000000000 # @parameter%exchange : @storage
+            DUP;        # @parameter%exchange : @parameter%exchange : @storage
+            CDR;        # nat : @parameter%exchange : @storage
+            PUSH nat 1000000000000000000; # nat : nat : @parameter%exchange : @storage
+            SWAP;       # nat : nat : @parameter%exchange : @storage
+            DUP 4;      # @storage : nat : nat : @parameter%exchange : @storage
+            CAR;        # pair (pair (address %admin) (address %plenty_address)) (pair (nat %plenty_exchange_val) (address %ply_address)) : nat : nat : @parameter%exchange : @storage
+            GET 3;      # nat : nat : nat : @parameter%exchange : @storage
+            MUL;        # nat : nat : @parameter%exchange : @storage
+            EDIV;       # option (pair nat nat) : @parameter%exchange : @storage
+            IF_NONE
+              {
+                PUSH int 93; # int : @parameter%exchange : @storage
+                FAILWITH;   # FAILED
+              }
+              {
+                CAR;        # nat : @parameter%exchange : @storage
+              }; # nat : @parameter%exchange : @storage
+          }
+          {
+            # ply_converted.value = (self.data.wrap_exchange_val * params.value) // 1000000000000000000 # @parameter%exchange : @storage
+            DUP;        # @parameter%exchange : @parameter%exchange : @storage
+            CDR;        # nat : @parameter%exchange : @storage
+            PUSH nat 1000000000000000000; # nat : nat : @parameter%exchange : @storage
+            SWAP;       # nat : nat : @parameter%exchange : @storage
+            DUP 4;      # @storage : nat : nat : @parameter%exchange : @storage
+            GET 6;      # nat : nat : nat : @parameter%exchange : @storage
+            MUL;        # nat : nat : @parameter%exchange : @storage
+            EDIV;       # option (pair nat nat) : @parameter%exchange : @storage
+            IF_NONE
+              {
+                PUSH int 95; # int : @parameter%exchange : @storage
+                FAILWITH;   # FAILED
+              }
+              {
+                CAR;        # nat : @parameter%exchange : @storage
+              }; # nat : @parameter%exchange : @storage
+          }; # nat : @parameter%exchange : @storage
+        # sp.transfer(sp.record(address = sp.sender, value = ply_converted.value // 2), sp.tez(0), sp.contract(sp.TRecord(address = sp.TAddress, value = sp.TNat).layout(("address", "value")), self.data.ply_address, entry_point='mint').open_some()) # nat : @parameter%exchange : @storage
+        NIL operation; # list operation : nat : @parameter%exchange : @storage
+        DUP 4;      # @storage : list operation : nat : @parameter%exchange : @storage
+        CAR;        # pair (pair (address %admin) (address %plenty_address)) (pair (nat %plenty_exchange_val) (address %ply_address)) : list operation : nat : @parameter%exchange : @storage
+        GET 4;      # address : list operation : nat : @parameter%exchange : @storage
+        CONTRACT %mint (pair (address %address) (nat %value)); # option (contract (pair (address %address) (nat %value))) : list operation : nat : @parameter%exchange : @storage
+        IF_NONE
+          {
+            PUSH int 104; # int : list operation : nat : @parameter%exchange : @storage
+            FAILWITH;   # FAILED
+          }
+          {}; # @some : list operation : nat : @parameter%exchange : @storage
+        PUSH mutez 0; # mutez : @some : list operation : nat : @parameter%exchange : @storage
+        PUSH nat 2; # nat : mutez : @some : list operation : nat : @parameter%exchange : @storage
+        DUP 5;      # nat : nat : mutez : @some : list operation : nat : @parameter%exchange : @storage
+        EDIV;       # option (pair nat nat) : mutez : @some : list operation : nat : @parameter%exchange : @storage
+        IF_NONE
+          {
+            PUSH int 101; # int : mutez : @some : list operation : nat : @parameter%exchange : @storage
+            FAILWITH;   # FAILED
+          }
+          {
+            CAR;        # nat : mutez : @some : list operation : nat : @parameter%exchange : @storage
+          }; # nat : mutez : @some : list operation : nat : @parameter%exchange : @storage
+        SENDER;     # @sender : nat : mutez : @some : list operation : nat : @parameter%exchange : @storage
+        PAIR;       # pair @sender nat : mutez : @some : list operation : nat : @parameter%exchange : @storage
+        TRANSFER_TOKENS; # operation : list operation : nat : @parameter%exchange : @storage
+        CONS;       # list operation : nat : @parameter%exchange : @storage
+        # sp.transfer(sp.record(address = sp.self_address, value = ply_converted.value // 2), sp.tez(0), sp.contract(sp.TRecord(address = sp.TAddress, value = sp.TNat).layout(("address", "value")), self.data.ply_address, entry_point='mint').open_some()) # list operation : nat : @parameter%exchange : @storage
+        DUP 4;      # @storage : list operation : nat : @parameter%exchange : @storage
+        CAR;        # pair (pair (address %admin) (address %plenty_address)) (pair (nat %plenty_exchange_val) (address %ply_address)) : list operation : nat : @parameter%exchange : @storage
+        GET 4;      # address : list operation : nat : @parameter%exchange : @storage
+        CONTRACT %mint (pair (address %address) (nat %value)); # option (contract (pair (address %address) (nat %value))) : list operation : nat : @parameter%exchange : @storage
+        IF_NONE
+          {
+            PUSH int 112; # int : list operation : nat : @parameter%exchange : @storage
+            FAILWITH;   # FAILED
+          }
+          {}; # @some : list operation : nat : @parameter%exchange : @storage
+        PUSH mutez 0; # mutez : @some : list operation : nat : @parameter%exchange : @storage
+        PUSH nat 2; # nat : mutez : @some : list operation : nat : @parameter%exchange : @storage
+        DUP 5;      # nat : nat : mutez : @some : list operation : nat : @parameter%exchange : @storage
+        EDIV;       # option (pair nat nat) : mutez : @some : list operation : nat : @parameter%exchange : @storage
+        IF_NONE
+          {
+            PUSH int 101; # int : mutez : @some : list operation : nat : @parameter%exchange : @storage
+            FAILWITH;   # FAILED
+          }
+          {
+            CAR;        # nat : mutez : @some : list operation : nat : @parameter%exchange : @storage
+          }; # nat : mutez : @some : list operation : nat : @parameter%exchange : @storage
+        SELF_ADDRESS; # @self : nat : mutez : @some : list operation : nat : @parameter%exchange : @storage
+        PAIR;       # pair @self nat : mutez : @some : list operation : nat : @parameter%exchange : @storage
+        TRANSFER_TOKENS; # operation : list operation : nat : @parameter%exchange : @storage
+        CONS;       # list operation : nat : @parameter%exchange : @storage
+        # sp.transfer(sp.record(user_address = sp.sender, base_value = ply_converted.value // 2, end = (sp.as_nat(sp.now - sp.timestamp(0)) + self.data.ve_lock_period) + 518400), sp.tez(0), sp.contract(sp.TRecord(base_value = sp.TNat, end = sp.TNat, user_address = sp.TAddress).layout(("user_address", ("base_value", "end"))), self.data.ve_address, entry_point='create_lock').open_some()) # list operation : nat : @parameter%exchange : @storage
+        DUP 4;      # @storage : list operation : nat : @parameter%exchange : @storage
+        GET 3;      # pair (address %ve_address) (nat %ve_lock_period) : list operation : nat : @parameter%exchange : @storage
+        CAR;        # address : list operation : nat : @parameter%exchange : @storage
+        CONTRACT %create_lock (pair (address %user_address) (pair (nat %base_value) (nat %end))); # option (contract (pair (address %user_address) (pair (nat %base_value) (nat %end)))) : list operation : nat : @parameter%exchange : @storage
+        IF_NONE
+          {
+            PUSH int 120; # int : list operation : nat : @parameter%exchange : @storage
+            FAILWITH;   # FAILED
+          }
+          {}; # @some : list operation : nat : @parameter%exchange : @storage
+        PUSH mutez 0; # mutez : @some : list operation : nat : @parameter%exchange : @storage
+        PUSH nat 518400; # nat : mutez : @some : list operation : nat : @parameter%exchange : @storage
+        DUP 7;      # @storage : nat : mutez : @some : list operation : nat : @parameter%exchange : @storage
+        GET 3;      # pair (address %ve_address) (nat %ve_lock_period) : nat : mutez : @some : list operation : nat : @parameter%exchange : @storage
+        CDR;        # nat : nat : mutez : @some : list operation : nat : @parameter%exchange : @storage
+        PUSH timestamp "1970-01-01T00:00:00Z"; # timestamp : nat : nat : mutez : @some : list operation : nat : @parameter%exchange : @storage
+        NOW;        # @now : timestamp : nat : nat : mutez : @some : list operation : nat : @parameter%exchange : @storage
+        SUB;        # int : nat : nat : mutez : @some : list operation : nat : @parameter%exchange : @storage
+        ISNAT;      # option nat : nat : nat : mutez : @some : list operation : nat : @parameter%exchange : @storage
+        IF_NONE
+          {
+            PUSH int 98; # int : nat : nat : mutez : @some : list operation : nat : @parameter%exchange : @storage
+            FAILWITH;   # FAILED
+          }
+          {}; # @some : nat : nat : mutez : @some : list operation : nat : @parameter%exchange : @storage
+        ADD;        # nat : nat : mutez : @some : list operation : nat : @parameter%exchange : @storage
+        ADD;        # nat : mutez : @some : list operation : nat : @parameter%exchange : @storage
+        PUSH nat 2; # nat : nat : mutez : @some : list operation : nat : @parameter%exchange : @storage
+        DIG 5;      # nat : nat : nat : mutez : @some : list operation : @parameter%exchange : @storage
+        EDIV;       # option (pair nat nat) : nat : mutez : @some : list operation : @parameter%exchange : @storage
+        IF_NONE
+          {
+            PUSH int 101; # int : nat : mutez : @some : list operation : @parameter%exchange : @storage
+            FAILWITH;   # FAILED
+          }
+          {
+            CAR;        # nat : nat : mutez : @some : list operation : @parameter%exchange : @storage
+          }; # nat : nat : mutez : @some : list operation : @parameter%exchange : @storage
+        SENDER;     # @sender : nat : nat : mutez : @some : list operation : @parameter%exchange : @storage
+        PAIR 3;     # pair @sender (pair nat nat) : mutez : @some : list operation : @parameter%exchange : @storage
+        TRANSFER_TOKENS; # operation : list operation : @parameter%exchange : @storage
+        CONS;       # list operation : @parameter%exchange : @storage
+        # if params.token == 0: # list operation : @parameter%exchange : @storage
+        PUSH nat 0; # nat : list operation : @parameter%exchange : @storage
+        DUP 3;      # @parameter%exchange : nat : list operation : @parameter%exchange : @storage
+        CAR;        # nat : nat : list operation : @parameter%exchange : @storage
+        COMPARE;    # int : list operation : @parameter%exchange : @storage
+        EQ;         # bool : list operation : @parameter%exchange : @storage
+        IF
+          {
+            # sp.transfer(sp.record(from_ = sp.sender, to_ = sp.self_address, value = params.value), sp.tez(0), sp.contract(sp.TRecord(from_ = sp.TAddress, to_ = sp.TAddress, value = sp.TNat).layout(("from_ as from", ("to_ as to", "value"))), self.data.plenty_address, entry_point='transfer').open_some()) # list operation : @parameter%exchange : @storage
+            DUP 3;      # @storage : list operation : @parameter%exchange : @storage
+            CAR;        # pair (pair (address %admin) (address %plenty_address)) (pair (nat %plenty_exchange_val) (address %ply_address)) : list operation : @parameter%exchange : @storage
+            CAR;        # pair (address %admin) (address %plenty_address) : list operation : @parameter%exchange : @storage
+            CDR;        # address : list operation : @parameter%exchange : @storage
+            CONTRACT %transfer (pair (address %from) (pair (address %to) (nat %value))); # option (contract (pair (address %from) (pair (address %to) (nat %value)))) : list operation : @parameter%exchange : @storage
+            IF_NONE
+              {
+                PUSH int 15; # int : list operation : @parameter%exchange : @storage
+                FAILWITH;   # FAILED
+              }
+              {}; # @some : list operation : @parameter%exchange : @storage
+            PUSH mutez 0; # mutez : @some : list operation : @parameter%exchange : @storage
+            DIG 3;      # @parameter%exchange : mutez : @some : list operation : @storage
+            CDR;        # nat : mutez : @some : list operation : @storage
+            SELF_ADDRESS; # @self : nat : mutez : @some : list operation : @storage
+            SENDER;     # @sender : @self : nat : mutez : @some : list operation : @storage
+            PAIR 3;     # pair @sender (pair @self nat) : mutez : @some : list operation : @storage
+            TRANSFER_TOKENS; # operation : list operation : @storage
+            CONS;       # list operation : @storage
+          }
+          {
+            # sp.transfer(sp.list([sp.record(from_ = sp.sender, txs = sp.list([sp.record(to_ = sp.self_address, token_id = 0, amount = params.value)]))]), sp.tez(0), sp.contract(sp.TList(sp.TRecord(from_ = sp.TAddress, txs = sp.TList(sp.TRecord(amount = sp.TNat, to_ = sp.TAddress, token_id = sp.TNat).layout(("to_", ("token_id", "amount"))))).layout(("from_", "txs"))), self.data.wrap_address, entry_point='transfer').open_some()) # list operation : @parameter%exchange : @storage
+            DUP 3;      # @storage : list operation : @parameter%exchange : @storage
+            GET 5;      # address : list operation : @parameter%exchange : @storage
+            CONTRACT %transfer (list (pair (address %from_) (list %txs (pair (address %to_) (pair (nat %token_id) (nat %amount)))))); # option (contract (list (pair (address %from_) (list %txs (pair (address %to_) (pair (nat %token_id) (nat %amount))))))) : list operation : @parameter%exchange : @storage
+            IF_NONE
+              {
+                PUSH int 51; # int : list operation : @parameter%exchange : @storage
+                FAILWITH;   # FAILED
+              }
+              {}; # @some : list operation : @parameter%exchange : @storage
+            PUSH mutez 0; # mutez : @some : list operation : @parameter%exchange : @storage
+            NIL (pair address (list (pair address (pair nat nat)))); # list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%exchange : @storage
+            NIL (pair address (pair nat nat)); # list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @parameter%exchange : @storage
+            DIG 5;      # @parameter%exchange : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+            CDR;        # nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+            PUSH nat 0; # nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+            SELF_ADDRESS; # @self : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+            PAIR 3;     # pair @self (pair nat nat) : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+            CONS;       # list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+            SENDER;     # @sender : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+            PAIR;       # pair @sender (list (pair address (pair nat nat))) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+            CONS;       # list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : @storage
+            TRANSFER_TOKENS; # operation : list operation : @storage
+            CONS;       # list operation : @storage
+          }; # list operation : @storage
+      }; # list operation : @storage
+    NIL operation; # list operation : list operation : @storage
+    SWAP;       # list operation : list operation : @storage
+    ITER
+      {
+        CONS;       # list operation : @storage
+      }; # list operation : @storage
+    PAIR;       # pair (list operation) @storage
+  };
