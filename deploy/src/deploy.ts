@@ -76,6 +76,7 @@ export const deploy = async (deployParams: DeployParams) => {
     // Contract instance
     const factoryInstance = await deployParams.tezos.contract.at(factoryAddress);
     const voterInstance = await deployParams.tezos.contract.at(voterAddress);
+    const veInstance = await deployParams.tezos.contract.at(veAddress);
 
     // Prepare batch operation list
     const opList: ParamsWithKind[] = [
@@ -86,6 +87,10 @@ export const deploy = async (deployParams: DeployParams) => {
       {
         kind: OpKind.TRANSACTION,
         ...voterInstance.methods.set_factory_and_fee_dist(factoryAddress, feeDistributorAddress).toTransferParams(),
+      },
+      {
+        kind: OpKind.TRANSACTION,
+        ...veInstance.methods.set_voter(voterAddress).toTransferParams(),
       },
     ];
 
