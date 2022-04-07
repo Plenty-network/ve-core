@@ -29,3 +29,9 @@ The AMMs (Standard-swap and stable-swap) are the associated contracts, and they 
 | --------------- | ------------------------------------------------------------------------------------------------- |
 | `AMM`           | A constant product market maker contract that charges a small fee for swaps between a token pair. |
 | `FlatCurve AMM` | A stableswap contract that allows near 0 slippage swaps between co-related token pairs.           |
+
+## Supplementary Contracts
+
+| Contract | Description                                                                 |
+| -------- | --------------------------------------------------------------------------- |
+| `VESwap` | Allows for exchanging existing PLENTY and WRAP tokens to the new PLY token. |

@@ -18,6 +18,7 @@ All contracts are written in [SmartPy](https://smartpy.io) version `0.9.0`. Refe
 - `gauge` : A farming contract that emits PLY to staker of LP tokens of a specfic AMM.
 - `bribe` : Allows bribing (rewarding) of the voters of a specific AMM during a particular voting period.
 - `core_factory` : Deploys gauge and bribe contracts and connects them to other relevant contracts.
+- `ve_swap`: A supplementary contract to allow for exchanging existing PLENTY and WRAP tokens to PLY.
 
 ## Compilation
 
