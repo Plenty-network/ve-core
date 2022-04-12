@@ -5,8 +5,8 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "deploy:testnet": "ts-node ./src/index.ts hangzhounet",
-    "addAMM:testnet": "ts-node ./src/utils/factory.ts hangzhounet"
+    "deploy:testnet": "ts-node ./src/index.ts ithacanet",
+    "addAMM:testnet": "ts-node ./src/utils/factory.ts ithacanet"
   },
   "dependencies": {
     "@taquito/signer": "^12.0.0",
