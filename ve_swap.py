@@ -44,7 +44,6 @@ class Errors:
 class VESwap(sp.Contract):
     def __init__(
         self,
-        admin=Addresses.ADMIN,
         ply_address=Addresses.TOKEN,
         plenty_address=Addresses.TOKEN,
         wrap_address=Addresses.TOKEN,
@@ -64,7 +63,6 @@ class VESwap(sp.Contract):
         wrap_exchange_val=sp.nat(0),
     ):
         self.init(
-            admin=admin,
             ply_address=ply_address,
             plenty_address=plenty_address,
             wrap_address=wrap_address,
@@ -77,7 +75,6 @@ class VESwap(sp.Contract):
 
         self.init_type(
             sp.TRecord(
-                admin=sp.TAddress,
                 ply_address=sp.TAddress,
                 plenty_address=sp.TAddress,
                 wrap_address=sp.TAddress,

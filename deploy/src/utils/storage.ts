@@ -42,3 +42,17 @@ interface FeeDistributorStorageParams {
 export const getFeeDistributorStorage = (params: FeeDistributorStorageParams): string => {
   return `(Pair (Pair {} {}) (Pair {} (Pair "${params.factoryAddress}" "${params.voterAddress}")))`;
 };
+
+interface VESwapStorageParams {
+  plyAddress: string;
+  plentyAddress: string;
+  wrapAddress: string;
+  veSwapGenesis: string;
+  veSwapEnd: string;
+  plentyExchangeVal: number;
+  wrapExchangeVal: number;
+}
+
+export const getVESwapStorage = (params: VESwapStorageParams): string => {
+  return `(Pair (Pair (Pair "${params.veSwapEnd}" "${params.veSwapGenesis}") (Pair {} "${params.plentyAddress}")) (Pair (Pair ${params.plentyExchangeVal} "${params.plyAddress}") (Pair "${params.wrapAddress}" ${params.wrapExchangeVal})))`;
+};

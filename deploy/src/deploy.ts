@@ -8,6 +8,13 @@ export interface DeployParams {
   tezos: TezosToolkit;
   plyAdmin: string;
   factoryAdmin: string;
+  deployVeSwap: boolean;
+  plentyAddress: string;
+  wrapAddress: string;
+  plentyExchangeVal: number;
+  wrapExchangeVal: number;
+  veSwapGenesis: string;
+  veSwapEnd: string;
 }
 
 export const deploy = async (deployParams: DeployParams) => {
@@ -28,6 +35,24 @@ export const deploy = async (deployParams: DeployParams) => {
     // Prepare storage and contract for Vote Escrow
     const veStorage = storageUtils.getVEStorage({ baseToken: plyAddress });
     const veContract = contractUtils.loadContract("vote_escrow");
+
+    // Depoy Ve swap
+    if (deployParams.deployVeSwap) {
+      const veSwapStorage = storageUtils.getVESwapStorage({
+        plyAddress,
+        plentyAddress: deployParams.plentyAddress,
+        wrapAddress: deployParams.wrapAddress,
+        veSwapEnd: deployParams.veSwapEnd,
+        veSwapGenesis: deployParams.veSwapGenesis,
+        plentyExchangeVal: deployParams.plentyExchangeVal,
+        wrapExchangeVal: deployParams.wrapExchangeVal,
+      });
+      const veSwapContract = contractUtils.loadContract("ve_swap");
+
+      console.log("\n>> [x] Deploying VESwap contract");
+      const veSwapAddress = await contractUtils.deployContract(veSwapContract, veSwapStorage, deployParams.tezos);
+      console.log(">>> VE Swap address: ", veSwapAddress);
+    }
 
     // Deploy Vote Escrow
     console.log("\n>> [2 / 6] Deploying Vote Escrow");
