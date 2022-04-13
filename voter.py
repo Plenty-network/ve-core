@@ -86,16 +86,16 @@ class Types:
 
     CLAIM_BRIBE_PARAMS = sp.TRecord(
         token_id=sp.TNat,
-        epoch=sp.TNat,
         amm=sp.TAddress,
+        epoch=sp.TNat,
         bribe_id=sp.TNat,
-    ).layout(("token_id", ("epoch", ("amm", "bribe_id"))))
+    ).layout(("token_id", ("amm", ("epoch", "bribe_id"))))
 
     CLAIM_FEE_PARAMS = sp.TRecord(
         token_id=sp.TNat,
-        epoch=sp.TNat,
         amm=sp.TAddress,
-    ).layout(("token_id", ("epoch", "amm")))
+        epoch=sp.TNat,
+    ).layout(("token_id", ("amm", "epoch")))
 
     # Enumeration for voting power readers
     CURRENT = sp.nat(0)
@@ -490,17 +490,27 @@ class Voter(sp.Contract):
 
     @sp.entry_point
     def pull_amm_fee(self, params):
-        sp.set_type(params, sp.TRecord(epoch=sp.TNat, amm=sp.TAddress))
+        sp.set_type(params, sp.TRecord(amm=sp.TAddress, epoch=sp.TNat).layout(("amm", "epoch")))
 
         # Sanity checks
         sp.verify(self.data.epoch > params.epoch, Errors.INVALID_EPOCH)
         sp.verify(self.data.amm_to_gauge_bribe.contains(params.amm), Errors.AMM_INVALID_OR_NOT_WHITELISTED)
 
-        # TODO: call the 'forward_fee' entrypoint of the amm, passing in fee_distributor & epoch
+        # Call the 'forwardFee' entrypoint of the amm, passing in fee_distributor & epoch
+        c = sp.contract(
+            sp.TRecord(feeDistributor=sp.TAddress, epoch=sp.TNat),
+            params.amm,
+            "forwardFee",
+        ).open_some()
+        sp.transfer(
+            sp.record(feeDistributor=self.data.fee_distributor, epoch=params.epoch),
+            sp.tez(0),
+            c,
+        )
 
     @sp.entry_point
     def recharge_gauge(self, params):
-        sp.set_type(params, sp.TRecord(epoch=sp.TNat, amm=sp.TAddress))
+        sp.set_type(params, sp.TRecord(amm=sp.TAddress, epoch=sp.TNat).layout(("amm", "epoch")))
 
         # Sanity checks
         sp.verify(self.data.epoch > params.epoch, Errors.INVALID_EPOCH)

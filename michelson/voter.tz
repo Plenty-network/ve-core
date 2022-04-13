@@ -1,4 +1,4 @@
-parameter (or (or (or (pair %add_amm (address %amm) (pair (address %gauge) (address %bribe))) (pair %claim_bribe (nat %token_id) (pair (nat %epoch) (pair (address %amm) (nat %bribe_id))))) (or (pair %claim_fee (nat %token_id) (pair (nat %epoch) (address %amm))) (unit %next_epoch))) (or (or (pair %pull_amm_fee (address %amm) (nat %epoch)) (pair %recharge_gauge (address %amm) (nat %epoch))) (or (address %remove_amm) (or (pair %set_factory_and_fee_dist (address %factory) (address %fee_dist)) (pair %vote (nat %token_id) (list %vote_items (pair (address %amm) (nat %votes))))))));
+parameter (or (or (or (pair %add_amm (address %amm) (pair (address %gauge) (address %bribe))) (pair %claim_bribe (nat %token_id) (pair (address %amm) (pair (nat %epoch) (nat %bribe_id))))) (or (pair %claim_fee (nat %token_id) (pair (address %amm) (nat %epoch))) (unit %next_epoch))) (or (or (pair %pull_amm_fee (address %amm) (nat %epoch)) (pair %recharge_gauge (address %amm) (nat %epoch))) (or (address %remove_amm) (or (pair %set_factory_and_fee_dist (address %factory) (address %fee_dist)) (pair %vote (nat %token_id) (list %vote_items (pair (address %amm) (nat %votes))))))));
 storage   (pair (pair (pair (big_map %amm_to_gauge_bribe address (pair (address %gauge) (address %bribe))) (pair (address %core_factory) (pair %emission (nat %base) (pair (nat %genesis) (nat %real))))) (pair (nat %epoch) (pair (big_map %epoch_end nat timestamp) (address %fee_distributor)))) (pair (pair (address %ply_address) (pair (big_map %token_amm_votes (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat) (big_map %total_amm_votes (pair (address %amm) (nat %epoch)) nat))) (pair (big_map %total_epoch_votes nat nat) (pair (big_map %total_token_votes (pair (nat %token_id) (nat %epoch)) nat) (address %ve_address)))));
 code
   {
@@ -52,7 +52,7 @@ code
                 # == claim_bribe ==
                 # sp.verify(self.data.epoch > params.epoch, 'INVALID_EPOCH') # @parameter%claim_bribe : @storage
                 DUP;        # @parameter%claim_bribe : @parameter%claim_bribe : @storage
-                GET 3;      # nat : @parameter%claim_bribe : @storage
+                GET 5;      # nat : @parameter%claim_bribe : @storage
                 DUP 3;      # @storage : nat : @parameter%claim_bribe : @storage
                 CAR;        # pair (pair (big_map %amm_to_gauge_bribe address (pair (address %gauge) (address %bribe))) (pair (address %core_factory) (pair %emission (nat %base) (pair (nat %genesis) (nat %real))))) (pair (nat %epoch) (pair (big_map %epoch_end nat timestamp) (address %fee_distributor))) : nat : @parameter%claim_bribe : @storage
                 GET 3;      # nat : nat : @parameter%claim_bribe : @storage
@@ -74,7 +74,7 @@ code
                 SWAP;       # @parameter%claim_bribe : big_map address (pair (address %gauge) (address %bribe)) : @storage
                 DUP;        # @parameter%claim_bribe : @parameter%claim_bribe : big_map address (pair (address %gauge) (address %bribe)) : @storage
                 DUG 2;      # @parameter%claim_bribe : big_map address (pair (address %gauge) (address %bribe)) : @parameter%claim_bribe : @storage
-                GET 5;      # address : big_map address (pair (address %gauge) (address %bribe)) : @parameter%claim_bribe : @storage
+                GET 3;      # address : big_map address (pair (address %gauge) (address %bribe)) : @parameter%claim_bribe : @storage
                 MEM;        # bool : @parameter%claim_bribe : @storage
                 IF
                   {}
@@ -114,7 +114,7 @@ code
                 CAR;        # pair (big_map %amm_to_gauge_bribe address (pair (address %gauge) (address %bribe))) (pair (address %core_factory) (pair %emission (nat %base) (pair (nat %genesis) (nat %real)))) : list operation : list operation : @parameter%claim_bribe : @storage
                 CAR;        # big_map address (pair (address %gauge) (address %bribe)) : list operation : list operation : @parameter%claim_bribe : @storage
                 DUP 4;      # @parameter%claim_bribe : big_map address (pair (address %gauge) (address %bribe)) : list operation : list operation : @parameter%claim_bribe : @storage
-                GET 5;      # address : big_map address (pair (address %gauge) (address %bribe)) : list operation : list operation : @parameter%claim_bribe : @storage
+                GET 3;      # address : big_map address (pair (address %gauge) (address %bribe)) : list operation : list operation : @parameter%claim_bribe : @storage
                 GET;        # option (pair (address %gauge) (address %bribe)) : list operation : list operation : @parameter%claim_bribe : @storage
                 IF_NONE
                   {
@@ -136,11 +136,11 @@ code
                 GET 4;      # big_map (pair (address %amm) (nat %epoch)) nat : mutez : @some : list operation : list operation : @parameter%claim_bribe : @storage
                 DIG 5;      # @parameter%claim_bribe : big_map (pair (address %amm) (nat %epoch)) nat : mutez : @some : list operation : list operation : @storage
                 DUP;        # @parameter%claim_bribe : @parameter%claim_bribe : big_map (pair (address %amm) (nat %epoch)) nat : mutez : @some : list operation : list operation : @storage
-                GET 3;      # nat : @parameter%claim_bribe : big_map (pair (address %amm) (nat %epoch)) nat : mutez : @some : list operation : list operation : @storage
+                GET 5;      # nat : @parameter%claim_bribe : big_map (pair (address %amm) (nat %epoch)) nat : mutez : @some : list operation : list operation : @storage
                 SWAP;       # @parameter%claim_bribe : nat : big_map (pair (address %amm) (nat %epoch)) nat : mutez : @some : list operation : list operation : @storage
                 DUP;        # @parameter%claim_bribe : @parameter%claim_bribe : nat : big_map (pair (address %amm) (nat %epoch)) nat : mutez : @some : list operation : list operation : @storage
                 DUG 7;      # @parameter%claim_bribe : nat : big_map (pair (address %amm) (nat %epoch)) nat : mutez : @some : list operation : list operation : @parameter%claim_bribe : @storage
-                GET 5;      # address : nat : big_map (pair (address %amm) (nat %epoch)) nat : mutez : @some : list operation : list operation : @parameter%claim_bribe : @storage
+                GET 3;      # address : nat : big_map (pair (address %amm) (nat %epoch)) nat : mutez : @some : list operation : list operation : @parameter%claim_bribe : @storage
                 PAIR;       # pair address nat : big_map (pair (address %amm) (nat %epoch)) nat : mutez : @some : list operation : list operation : @parameter%claim_bribe : @storage
                 GET;        # option nat : mutez : @some : list operation : list operation : @parameter%claim_bribe : @storage
                 IF_NONE
@@ -155,10 +155,10 @@ code
                 GET 3;      # big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat : nat : @some : mutez : @some : list operation : list operation : @parameter%claim_bribe : @storage
                 DIG 7;      # @parameter%claim_bribe : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat : nat : @some : mutez : @some : list operation : list operation : @storage
                 DUP;        # @parameter%claim_bribe : @parameter%claim_bribe : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat : nat : @some : mutez : @some : list operation : list operation : @storage
-                GET 3;      # nat : @parameter%claim_bribe : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat : nat : @some : mutez : @some : list operation : list operation : @storage
+                GET 5;      # nat : @parameter%claim_bribe : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat : nat : @some : mutez : @some : list operation : list operation : @storage
                 SWAP;       # @parameter%claim_bribe : nat : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat : nat : @some : mutez : @some : list operation : list operation : @storage
                 DUP;        # @parameter%claim_bribe : @parameter%claim_bribe : nat : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat : nat : @some : mutez : @some : list operation : list operation : @storage
-                GET 5;      # address : @parameter%claim_bribe : nat : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat : nat : @some : mutez : @some : list operation : list operation : @storage
+                GET 3;      # address : @parameter%claim_bribe : nat : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat : nat : @some : mutez : @some : list operation : list operation : @storage
                 SWAP;       # @parameter%claim_bribe : address : nat : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat : nat : @some : mutez : @some : list operation : list operation : @storage
                 DUP;        # @parameter%claim_bribe : @parameter%claim_bribe : address : nat : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat : nat : @some : mutez : @some : list operation : list operation : @storage
                 DUG 10;     # @parameter%claim_bribe : address : nat : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat : nat : @some : mutez : @some : list operation : list operation : @parameter%claim_bribe : @storage
@@ -187,7 +187,7 @@ code
                 SWAP;       # @parameter%claim_bribe : nat : nat : mutez : @some : list operation : list operation : @storage
                 DUP;        # @parameter%claim_bribe : @parameter%claim_bribe : nat : nat : mutez : @some : list operation : list operation : @storage
                 DUG 7;      # @parameter%claim_bribe : nat : nat : mutez : @some : list operation : list operation : @parameter%claim_bribe : @storage
-                GET 3;      # nat : nat : nat : mutez : @some : list operation : list operation : @parameter%claim_bribe : @storage
+                GET 5;      # nat : nat : nat : mutez : @some : list operation : list operation : @parameter%claim_bribe : @storage
                 SENDER;     # @sender : nat : nat : nat : mutez : @some : list operation : list operation : @parameter%claim_bribe : @storage
                 DUP 9;      # @parameter%claim_bribe : @sender : nat : nat : nat : mutez : @some : list operation : list operation : @parameter%claim_bribe : @storage
                 CAR;        # nat : @sender : nat : nat : nat : mutez : @some : list operation : list operation : @parameter%claim_bribe : @storage
@@ -206,7 +206,7 @@ code
                 # == claim_fee ==
                 # sp.verify(self.data.epoch > params.epoch, 'INVALID_EPOCH') # @parameter%claim_fee : @storage
                 DUP;        # @parameter%claim_fee : @parameter%claim_fee : @storage
-                GET 3;      # nat : @parameter%claim_fee : @storage
+                GET 4;      # nat : @parameter%claim_fee : @storage
                 DUP 3;      # @storage : nat : @parameter%claim_fee : @storage
                 CAR;        # pair (pair (big_map %amm_to_gauge_bribe address (pair (address %gauge) (address %bribe))) (pair (address %core_factory) (pair %emission (nat %base) (pair (nat %genesis) (nat %real))))) (pair (nat %epoch) (pair (big_map %epoch_end nat timestamp) (address %fee_distributor))) : nat : @parameter%claim_fee : @storage
                 GET 3;      # nat : nat : @parameter%claim_fee : @storage
@@ -228,7 +228,7 @@ code
                 SWAP;       # @parameter%claim_fee : big_map address (pair (address %gauge) (address %bribe)) : @storage
                 DUP;        # @parameter%claim_fee : @parameter%claim_fee : big_map address (pair (address %gauge) (address %bribe)) : @storage
                 DUG 2;      # @parameter%claim_fee : big_map address (pair (address %gauge) (address %bribe)) : @parameter%claim_fee : @storage
-                GET 4;      # address : big_map address (pair (address %gauge) (address %bribe)) : @parameter%claim_fee : @storage
+                GET 3;      # address : big_map address (pair (address %gauge) (address %bribe)) : @parameter%claim_fee : @storage
                 MEM;        # bool : @parameter%claim_fee : @storage
                 IF
                   {}
@@ -279,11 +279,11 @@ code
                 GET 4;      # big_map (pair (address %amm) (nat %epoch)) nat : mutez : @some : list operation : list operation : @parameter%claim_fee : @storage
                 DIG 5;      # @parameter%claim_fee : big_map (pair (address %amm) (nat %epoch)) nat : mutez : @some : list operation : list operation : @storage
                 DUP;        # @parameter%claim_fee : @parameter%claim_fee : big_map (pair (address %amm) (nat %epoch)) nat : mutez : @some : list operation : list operation : @storage
-                GET 3;      # nat : @parameter%claim_fee : big_map (pair (address %amm) (nat %epoch)) nat : mutez : @some : list operation : list operation : @storage
+                GET 4;      # nat : @parameter%claim_fee : big_map (pair (address %amm) (nat %epoch)) nat : mutez : @some : list operation : list operation : @storage
                 SWAP;       # @parameter%claim_fee : nat : big_map (pair (address %amm) (nat %epoch)) nat : mutez : @some : list operation : list operation : @storage
                 DUP;        # @parameter%claim_fee : @parameter%claim_fee : nat : big_map (pair (address %amm) (nat %epoch)) nat : mutez : @some : list operation : list operation : @storage
                 DUG 7;      # @parameter%claim_fee : nat : big_map (pair (address %amm) (nat %epoch)) nat : mutez : @some : list operation : list operation : @parameter%claim_fee : @storage
-                GET 4;      # address : nat : big_map (pair (address %amm) (nat %epoch)) nat : mutez : @some : list operation : list operation : @parameter%claim_fee : @storage
+                GET 3;      # address : nat : big_map (pair (address %amm) (nat %epoch)) nat : mutez : @some : list operation : list operation : @parameter%claim_fee : @storage
                 PAIR;       # pair address nat : big_map (pair (address %amm) (nat %epoch)) nat : mutez : @some : list operation : list operation : @parameter%claim_fee : @storage
                 GET;        # option nat : mutez : @some : list operation : list operation : @parameter%claim_fee : @storage
                 IF_NONE
@@ -298,10 +298,10 @@ code
                 GET 3;      # big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat : nat : @some : mutez : @some : list operation : list operation : @parameter%claim_fee : @storage
                 DIG 7;      # @parameter%claim_fee : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat : nat : @some : mutez : @some : list operation : list operation : @storage
                 DUP;        # @parameter%claim_fee : @parameter%claim_fee : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat : nat : @some : mutez : @some : list operation : list operation : @storage
-                GET 3;      # nat : @parameter%claim_fee : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat : nat : @some : mutez : @some : list operation : list operation : @storage
+                GET 4;      # nat : @parameter%claim_fee : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat : nat : @some : mutez : @some : list operation : list operation : @storage
                 SWAP;       # @parameter%claim_fee : nat : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat : nat : @some : mutez : @some : list operation : list operation : @storage
                 DUP;        # @parameter%claim_fee : @parameter%claim_fee : nat : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat : nat : @some : mutez : @some : list operation : list operation : @storage
-                GET 4;      # address : @parameter%claim_fee : nat : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat : nat : @some : mutez : @some : list operation : list operation : @storage
+                GET 3;      # address : @parameter%claim_fee : nat : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat : nat : @some : mutez : @some : list operation : list operation : @storage
                 SWAP;       # @parameter%claim_fee : address : nat : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat : nat : @some : mutez : @some : list operation : list operation : @storage
                 DUP;        # @parameter%claim_fee : @parameter%claim_fee : address : nat : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat : nat : @some : mutez : @some : list operation : list operation : @storage
                 DUG 10;     # @parameter%claim_fee : address : nat : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) nat : nat : @some : mutez : @some : list operation : list operation : @parameter%claim_fee : @storage
@@ -326,11 +326,11 @@ code
                   }; # nat : mutez : @some : list operation : list operation : @parameter%claim_fee : @storage
                 DIG 5;      # @parameter%claim_fee : nat : mutez : @some : list operation : list operation : @storage
                 DUP;        # @parameter%claim_fee : @parameter%claim_fee : nat : mutez : @some : list operation : list operation : @storage
-                GET 3;      # nat : @parameter%claim_fee : nat : mutez : @some : list operation : list operation : @storage
+                GET 4;      # nat : @parameter%claim_fee : nat : mutez : @some : list operation : list operation : @storage
                 SWAP;       # @parameter%claim_fee : nat : nat : mutez : @some : list operation : list operation : @storage
                 DUP;        # @parameter%claim_fee : @parameter%claim_fee : nat : nat : mutez : @some : list operation : list operation : @storage
                 DUG 7;      # @parameter%claim_fee : nat : nat : mutez : @some : list operation : list operation : @parameter%claim_fee : @storage
-                GET 4;      # address : nat : nat : mutez : @some : list operation : list operation : @parameter%claim_fee : @storage
+                GET 3;      # address : nat : nat : mutez : @some : list operation : list operation : @parameter%claim_fee : @storage
                 SENDER;     # @sender : address : nat : nat : mutez : @some : list operation : list operation : @parameter%claim_fee : @storage
                 DUP 9;      # @parameter%claim_fee : @sender : address : nat : nat : mutez : @some : list operation : list operation : @parameter%claim_fee : @storage
                 CAR;        # nat : @sender : address : nat : nat : mutez : @some : list operation : list operation : @parameter%claim_fee : @storage
@@ -1019,15 +1019,37 @@ code
                 CAR;        # pair (big_map %amm_to_gauge_bribe address (pair (address %gauge) (address %bribe))) (pair (address %core_factory) (pair %emission (nat %base) (pair (nat %genesis) (nat %real)))) : @parameter%pull_amm_fee : @storage
                 CAR;        # big_map address (pair (address %gauge) (address %bribe)) : @parameter%pull_amm_fee : @storage
                 SWAP;       # @parameter%pull_amm_fee : big_map address (pair (address %gauge) (address %bribe)) : @storage
-                CAR;        # address : big_map address (pair (address %gauge) (address %bribe)) : @storage
-                MEM;        # bool : @storage
+                DUP;        # @parameter%pull_amm_fee : @parameter%pull_amm_fee : big_map address (pair (address %gauge) (address %bribe)) : @storage
+                DUG 2;      # @parameter%pull_amm_fee : big_map address (pair (address %gauge) (address %bribe)) : @parameter%pull_amm_fee : @storage
+                CAR;        # address : big_map address (pair (address %gauge) (address %bribe)) : @parameter%pull_amm_fee : @storage
+                MEM;        # bool : @parameter%pull_amm_fee : @storage
                 IF
                   {}
                   {
-                    PUSH string "AMM_INVALID_OR_NOT_WHITELISTED"; # string : @storage
+                    PUSH string "AMM_INVALID_OR_NOT_WHITELISTED"; # string : @parameter%pull_amm_fee : @storage
                     FAILWITH;   # FAILED
-                  }; # @storage
-                NIL operation; # list operation : @storage
+                  }; # @parameter%pull_amm_fee : @storage
+                # sp.transfer(sp.record(epoch = params.epoch, feeDistributor = self.data.fee_distributor), sp.tez(0), sp.contract(sp.TRecord(epoch = sp.TNat, feeDistributor = sp.TAddress).layout(("epoch", "feeDistributor")), params.amm, entry_point='forwardFee').open_some()) # @parameter%pull_amm_fee : @storage
+                DUP;        # @parameter%pull_amm_fee : @parameter%pull_amm_fee : @storage
+                CAR;        # address : @parameter%pull_amm_fee : @storage
+                CONTRACT %forwardFee (pair (nat %epoch) (address %feeDistributor)); # option (contract (pair (nat %epoch) (address %feeDistributor))) : @parameter%pull_amm_fee : @storage
+                IF_NONE
+                  {
+                    PUSH int 500; # int : @parameter%pull_amm_fee : @storage
+                    FAILWITH;   # FAILED
+                  }
+                  {}; # @some : @parameter%pull_amm_fee : @storage
+                NIL operation; # list operation : @some : @parameter%pull_amm_fee : @storage
+                SWAP;       # @some : list operation : @parameter%pull_amm_fee : @storage
+                PUSH mutez 0; # mutez : @some : list operation : @parameter%pull_amm_fee : @storage
+                DUP 5;      # @storage : mutez : @some : list operation : @parameter%pull_amm_fee : @storage
+                CAR;        # pair (pair (big_map %amm_to_gauge_bribe address (pair (address %gauge) (address %bribe))) (pair (address %core_factory) (pair %emission (nat %base) (pair (nat %genesis) (nat %real))))) (pair (nat %epoch) (pair (big_map %epoch_end nat timestamp) (address %fee_distributor))) : mutez : @some : list operation : @parameter%pull_amm_fee : @storage
+                GET 6;      # address : mutez : @some : list operation : @parameter%pull_amm_fee : @storage
+                DIG 4;      # @parameter%pull_amm_fee : address : mutez : @some : list operation : @storage
+                CDR;        # nat : address : mutez : @some : list operation : @storage
+                PAIR;       # pair nat address : mutez : @some : list operation : @storage
+                TRANSFER_TOKENS; # operation : list operation : @storage
+                CONS;       # list operation : @storage
               }
               {
                 # == recharge_gauge ==
@@ -1071,7 +1093,7 @@ code
                 CONTRACT %mint (pair (address %address) (nat %value)); # option (contract (pair (address %address) (nat %value))) : list operation : @parameter%recharge_gauge : @storage
                 IF_NONE
                   {
-                    PUSH int 518; # int : list operation : @parameter%recharge_gauge : @storage
+                    PUSH int 528; # int : list operation : @parameter%recharge_gauge : @storage
                     FAILWITH;   # FAILED
                   }
                   {}; # @some : list operation : @parameter%recharge_gauge : @storage
@@ -1084,7 +1106,7 @@ code
                 GET;        # option nat : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
                 IF_NONE
                   {
-                    PUSH int 511; # int : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
+                    PUSH int 521; # int : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
                     FAILWITH;   # FAILED
                   }
                   {}; # @some : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
@@ -1103,7 +1125,7 @@ code
                 GET;        # option nat : nat : @some : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
                 IF_NONE
                   {
-                    PUSH int 510; # int : nat : @some : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
+                    PUSH int 520; # int : nat : @some : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
                     FAILWITH;   # FAILED
                   }
                   {}; # @some : nat : @some : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
@@ -1111,7 +1133,7 @@ code
                 EDIV;       # option (pair nat nat) : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
                 IF_NONE
                   {
-                    PUSH int 512; # int : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
+                    PUSH int 522; # int : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
                     FAILWITH;   # FAILED
                   }
                   {
@@ -1125,7 +1147,7 @@ code
                 EDIV;       # option (pair nat nat) : mutez : @some : list operation : @parameter%recharge_gauge : @storage
                 IF_NONE
                   {
-                    PUSH int 515; # int : mutez : @some : list operation : @parameter%recharge_gauge : @storage
+                    PUSH int 525; # int : mutez : @some : list operation : @parameter%recharge_gauge : @storage
                     FAILWITH;   # FAILED
                   }
                   {
@@ -1140,7 +1162,7 @@ code
                 GET;        # option (pair (address %gauge) (address %bribe)) : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
                 IF_NONE
                   {
-                    PUSH int 524; # int : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
+                    PUSH int 534; # int : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
                     FAILWITH;   # FAILED
                   }
                   {}; # @some : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
@@ -1158,7 +1180,7 @@ code
                 GET;        # option (pair (address %gauge) (address %bribe)) : list operation : @parameter%recharge_gauge : @storage
                 IF_NONE
                   {
-                    PUSH int 532; # int : list operation : @parameter%recharge_gauge : @storage
+                    PUSH int 542; # int : list operation : @parameter%recharge_gauge : @storage
                     FAILWITH;   # FAILED
                   }
                   {}; # @some : list operation : @parameter%recharge_gauge : @storage
@@ -1166,7 +1188,7 @@ code
                 CONTRACT %recharge (pair (nat %amount) (nat %epoch)); # option (contract (pair (nat %amount) (nat %epoch))) : list operation : @parameter%recharge_gauge : @storage
                 IF_NONE
                   {
-                    PUSH int 530; # int : list operation : @parameter%recharge_gauge : @storage
+                    PUSH int 540; # int : list operation : @parameter%recharge_gauge : @storage
                     FAILWITH;   # FAILED
                   }
                   {}; # @some : list operation : @parameter%recharge_gauge : @storage
@@ -1181,7 +1203,7 @@ code
                 GET;        # option nat : nat : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
                 IF_NONE
                   {
-                    PUSH int 511; # int : nat : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
+                    PUSH int 521; # int : nat : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
                     FAILWITH;   # FAILED
                   }
                   {}; # @some : nat : nat : mutez : @some : list operation : @parameter%recharge_gauge : @storage
@@ -1193,7 +1215,7 @@ code
                 GET;        # option nat : nat : @some : nat : nat : mutez : @some : list operation : @storage
                 IF_NONE
                   {
-                    PUSH int 510; # int : nat : @some : nat : nat : mutez : @some : list operation : @storage
+                    PUSH int 520; # int : nat : @some : nat : nat : mutez : @some : list operation : @storage
                     FAILWITH;   # FAILED
                   }
                   {}; # @some : nat : @some : nat : nat : mutez : @some : list operation : @storage
@@ -1201,7 +1223,7 @@ code
                 EDIV;       # option (pair nat nat) : nat : nat : mutez : @some : list operation : @storage
                 IF_NONE
                   {
-                    PUSH int 512; # int : nat : nat : mutez : @some : list operation : @storage
+                    PUSH int 522; # int : nat : nat : mutez : @some : list operation : @storage
                     FAILWITH;   # FAILED
                   }
                   {
@@ -1215,7 +1237,7 @@ code
                 EDIV;       # option (pair nat nat) : nat : mutez : @some : list operation : @storage
                 IF_NONE
                   {
-                    PUSH int 515; # int : nat : mutez : @some : list operation : @storage
+                    PUSH int 525; # int : nat : mutez : @some : list operation : @storage
                     FAILWITH;   # FAILED
                   }
                   {
@@ -1750,7 +1772,7 @@ view
     GET;        # option timestamp : @storage
     IF_NONE
       {
-        PUSH int 543; # int : @storage
+        PUSH int 553; # int : @storage
         FAILWITH;   # FAILED
       }
       {}; # @some : @storage
@@ -1772,7 +1794,7 @@ view
     GET;        # option timestamp : timestamp
     IF_NONE
       {
-        PUSH int 548; # int : timestamp
+        PUSH int 558; # int : timestamp
         FAILWITH;   # FAILED
       }
       {}; # @some : timestamp
@@ -1780,7 +1802,7 @@ view
     ISNAT;      # option nat
     IF_NONE
       {
-        PUSH int 548; # int
+        PUSH int 558; # int
         FAILWITH;   # FAILED
       }
       {}; # @some
