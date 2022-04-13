@@ -211,9 +211,6 @@ class Gauge(sp.Contract):
             sp.TRecord(amount=sp.TNat, token_id=sp.TNat),
         )
 
-        # Verify that staking amount is non zero
-        sp.verify(params.amount > 0, Errors.ZERO_STAKE_NOT_ALLOWED)
-
         # Update global and user specific reward metrics
         self.update_reward(sp.sender)
 
@@ -459,7 +456,7 @@ if __name__ == "__main__":
         # Gauge retrieves the LP tokens
         scenario.verify(lp_token.data.balances[gauge.address].balance == 50 * DECIMALS)
 
-        # When BOB stakes his LP tokens with any boost i.e using token_id 0
+        # When BOB stakes his LP tokens without any boost i.e using token_id 0
         scenario += gauge.stake(amount=75 * DECIMALS, token_id=0).run(
             sender=Addresses.BOB,
             now=sp.timestamp(2 * DAY),  # A day after ALICE stakes
@@ -512,7 +509,7 @@ if __name__ == "__main__":
             value=sp.nat(100 * DECIMALS),
         ).run(sender=Addresses.ADMIN)
 
-        # Approve tokens for ALICE and BOB with gauge as spender
+        # Approve tokens for ALICE
         scenario += lp_token.approve(
             spender=gauge.address,
             value=sp.nat(100 * DECIMALS),
@@ -580,25 +577,81 @@ if __name__ == "__main__":
         scenario.verify(gauge.data.derived_balances[Addresses.ALICE] == 40 * DECIMALS)
         scenario.verify(gauge.data.derived_supply == 40 * DECIMALS)
 
-    #######################
-    # stake (failure test)
-    #######################
-
-    @sp.add_test(name="stake fails for zero amount stakes")
+    @sp.add_test(name="stake works correctly when unboosted staked user attempts to boost")
     def test():
         scenario = sp.test_scenario()
 
-        gauge = Gauge()
+        # Staking LP token
+        lp_token = FA12(admin=Addresses.ADMIN)
 
+        # Initialize dummy voting powers for token id's 1 and 2 in ve
+        ve = VE(
+            powers=sp.big_map(l={1: sp.nat(100 * DECIMALS), 2: sp.nat(150 * DECIMALS)}),
+            total_power=sp.nat(250 * DECIMALS),
+        )
+
+        gauge = Gauge(
+            lp_token_address=lp_token.address,
+            ve_address=ve.address,
+            period_finish=WEEK,
+            last_update_time=10,
+            reward_rate=sp.nat(500),
+        )
+
+        scenario += lp_token
+        scenario += ve
         scenario += gauge
 
-        # When ALICE stakes 0 LP tokens, the txn fails
-        scenario += gauge.stake(amount=0 * DECIMALS, token_id=1).run(
+        # Mint lp tokens for ALICE
+        scenario += lp_token.mint(
+            address=Addresses.ALICE,
+            value=sp.nat(100 * DECIMALS),
+        ).run(sender=Addresses.ADMIN)
+
+        # Approve tokens for ALICE
+        scenario += lp_token.approve(
+            spender=gauge.address,
+            value=sp.nat(100 * DECIMALS),
+        ).run(sender=Addresses.ALICE)
+
+        # When ALICE stakes her LP tokens without any boost
+        scenario += gauge.stake(amount=50 * DECIMALS, token_id=0).run(
             sender=Addresses.ALICE,
             now=sp.timestamp(DAY),
-            valid=False,
-            exception=Errors.ZERO_STAKE_NOT_ALLOWED,
         )
+
+        # The storage is updated correctly
+        scenario.verify(gauge.data.total_supply == 50 * DECIMALS)
+        scenario.verify(gauge.data.balances[Addresses.ALICE] == 50 * DECIMALS)
+        scenario.verify(gauge.data.reward_per_token == 0)
+        scenario.verify(gauge.data.last_update_time == DAY)
+        scenario.verify(gauge.data.user_reward_per_token_debt[Addresses.ALICE] == 0)
+        scenario.verify(gauge.data.rewards[Addresses.ALICE] == 0)
+        scenario.verify(gauge.data.derived_balances[Addresses.ALICE] == 20 * DECIMALS)
+        scenario.verify(gauge.data.derived_supply == 20 * DECIMALS)
+
+        # Gauge retrieves the LP tokens
+        scenario.verify(lp_token.data.balances[gauge.address].balance == 50 * DECIMALS)
+
+        # When ALICE boosts by calling stake with 0 amount and adding a token only
+        scenario += gauge.stake(amount=0 * DECIMALS, token_id=1).run(
+            sender=Addresses.ALICE,
+            now=sp.timestamp(2 * DAY),  # One day later to original stake
+        )
+
+        # Predicted values
+        reward_per_token_ = (DAY * 500 * PRECISION) // (20 * DECIMALS)
+        reward_ = (reward_per_token_ * 20 * DECIMALS) // PRECISION
+
+        # The storage is updated correctly
+        scenario.verify(gauge.data.total_supply == 50 * DECIMALS)
+        scenario.verify(gauge.data.balances[Addresses.ALICE] == 50 * DECIMALS)
+        scenario.verify(gauge.data.reward_per_token == reward_per_token_)
+        scenario.verify(gauge.data.last_update_time == 2 * DAY)
+        scenario.verify(gauge.data.user_reward_per_token_debt[Addresses.ALICE] == reward_per_token_)
+        scenario.verify(gauge.data.rewards[Addresses.ALICE] == reward_)
+        scenario.verify(gauge.data.derived_balances[Addresses.ALICE] == 32 * DECIMALS)
+        scenario.verify(gauge.data.derived_supply == 32 * DECIMALS)
 
     ########################
     # withdraw (valid test)
