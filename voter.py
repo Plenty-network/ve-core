@@ -20,20 +20,22 @@ MAX_TIME = 4 * YEAR
 
 VOTE_SHARE_MULTIPLIER = 10 ** 18
 
-# Initial weekly ply inflation in number of tokens
-INITIAL_INFLATION = 2_000_000 * DECIMALS
+# NOTE: Emission values here are only for testing. Values in the system deployed on the mainnet can be different.
 
-# Long term fixed trailing inflation rate after high inflation period is over
-TRAIL_INFLATION = 10_000 * DECIMALS
+# Initial weekly ply emission in number of tokens
+INITIAL_EMISSION = 2_000_000 * DECIMALS
+
+# Long term fixed trailing emission rate
+TRAIL_EMISSION = 10_000 * DECIMALS
 
 # The precision multiplier for drop percentages
 DROP_GRANULARITY = 1_000_000
 
-# Inflation drop after the high initial rate for 4 weeks (period may change)
-# This implies inflation drops to 35% of the initial value
+# Emission drop after the high initial rate for 4 weeks (period may change)
+# This implies emission drops to 35% of the initial value
 INITIAL_DROP = 35 * DROP_GRANULARITY  # Percentage with granularity
 
-# Inflation drop after every one year
+# Emission drop after every one year
 YEARLY_DROP = 55 * DROP_GRANULARITY  # Percentage with granularity
 
 ########
@@ -140,7 +142,7 @@ class Voter(sp.Contract):
             tvalue=sp.TTimestamp,
         ),
         emission=sp.record(
-            base=INITIAL_INFLATION,
+            base=INITIAL_EMISSION,
             real=sp.nat(0),
             genesis=sp.nat(0),
         ),
@@ -274,13 +276,13 @@ class Voter(sp.Contract):
                 c,
             )
 
-            # Adjust base emission value based on inflation drop
+            # Adjust base emission value based on emission drop
             with sp.if_((rounded_now - self.data.emission.genesis) == (4 * WEEK)):
                 self.data.emission.base = (self.data.emission.base * INITIAL_DROP) // (100 * DROP_GRANULARITY)
             with sp.if_(((rounded_now - self.data.emission.genesis) % YEAR) == 0):
                 self.data.emission.base = (self.data.emission.base * YEARLY_DROP) // (100 * DROP_GRANULARITY)
-                with sp.if_(self.data.emission.base < TRAIL_INFLATION):
-                    self.data.emission.base = TRAIL_INFLATION
+                with sp.if_(self.data.emission.base < TRAIL_EMISSION):
+                    self.data.emission.base = TRAIL_EMISSION
 
             # Update weekly epoch
             self.data.epoch += 1
@@ -825,7 +827,7 @@ if __name__ == "__main__":
         scenario.verify(voter.data.epoch_end[1] == sp.timestamp(2 * WEEK))
         scenario.verify(voter.data.emission.genesis == 2 * WEEK)
 
-    @sp.add_test(name="next_epoch correctly updates epoch during first inflation drop")
+    @sp.add_test(name="next_epoch correctly updates epoch during first emission drop")
     def test():
         scenario = sp.test_scenario()
 
@@ -839,7 +841,7 @@ if __name__ == "__main__":
             epoch=5,
             epoch_end=sp.big_map(l={5: sp.timestamp(6 * WEEK)}),
             emission=sp.record(
-                base=INITIAL_INFLATION,
+                base=INITIAL_EMISSION,
                 real=sp.nat(0),
                 genesis=2 * WEEK,
             ),
@@ -851,7 +853,7 @@ if __name__ == "__main__":
         scenario += ply
         scenario += voter
 
-        # When next_epoch is called at the end of 4 weeks of inflation
+        # When next_epoch is called at the end of 4 weeks of emission
         scenario += voter.next_epoch().run(now=sp.timestamp(6 * WEEK + 124))  # random offset for testing
 
         # Epoch is updated correctly
@@ -887,7 +889,7 @@ if __name__ == "__main__":
         # Correct inflation is record
         scenario.verify(ve.data.inflation == locker_inflation)
 
-    @sp.add_test(name="next_epoch correctly updates epoch during yearly inflation drop")
+    @sp.add_test(name="next_epoch correctly updates epoch during yearly emission drop")
     def test():
         scenario = sp.test_scenario()
 
@@ -931,7 +933,7 @@ if __name__ == "__main__":
         # Correct inflation is record
         scenario.verify(ve.data.inflation == locker_inflation)
 
-    @sp.add_test(name="next_epoch correctly sets trail inflation")
+    @sp.add_test(name="next_epoch correctly sets trail emission")
     def test():
         scenario = sp.test_scenario()
 
@@ -1119,8 +1121,8 @@ if __name__ == "__main__":
             epoch=2,
             epoch_end=sp.big_map(l={2: sp.timestamp(10)}),
             emission=sp.record(
-                base=INITIAL_INFLATION,
-                real=INITIAL_INFLATION,
+                base=INITIAL_EMISSION,
+                real=INITIAL_EMISSION,
                 genesis=2 * WEEK,
             ),
             amm_to_gauge_bribe=sp.big_map(
