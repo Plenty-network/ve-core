@@ -1638,7 +1638,7 @@ code
         PUSH mutez 0; # mutez : pair (pair (big_map (pair nat nat) unit) (big_map (pair nat nat) (pair (or address (or (pair address nat) unit)) nat))) (pair nat address) : pair operation address : list operation : @parameter%add_amm : pair (pair address (pair (big_map address unit) address)) (pair (address %ply_address) (pair (address %ve_address) (address %voter)))
         NONE key_hash; # option key_hash : mutez : pair (pair (big_map (pair nat nat) unit) (big_map (pair nat nat) (pair (or address (or (pair address nat) unit)) nat))) (pair nat address) : pair operation address : list operation : @parameter%add_amm : pair (pair address (pair (big_map address unit) address)) (pair (address %ply_address) (pair (address %ve_address) (address %voter)))
         CREATE_CONTRACT
-         { parameter (or (pair %add_bribe (nat %epoch) (pair (or %type (address %fa12) (or (pair %fa2 address nat) (unit %tez))) (nat %value))) (pair %claim (nat %token_id) (pair (address %owner) (pair (nat %epoch) (pair (nat %bribe_id) (nat %weight_share))))));
+         { parameter (or (pair %add_bribe (nat %epoch) (pair (or %type (address %fa12) (or (pair %fa2 address nat) (unit %tez))) (nat %value))) (pair %claim (nat %token_id) (pair (address %owner) (pair (nat %epoch) (pair (nat %bribe_id) (nat %vote_share))))));
            storage   (pair (pair (big_map %claim_ledger (pair (nat %token_id) (nat %bribe_id)) unit) (big_map %epoch_bribes (pair (nat %epoch) (nat %bribe_id)) (pair (or %type (address %fa12) (or (pair %fa2 address nat) (unit %tez))) (nat %value)))) (pair (nat %uid) (address %voter)));
            code
              {
@@ -1908,7 +1908,7 @@ code
                    CAR;        # or (address %fa12) (or (pair %fa2 address nat) (unit %tez)) : @parameter%claim : @storage
                    IF_LEFT
                      {
-                       # sp.transfer(sp.record(from_ = sp.self_address, to_ = params.owner, value = (self.data.epoch_bribes[sp.record(epoch = params.epoch, bribe_id = params.bribe_id)].value * params.weight_share) // 1000000000000000000), sp.tez(0), sp.contract(sp.TRecord(from_ = sp.TAddress, to_ = sp.TAddress, value = sp.TNat).layout(("from_ as from", ("to_ as to", "value"))), fa12, entry_point='transfer').open_some()) # address : @parameter%claim : @storage
+                       # sp.transfer(sp.record(from_ = sp.self_address, to_ = params.owner, value = (self.data.epoch_bribes[sp.record(epoch = params.epoch, bribe_id = params.bribe_id)].value * params.vote_share) // 1000000000000000000), sp.tez(0), sp.contract(sp.TRecord(from_ = sp.TAddress, to_ = sp.TAddress, value = sp.TNat).layout(("from_ as from", ("to_ as to", "value"))), fa12, entry_point='transfer').open_some()) # address : @parameter%claim : @storage
                        CONTRACT %transfer (pair (address %from) (pair (address %to) (nat %value))); # option (contract (pair (address %from) (pair (address %to) (nat %value)))) : @parameter%claim : @storage
                        IF_NONE
                          {
@@ -1961,7 +1961,7 @@ code
                      {
                        IF_LEFT
                          {
-                           # sp.transfer(sp.list([sp.record(from_ = sp.self_address, txs = sp.list([sp.record(to_ = params.owner, token_id = sp.snd(fa2), amount = (self.data.epoch_bribes[sp.record(epoch = params.epoch, bribe_id = params.bribe_id)].value * params.weight_share) // 1000000000000000000)]))]), sp.tez(0), sp.contract(sp.TList(sp.TRecord(from_ = sp.TAddress, txs = sp.TList(sp.TRecord(amount = sp.TNat, to_ = sp.TAddress, token_id = sp.TNat).layout(("to_", ("token_id", "amount"))))).layout(("from_", "txs"))), sp.fst(fa2), entry_point='transfer').open_some()) # pair address nat : @parameter%claim : @storage
+                           # sp.transfer(sp.list([sp.record(from_ = sp.self_address, txs = sp.list([sp.record(to_ = params.owner, token_id = sp.snd(fa2), amount = (self.data.epoch_bribes[sp.record(epoch = params.epoch, bribe_id = params.bribe_id)].value * params.vote_share) // 1000000000000000000)]))]), sp.tez(0), sp.contract(sp.TList(sp.TRecord(from_ = sp.TAddress, txs = sp.TList(sp.TRecord(amount = sp.TNat, to_ = sp.TAddress, token_id = sp.TNat).layout(("to_", ("token_id", "amount"))))).layout(("from_", "txs"))), sp.fst(fa2), entry_point='transfer').open_some()) # pair address nat : @parameter%claim : @storage
                            DUP;        # pair address nat : pair address nat : @parameter%claim : @storage
                            CAR;        # address : pair address nat : @parameter%claim : @storage
                            CONTRACT %transfer (list (pair (address %from_) (list %txs (pair (address %to_) (pair (nat %token_id) (nat %amount)))))); # option (contract (list (pair (address %from_) (list %txs (pair (address %to_) (pair (nat %token_id) (nat %amount))))))) : pair address nat : @parameter%claim : @storage
@@ -2022,7 +2022,7 @@ code
                          }
                          {
                            DROP;       # @parameter%claim : @storage
-                           # sp.send(params.owner, sp.mul((self.data.epoch_bribes[sp.record(epoch = params.epoch, bribe_id = params.bribe_id)].value * params.weight_share) // 1000000000000000000, sp.mutez(1))) # @parameter%claim : @storage
+                           # sp.send(params.owner, sp.mul((self.data.epoch_bribes[sp.record(epoch = params.epoch, bribe_id = params.bribe_id)].value * params.vote_share) // 1000000000000000000, sp.mutez(1))) # @parameter%claim : @storage
                            DUP;        # @parameter%claim : @parameter%claim : @storage
                            GET 3;      # address : @parameter%claim : @storage
                            CONTRACT unit; # option (contract unit) : @parameter%claim : @storage

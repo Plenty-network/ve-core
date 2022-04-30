@@ -16,8 +16,8 @@ class GaugeBribe(sp.Contract):
                 owner=sp.TAddress,
                 epoch=sp.TNat,
                 bribe_id=sp.TNat,
-                weight_share=sp.TNat,
-            ).layout(("token_id", ("owner", ("epoch", ("bribe_id", "weight_share"))))),
+                vote_share=sp.TNat,
+            ).layout(("token_id", ("owner", ("epoch", ("bribe_id", "vote_share"))))),
         )
 
         self.data.claim_val = sp.some(params)

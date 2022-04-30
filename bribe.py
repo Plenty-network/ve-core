@@ -57,8 +57,8 @@ class Types:
         owner=sp.TAddress,
         epoch=sp.TNat,
         bribe_id=sp.TNat,
-        weight_share=sp.TNat,
-    ).layout(("token_id", ("owner", ("epoch", ("bribe_id", "weight_share")))))
+        vote_share=sp.TNat,
+    ).layout(("token_id", ("owner", ("epoch", ("bribe_id", "vote_share")))))
 
 
 #########
@@ -182,7 +182,7 @@ class Bribe(sp.Contract):
         # Calculate bribe share for voter
         bribe_ = self.data.epoch_bribes[sp.record(epoch=params.epoch, bribe_id=params.bribe_id)]
         bribe_value = bribe_.value
-        voter_bribe_share = (bribe_value * params.weight_share) // VOTE_SHARE_MULTIPLIER
+        voter_bribe_share = (bribe_value * params.vote_share) // VOTE_SHARE_MULTIPLIER
 
         # Transfer bribe to voter
         with bribe_.type.match_cases() as arg:
@@ -378,7 +378,7 @@ if __name__ == "__main__":
                 owner=Addresses.ALICE,
                 epoch=1,
                 bribe_id=1,
-                weight_share=int(0.35 * VOTE_SHARE_MULTIPLIER),
+                vote_share=int(0.35 * VOTE_SHARE_MULTIPLIER),
             )
         ).run(sender=Addresses.CONTRACT)
 
@@ -389,7 +389,7 @@ if __name__ == "__main__":
                 owner=Addresses.BOB,
                 epoch=1,
                 bribe_id=1,
-                weight_share=int(0.65 * VOTE_SHARE_MULTIPLIER),
+                vote_share=int(0.65 * VOTE_SHARE_MULTIPLIER),
             )
         ).run(sender=Addresses.CONTRACT)
 
@@ -400,7 +400,7 @@ if __name__ == "__main__":
                 owner=Addresses.ALICE,
                 epoch=3,
                 bribe_id=2,
-                weight_share=int(0.2 * VOTE_SHARE_MULTIPLIER),
+                vote_share=int(0.2 * VOTE_SHARE_MULTIPLIER),
             )
         ).run(sender=Addresses.CONTRACT)
 
@@ -411,7 +411,7 @@ if __name__ == "__main__":
                 owner=Addresses.BOB,
                 epoch=3,
                 bribe_id=2,
-                weight_share=int(0.8 * VOTE_SHARE_MULTIPLIER),
+                vote_share=int(0.8 * VOTE_SHARE_MULTIPLIER),
             )
         ).run(sender=Addresses.CONTRACT)
 
@@ -422,7 +422,7 @@ if __name__ == "__main__":
                 owner=alice_dummy.address,
                 epoch=4,
                 bribe_id=3,
-                weight_share=int(0.2 * VOTE_SHARE_MULTIPLIER),
+                vote_share=int(0.2 * VOTE_SHARE_MULTIPLIER),
             )
         ).run(sender=Addresses.CONTRACT)
 
@@ -433,7 +433,7 @@ if __name__ == "__main__":
                 owner=bob_dummy.address,
                 epoch=4,
                 bribe_id=3,
-                weight_share=int(0.8 * VOTE_SHARE_MULTIPLIER),
+                vote_share=int(0.8 * VOTE_SHARE_MULTIPLIER),
             )
         ).run(sender=Addresses.CONTRACT)
 
@@ -487,7 +487,7 @@ if __name__ == "__main__":
                 owner=Addresses.ALICE,
                 epoch=1,
                 bribe_id=1,
-                weight_share=int(0.2 * VOTE_SHARE_MULTIPLIER),
+                vote_share=int(0.2 * VOTE_SHARE_MULTIPLIER),
             )
         ).run(
             sender=Addresses.CONTRACT,
