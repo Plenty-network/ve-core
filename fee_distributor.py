@@ -59,9 +59,8 @@ class Types:
         token_id=sp.TNat,
         owner=sp.TAddress,
         amm=sp.TAddress,
-        epoch=sp.TNat,
-        weight_share=sp.TNat,
-    ).layout(("token_id", ("owner", ("amm", ("epoch", "weight_share")))))
+        epoch_vote_shares=sp.TList(sp.TRecord(epoch=sp.TNat, share=sp.TNat)),
+    ).layout(("token_id", ("owner", ("amm", "epoch_vote_shares"))))
 
 
 #########
@@ -170,20 +169,47 @@ class FeeDistributor(sp.Contract):
 
         # Sanity checks
         sp.verify(sp.sender == self.data.voter, Errors.NOT_AUTHORISED)
-        sp.verify(
-            self.data.amm_epoch_fee.contains(sp.record(amm=params.amm, epoch=params.epoch)),
-            Errors.FEES_NOT_YET_ADDED,
-        )
-        sp.verify(
-            ~self.data.claim_ledger.contains(sp.record(token_id=params.token_id, amm=params.amm, epoch=params.epoch)),
-            Errors.VOTER_ALREADY_CLAIMED_FEES_FOR_EPOCH,
-        )
+
+        # Local variables to store fees for individual tokens across epochs
+        token_fees = sp.local("token_fees", sp.map(l={}, tkey=Types.TOKEN_VARIANT, tvalue=sp.TNat))
+
+        # Iterate through the epochs and vote shares
+        with sp.for_("epoch_vote_share", params.epoch_vote_shares) as epoch_vote_share:
+            sp.verify(
+                self.data.amm_epoch_fee.contains(sp.record(amm=params.amm, epoch=epoch_vote_share.epoch)),
+                Errors.FEES_NOT_YET_ADDED,
+            )
+            sp.verify(
+                ~self.data.claim_ledger.contains(
+                    sp.record(token_id=params.token_id, amm=params.amm, epoch=epoch_vote_share.epoch)
+                ),
+                Errors.VOTER_ALREADY_CLAIMED_FEES_FOR_EPOCH,
+            )
+
+            key_ = sp.record(amm=params.amm, epoch=epoch_vote_share.epoch)
+
+            # Iterate through the two tokens and record cumulative fees
+            with sp.for_("token", self.data.amm_epoch_fee[key_].keys()) as token:
+                total_fees = self.data.amm_epoch_fee[key_][token]
+                voter_fees_share = (total_fees * epoch_vote_share.share) // VOTE_SHARE_MULTIPLIER
+
+                with sp.if_(~token_fees.value.contains(token)):
+                    token_fees.value[token] = sp.nat(0)
+
+                token_fees.value[token] += voter_fees_share
+
+                # Mark the voter (vePLY token id) as claimed
+                self.data.claim_ledger[
+                    sp.record(
+                        token_id=params.token_id,
+                        amm=params.amm,
+                        epoch=epoch_vote_share.epoch,
+                    )
+                ] = sp.unit
 
         # Iterate through the two tokens and transfer the share to token / lock owner
-        key_ = sp.record(amm=params.amm, epoch=params.epoch)
-        with sp.for_("token", self.data.amm_epoch_fee[key_].keys()) as token:
-            total_fees = self.data.amm_epoch_fee[key_][token]
-            voter_fees_share = (total_fees * params.weight_share) // VOTE_SHARE_MULTIPLIER
+        with sp.for_("token", token_fees.value.keys()) as token:
+            voter_fees_share = token_fees.value[token]
 
             with token.match_cases() as arg:
                 with arg.match("fa12") as address:
@@ -207,9 +233,6 @@ class FeeDistributor(sp.Contract):
                     )
                 with arg.match("tez") as _:
                     sp.send(params.owner, sp.utils.nat_to_mutez(voter_fees_share))
-
-        # Mark the voter (vePLY token id) as claimed
-        self.data.claim_ledger[sp.record(token_id=params.token_id, amm=params.amm, epoch=params.epoch)] = sp.unit
 
 
 if __name__ == "__main__":
@@ -340,7 +363,7 @@ if __name__ == "__main__":
     # claim (valid test)
     #####################
 
-    @sp.add_test(name="claim works correctly for fa12 and fa2 tokens")
+    @sp.add_test(name="claim works correctly for fa12 and fa2 tokens and one epoch")
     def test():
         scenario = sp.test_scenario()
 
@@ -391,8 +414,7 @@ if __name__ == "__main__":
                 token_id=1,
                 owner=Addresses.ALICE,
                 amm=Addresses.AMM,
-                epoch=3,
-                weight_share=int(0.4 * VOTE_SHARE_MULTIPLIER),
+                epoch_vote_shares=[sp.record(epoch=3, share=int(0.4 * VOTE_SHARE_MULTIPLIER))],
             )
         ).run(sender=Addresses.CONTRACT)
         scenario += fee_dist.claim(
@@ -400,12 +422,11 @@ if __name__ == "__main__":
                 token_id=2,
                 owner=Addresses.BOB,
                 amm=Addresses.AMM,
-                epoch=3,
-                weight_share=int(0.6 * VOTE_SHARE_MULTIPLIER),
+                epoch_vote_shares=[sp.record(epoch=3, share=int(0.6 * VOTE_SHARE_MULTIPLIER))],
             )
         ).run(sender=Addresses.CONTRACT)
 
-        # Storage is updated clearly
+        # Storage is updated correctly
         scenario.verify(fee_dist.data.claim_ledger[sp.record(token_id=1, amm=Addresses.AMM, epoch=3)] == sp.unit)
         scenario.verify(fee_dist.data.claim_ledger[sp.record(token_id=2, amm=Addresses.AMM, epoch=3)] == sp.unit)
 
@@ -415,7 +436,100 @@ if __name__ == "__main__":
         scenario.verify(token_2.data.ledger[Addresses.ALICE].balance == 80)
         scenario.verify(token_2.data.ledger[Addresses.BOB].balance == 120)
 
-    @sp.add_test(name="claim works correctly for fa12 token and tez")
+    @sp.add_test(name="claim works correctly for fa12 and fa2 tokens and multiple epochs")
+    def test():
+        scenario = sp.test_scenario()
+
+        # Initialize FA1.2 and FA2 token pair for the AMM
+        token_1 = FA12(admin=Addresses.ADMIN)
+        token_2 = FA2.FA2(
+            FA2.FA2_config(),
+            sp.utils.metadata_of_url("https://example.com"),
+            Addresses.ADMIN,
+        )
+
+        TOKEN_1 = sp.variant("fa12", token_1.address)
+        TOKEN_2 = sp.variant("fa2", (token_2.address, 0))
+
+        fee_dist = FeeDistributor(
+            amm_to_tokens=sp.big_map(
+                l={
+                    Addresses.AMM: sp.set([TOKEN_1, TOKEN_2]),
+                }
+            ),
+            amm_epoch_fee=sp.big_map(
+                l={
+                    sp.record(amm=Addresses.AMM, epoch=1): {
+                        TOKEN_1: 100,
+                        TOKEN_2: 200,
+                    },
+                    sp.record(amm=Addresses.AMM, epoch=2): {
+                        TOKEN_1: 300,
+                        TOKEN_2: 400,
+                    },
+                    sp.record(amm=Addresses.AMM, epoch=3): {
+                        TOKEN_1: 500,
+                        TOKEN_2: 600,
+                    },
+                }
+            ),
+            voter=Addresses.CONTRACT,
+        )
+
+        scenario += token_1
+        scenario += token_2
+        scenario += fee_dist
+
+        # Mint tokens for fee_dist
+        scenario += token_1.mint(address=fee_dist.address, value=1000).run(sender=Addresses.ADMIN)
+        scenario += token_2.mint(
+            address=fee_dist.address,
+            amount=1500,
+            metadata=FA2.FA2.make_metadata(name="TOKEN", decimals=18, symbol="TKN"),
+            token_id=0,
+        ).run(sender=Addresses.ADMIN)
+
+        # When ALICE (40% share) and BOB (60% share) claim fee for epochs 1, 2, 3
+        scenario += fee_dist.claim(
+            sp.record(
+                token_id=1,
+                owner=Addresses.ALICE,
+                amm=Addresses.AMM,
+                epoch_vote_shares=[
+                    sp.record(epoch=1, share=int(0.4 * VOTE_SHARE_MULTIPLIER)),
+                    sp.record(epoch=2, share=int(0.4 * VOTE_SHARE_MULTIPLIER)),
+                    sp.record(epoch=3, share=int(0.4 * VOTE_SHARE_MULTIPLIER)),
+                ],
+            )
+        ).run(sender=Addresses.CONTRACT)
+        scenario += fee_dist.claim(
+            sp.record(
+                token_id=2,
+                owner=Addresses.BOB,
+                amm=Addresses.AMM,
+                epoch_vote_shares=[
+                    sp.record(epoch=1, share=int(0.6 * VOTE_SHARE_MULTIPLIER)),
+                    sp.record(epoch=2, share=int(0.6 * VOTE_SHARE_MULTIPLIER)),
+                    sp.record(epoch=3, share=int(0.6 * VOTE_SHARE_MULTIPLIER)),
+                ],
+            )
+        ).run(sender=Addresses.CONTRACT)
+
+        # Storage is updated correctly
+        scenario.verify(fee_dist.data.claim_ledger[sp.record(token_id=1, amm=Addresses.AMM, epoch=1)] == sp.unit)
+        scenario.verify(fee_dist.data.claim_ledger[sp.record(token_id=1, amm=Addresses.AMM, epoch=2)] == sp.unit)
+        scenario.verify(fee_dist.data.claim_ledger[sp.record(token_id=1, amm=Addresses.AMM, epoch=3)] == sp.unit)
+        scenario.verify(fee_dist.data.claim_ledger[sp.record(token_id=2, amm=Addresses.AMM, epoch=1)] == sp.unit)
+        scenario.verify(fee_dist.data.claim_ledger[sp.record(token_id=2, amm=Addresses.AMM, epoch=2)] == sp.unit)
+        scenario.verify(fee_dist.data.claim_ledger[sp.record(token_id=2, amm=Addresses.AMM, epoch=3)] == sp.unit)
+
+        # ALICE and BOB get their tokens
+        scenario.verify(token_1.data.balances[Addresses.ALICE].balance == 360)
+        scenario.verify(token_1.data.balances[Addresses.BOB].balance == 540)
+        scenario.verify(token_2.data.ledger[Addresses.ALICE].balance == 480)
+        scenario.verify(token_2.data.ledger[Addresses.BOB].balance == 720)
+
+    @sp.add_test(name="claim works correctly for fa12 token and tez and one epoch")
     def test():
         scenario = sp.test_scenario()
 
@@ -463,8 +577,7 @@ if __name__ == "__main__":
                 token_id=1,
                 owner=alice_dummy.address,
                 amm=Addresses.AMM,
-                epoch=3,
-                weight_share=int(0.4 * VOTE_SHARE_MULTIPLIER),
+                epoch_vote_shares=[sp.record(epoch=3, share=int(0.4 * VOTE_SHARE_MULTIPLIER))],
             )
         ).run(sender=Addresses.CONTRACT)
         scenario += fee_dist.claim(
@@ -472,12 +585,11 @@ if __name__ == "__main__":
                 token_id=2,
                 owner=bob_dummy.address,
                 amm=Addresses.AMM,
-                epoch=3,
-                weight_share=int(0.6 * VOTE_SHARE_MULTIPLIER),
+                epoch_vote_shares=[sp.record(epoch=3, share=int(0.6 * VOTE_SHARE_MULTIPLIER))],
             )
         ).run(sender=Addresses.CONTRACT)
 
-        # Storage is updated clearly
+        # Storage is updated correctly
         scenario.verify(fee_dist.data.claim_ledger[sp.record(token_id=1, amm=Addresses.AMM, epoch=3)] == sp.unit)
         scenario.verify(fee_dist.data.claim_ledger[sp.record(token_id=2, amm=Addresses.AMM, epoch=3)] == sp.unit)
 
@@ -487,11 +599,101 @@ if __name__ == "__main__":
         scenario.verify(alice_dummy.balance == sp.mutez(80))
         scenario.verify(bob_dummy.balance == sp.mutez(120))
 
+    @sp.add_test(name="claim works correctly for fa12 token and tez and multiple epochs")
+    def test():
+        scenario = sp.test_scenario()
+
+        # Initialize FA1.2
+        token_1 = FA12(admin=Addresses.ADMIN)
+
+        TOKEN_1 = sp.variant("fa12", token_1.address)
+        TEZ = sp.variant("tez", sp.unit)
+
+        fee_dist = FeeDistributor(
+            amm_to_tokens=sp.big_map(
+                l={
+                    Addresses.AMM: sp.set([TOKEN_1, TEZ]),
+                }
+            ),
+            amm_epoch_fee=sp.big_map(
+                l={
+                    sp.record(amm=Addresses.AMM, epoch=1): {
+                        TOKEN_1: 100,
+                        TEZ: 200,
+                    },
+                    sp.record(amm=Addresses.AMM, epoch=2): {
+                        TOKEN_1: 300,
+                        TEZ: 400,
+                    },
+                    sp.record(amm=Addresses.AMM, epoch=3): {
+                        TOKEN_1: 500,
+                        TEZ: 600,
+                    },
+                }
+            ),
+            voter=Addresses.CONTRACT,
+        )
+
+        # Set tez balance for fee_dist
+        fee_dist.set_initial_balance(sp.tez(1))
+
+        # Initialize dummy claimers
+        alice_dummy = Pure()
+        bob_dummy = Pure()
+
+        scenario += token_1
+        scenario += fee_dist
+        scenario += alice_dummy
+        scenario += bob_dummy
+
+        # Mint fa1.2 tokens for fee_dist
+        scenario += token_1.mint(address=fee_dist.address, value=1000).run(sender=Addresses.ADMIN)
+
+        # When ALICE (40% share) and BOB (60% share) claim fee for epoch 3
+        scenario += fee_dist.claim(
+            sp.record(
+                token_id=1,
+                owner=alice_dummy.address,
+                amm=Addresses.AMM,
+                epoch_vote_shares=[
+                    sp.record(epoch=1, share=int(0.4 * VOTE_SHARE_MULTIPLIER)),
+                    sp.record(epoch=2, share=int(0.4 * VOTE_SHARE_MULTIPLIER)),
+                    sp.record(epoch=3, share=int(0.4 * VOTE_SHARE_MULTIPLIER)),
+                ],
+            )
+        ).run(sender=Addresses.CONTRACT)
+        scenario += fee_dist.claim(
+            sp.record(
+                token_id=2,
+                owner=bob_dummy.address,
+                amm=Addresses.AMM,
+                epoch_vote_shares=[
+                    sp.record(epoch=1, share=int(0.6 * VOTE_SHARE_MULTIPLIER)),
+                    sp.record(epoch=2, share=int(0.6 * VOTE_SHARE_MULTIPLIER)),
+                    sp.record(epoch=3, share=int(0.6 * VOTE_SHARE_MULTIPLIER)),
+                ],
+            )
+        ).run(sender=Addresses.CONTRACT)
+
+        # Storage is updated correctly
+        scenario.verify(fee_dist.data.claim_ledger[sp.record(token_id=1, amm=Addresses.AMM, epoch=1)] == sp.unit)
+        scenario.verify(fee_dist.data.claim_ledger[sp.record(token_id=1, amm=Addresses.AMM, epoch=2)] == sp.unit)
+        scenario.verify(fee_dist.data.claim_ledger[sp.record(token_id=1, amm=Addresses.AMM, epoch=3)] == sp.unit)
+        scenario.verify(fee_dist.data.claim_ledger[sp.record(token_id=2, amm=Addresses.AMM, epoch=1)] == sp.unit)
+        scenario.verify(fee_dist.data.claim_ledger[sp.record(token_id=2, amm=Addresses.AMM, epoch=2)] == sp.unit)
+        scenario.verify(fee_dist.data.claim_ledger[sp.record(token_id=2, amm=Addresses.AMM, epoch=3)] == sp.unit)
+
+        # # ALICE and BOB get their tokens
+        scenario.verify(token_1.data.balances[alice_dummy.address].balance == 360)
+        scenario.verify(token_1.data.balances[bob_dummy.address].balance == 540)
+        scenario.verify(alice_dummy.balance == sp.mutez(480))
+        scenario.verify(bob_dummy.balance == sp.mutez(720))
+
     #######################
     # claim (failure test)
     #######################
 
-    @sp.add_test(name="claim fails if a lock owner has already claimed fees")
+    @sp.add_test(name="claim fails if a lock owner has already claimed fees or fees is not added for epoch")
     def test():
         scenario = sp.test_scenario()
 
@@ -530,13 +732,26 @@ if __name__ == "__main__":
                 token_id=2,
                 owner=Addresses.BOB,
                 amm=Addresses.AMM,
-                epoch=3,
-                weight_share=int(0.4 * VOTE_SHARE_MULTIPLIER),
+                epoch_vote_shares=[sp.record(epoch=3, share=int(0.4 * VOTE_SHARE_MULTIPLIER))],
             )
         ).run(
             sender=Addresses.CONTRACT,
             valid=False,
             exception=Errors.VOTER_ALREADY_CLAIMED_FEES_FOR_EPOCH,
+        )
+
+        # When BOB tries to claim for epoch that has not been added yet, txn fails
+        scenario += fee_dist.claim(
+            sp.record(
+                token_id=2,
+                owner=Addresses.BOB,
+                amm=Addresses.AMM,
+                epoch_vote_shares=[sp.record(epoch=4, share=int(0.4 * VOTE_SHARE_MULTIPLIER))],
+            )
+        ).run(
+            sender=Addresses.CONTRACT,
+            valid=False,
+            exception=Errors.FEES_NOT_YET_ADDED,
         )
 
     sp.add_compilation_target("fee_distributor", FeeDistributor())

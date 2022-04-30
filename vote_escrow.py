@@ -677,44 +677,53 @@ class VoteEscrow(sp.Contract):
 
     @sp.entry_point
     def claim_inflation(self, params):
-        sp.set_type(params, sp.TRecord(token_id=sp.TNat, epoch=sp.TNat).layout(("token_id", "epoch")))
+        sp.set_type(params, sp.TRecord(token_id=sp.TNat, epochs=sp.TList(sp.TNat)).layout(("token_id", "epochs")))
 
         # Sanity checks
         sp.verify(self.data.ledger.get((sp.sender, params.token_id), 0) == 1, Errors.NOT_AUTHORISED)
-        sp.verify(~self.data.claim_ledger.contains(params), Errors.ALREADY_CLAIMED_INFLATION)
-        sp.verify(self.data.epoch_inflation.contains(params.epoch), Errors.INFLATION_NOT_ADDED)
 
-        # Get epoch ending from Voter
-        epoch_end = sp.view("get_epoch_end", self.data.voter, params.epoch, sp.TNat).open_some(Errors.INVALID_VIEW)
+        # Local variable to store through the inflation share
+        inflation_share = sp.local("inflation_share", sp.nat(0))
 
-        # Get token voting power at the beginning of epoch
-        token_vp = sp.view(
-            "get_token_voting_power",
-            sp.self_address,
-            sp.record(token_id=params.token_id, ts=sp.as_nat(epoch_end - WEEK), time=Types.WHOLE_WEEK),
-            sp.TNat,
-        ).open_some(Errors.INVALID_VIEW)
+        # Iterate through requested epochs
+        with sp.for_("epochs", params.epochs) as epoch:
+            sp.verify(
+                ~self.data.claim_ledger.contains(sp.record(token_id=params.token_id, epoch=epoch)),
+                Errors.ALREADY_CLAIMED_INFLATION,
+            )
+            sp.verify(self.data.epoch_inflation.contains(epoch), Errors.INFLATION_NOT_ADDED)
 
-        # Get total voting power at the beginning of epoch
-        total_vp = sp.view(
-            "get_total_voting_power",
-            sp.self_address,
-            sp.record(ts=sp.as_nat(epoch_end - WEEK), time=Types.WHOLE_WEEK),
-            sp.TNat,
-        ).open_some(Errors.INVALID_VIEW)
+            # Get epoch ending from Voter
+            epoch_end = sp.view("get_epoch_end", self.data.voter, epoch, sp.TNat).open_some(Errors.INVALID_VIEW)
 
-        # Calculate inflation share for the token/lock
-        inflation_share = (token_vp * self.data.epoch_inflation[params.epoch]) // total_vp
+            # Get token voting power at the beginning of epoch
+            token_vp = sp.view(
+                "get_token_voting_power",
+                sp.self_address,
+                sp.record(token_id=params.token_id, ts=sp.as_nat(epoch_end - WEEK), time=Types.WHOLE_WEEK),
+                sp.TNat,
+            ).open_some(Errors.INVALID_VIEW)
+
+            # Get total voting power at the beginning of epoch
+            total_vp = sp.view(
+                "get_total_voting_power",
+                sp.self_address,
+                sp.record(ts=sp.as_nat(epoch_end - WEEK), time=Types.WHOLE_WEEK),
+                sp.TNat,
+            ).open_some(Errors.INVALID_VIEW)
+
+            # Calculate inflation share for the token/lock
+            inflation_share.value += (token_vp * self.data.epoch_inflation[epoch]) // total_vp
+
+            # Mark as claimed
+            self.data.claim_ledger[sp.record(token_id=params.token_id, epoch=epoch)] = sp.unit
 
         # Decrease share from locked supply. This is required because of a re-addition in increase_lock_value
-        self.data.locked_supply = sp.as_nat(self.data.locked_supply - inflation_share)
-
-        # Mark as claimed
-        self.data.claim_ledger[params] = sp.unit
+        self.data.locked_supply = sp.as_nat(self.data.locked_supply - inflation_share.value)
 
         # Increase lock value using the inflation share
         c = sp.self_entry_point("increase_lock_value")
-        sp.transfer(sp.record(token_id=params.token_id, value=inflation_share), sp.tez(0), c)
+        sp.transfer(sp.record(token_id=params.token_id, value=inflation_share.value), sp.tez(0), c)
 
     @sp.onchain_view()
     def get_token_voting_power(self, params):
@@ -1320,38 +1329,38 @@ if __name__ == "__main__":
 
         ply_token = FA12()
         ve = VoteEscrow(
-    ledger=sp.big_map(l={(Addresses.ALICE, 1): 1}),
-    locks=sp.big_map(
-        l={
-            1: sp.record(
-                base_value=base_value_,
-                end=end_,
-            )
-        }
-    ),
-    num_token_checkpoints=sp.big_map(
-        l={
-            1: 1,
-        },
-    ),
-    token_checkpoints=sp.big_map(
-        l={
-            (1, 1): sp.record(
-                bias=bias_,
-                slope=slope_,
-                ts=NOW,
-            )
-        },
-    ),
-    global_checkpoints=sp.big_map(
-        l={
-            1: sp.record(
-                bias=bias_,
-                slope=slope_,
-                ts=NOW,
-            )
-        }
-    ),
+            ledger=sp.big_map(l={(Addresses.ALICE, 1): 1}),
+            locks=sp.big_map(
+                l={
+                    1: sp.record(
+                        base_value=base_value_,
+                        end=end_,
+                    )
+                }
+            ),
+            num_token_checkpoints=sp.big_map(
+                l={
+                    1: 1,
+                },
+            ),
+            token_checkpoints=sp.big_map(
+                l={
+                    (1, 1): sp.record(
+                        bias=bias_,
+                        slope=slope_,
+                        ts=NOW,
+                    )
+                },
+            ),
+            global_checkpoints=sp.big_map(
+                l={
+                    1: sp.record(
+                        bias=bias_,
+                        slope=slope_,
+                        ts=NOW,
+                    )
+                }
+            ),
             slope_changes=sp.big_map(l={end_: slope_}),
             gc_index=sp.nat(1),
             base_token=ply_token.address,
@@ -2322,7 +2331,7 @@ if __name__ == "__main__":
     # claim_inflation (valid test)
     ###############################
 
-    @sp.add_test(name="claim_inflation correctly updates the lock value")
+    @sp.add_test(name="claim_inflation correctly updates the lock value for one epoch")
     def test():
         scenario = sp.test_scenario()
 
@@ -2377,7 +2386,7 @@ if __name__ == "__main__":
         scenario += ve
 
         # When ALICE claims the inflation for her token/lock 1
-        scenario += ve.claim_inflation(epoch=1, token_id=1).run(
+        scenario += ve.claim_inflation(epochs=[1], token_id=1).run(
             sender=Addresses.ALICE,
             now=sp.timestamp(2 * WEEK + 5),
         )
@@ -2386,6 +2395,75 @@ if __name__ == "__main__":
         scenario.verify(ve.data.locks[1].base_value == 140 * DECIMALS)  # Inflation share added to original value
         scenario.verify(ve.data.locked_supply == 350 * DECIMALS)
         scenario.verify(ve.data.claim_ledger[sp.record(token_id=1, epoch=1)] == sp.unit)
+
+    @sp.add_test(name="claim_inflation correctly updates the lock value for multiple epochs")
+    def test():
+        scenario = sp.test_scenario()
+
+        voter = Voter(end=sp.timestamp(2 * WEEK))
+
+        # Initialize with dummy values for testing
+        ve = VoteEscrow(
+            voter=voter.address,
+            ledger=sp.big_map(l={(Addresses.ALICE, 1): 1}),
+            locks=sp.big_map(
+                l={
+                    1: sp.record(
+                        base_value=100 * DECIMALS,
+                        end=3 * WEEK,
+                    )
+                }
+            ),
+            num_token_checkpoints=sp.big_map(
+                l={
+                    1: 1,
+                },
+            ),
+            token_checkpoints=sp.big_map(
+                l={
+                    (1, 1): sp.record(
+                        bias=100 * DECIMALS,
+                        slope=5,
+                        ts=WEEK,
+                    )
+                },
+            ),
+            gc_index=1,
+            global_checkpoints=sp.big_map(
+                l={
+                    1: sp.record(
+                        bias=250 * DECIMALS,
+                        slope=7,
+                        ts=WEEK,
+                    )
+                }
+            ),
+            slope_changes=sp.big_map(l={3 * WEEK: 100}),
+            epoch_inflation=sp.big_map(
+                l={
+                    1: 100 * DECIMALS,
+                    2: 200 * DECIMALS,
+                    3: 300 * DECIMALS,
+                }
+            ),
+            locked_supply=850 * DECIMALS,
+        )
+
+        scenario += voter
+        scenario += ve
+
+        # When ALICE claims the inflation for her token/lock 1 for epochs 1, 2, 3
+        scenario += ve.claim_inflation(epochs=[1, 2, 3], token_id=1).run(
+            sender=Addresses.ALICE,
+            now=sp.timestamp(2 * WEEK + 5),
+        )
+
+        # Storage is updated correctly
+        scenario.verify(ve.data.locks[1].base_value == 340 * DECIMALS)  # Inflation share added to original value
+        scenario.verify(ve.data.locked_supply == 850 * DECIMALS)
+        scenario.verify(ve.data.claim_ledger[sp.record(token_id=1, epoch=1)] == sp.unit)
+        scenario.verify(ve.data.claim_ledger[sp.record(token_id=1, epoch=2)] == sp.unit)
+        scenario.verify(ve.data.claim_ledger[sp.record(token_id=1, epoch=3)] == sp.unit)
 
     #################################
     # claim_inflation (failure test)
@@ -2407,14 +2485,14 @@ if __name__ == "__main__":
         scenario += ve
 
         # When ALICE tries to claim inflation for token/lock 1 a second time, txn fails
-        scenario += ve.claim_inflation(epoch=1, token_id=1).run(
+        scenario += ve.claim_inflation(epochs=[1], token_id=1).run(
             sender=Addresses.ALICE,
             valid=False,
             exception=Errors.ALREADY_CLAIMED_INFLATION,
         )
 
         # When ALICE tries to claim inflation for an epoch that has not been added, txn fails
-        scenario += ve.claim_inflation(epoch=2, token_id=1).run(
+        scenario += ve.claim_inflation(epochs=[2], token_id=1).run(
             sender=Addresses.ALICE,
             valid=False,
             exception=Errors.INFLATION_NOT_ADDED,

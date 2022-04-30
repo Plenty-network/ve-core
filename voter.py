@@ -6,6 +6,7 @@ Ply = sp.io.import_script_from_url("file:helpers/dummy/ply.py").Ply
 TokenUtils = sp.io.import_script_from_url("file:utils/token.py")
 FA12 = sp.io.import_script_from_url("file:ply_fa12.py").FA12
 GaugeBribe = sp.io.import_script_from_url("file:helpers/dummy/gauge_bribe.py").GaugeBribe
+FeeDist = sp.io.import_script_from_url("file:helpers/dummy/fee_dist.py").FeeDist
 
 ############
 # Constants
@@ -96,8 +97,8 @@ class Types:
     CLAIM_FEE_PARAMS = sp.TRecord(
         token_id=sp.TNat,
         amm=sp.TAddress,
-        epoch=sp.TNat,
-    ).layout(("token_id", ("amm", "epoch")))
+        epochs=sp.TList(sp.TNat),
+    ).layout(("token_id", ("amm", "epochs")))
 
     # Enumeration for voting power readers
     CURRENT = sp.nat(0)
@@ -447,7 +448,6 @@ class Voter(sp.Contract):
         sp.set_type(params, Types.CLAIM_FEE_PARAMS)
 
         # Sanity checks
-        sp.verify(self.data.epoch > params.epoch, Errors.INVALID_EPOCH)
         sp.verify(self.data.amm_to_gauge_bribe.contains(params.amm), Errors.AMM_INVALID_OR_NOT_WHITELISTED)
 
         # Verify that the sender owns the specified token / lock
@@ -459,22 +459,30 @@ class Voter(sp.Contract):
         ).open_some(Errors.INVALID_VIEW)
         sp.verify(is_owner, Errors.SENDER_DOES_NOT_OWN_LOCK)
 
-        # Calculate share weightage for the vePLY token
-        token_votes_for_amm = self.data.token_amm_votes[
-            sp.record(token_id=params.token_id, epoch=params.epoch, amm=params.amm)
-        ]
-        total_votes_for_amm = self.data.total_amm_votes[sp.record(epoch=params.epoch, amm=params.amm)]
+        # Local variable to store through the vote share across the epochs
+        epoch_vote_shares = sp.local("epoch_vote_shares", sp.list(l=[], t=sp.TRecord(epoch=sp.TNat, share=sp.TNat)))
 
-        token_vote_share = (token_votes_for_amm * VOTE_SHARE_MULTIPLIER) // total_votes_for_amm
+        # Iterate through requested epochs
+        with sp.for_("epochs", params.epochs) as epoch:
+            sp.verify(self.data.epoch > epoch, Errors.INVALID_EPOCH)
+
+            # Calculate share weightage for the vePLY token
+            token_votes_for_amm = self.data.token_amm_votes[
+                sp.record(token_id=params.token_id, epoch=epoch, amm=params.amm)
+            ]
+            total_votes_for_amm = self.data.total_amm_votes[sp.record(epoch=epoch, amm=params.amm)]
+
+            token_vote_share = (token_votes_for_amm * VOTE_SHARE_MULTIPLIER) // total_votes_for_amm
+
+            epoch_vote_shares.value.push(sp.record(epoch=epoch, share=token_vote_share))
 
         # call the 'claim' entrypoint in Fee Distributor to distribute the fee to the token holder
         param_type = sp.TRecord(
             token_id=sp.TNat,
             owner=sp.TAddress,
             amm=sp.TAddress,
-            epoch=sp.TNat,
-            weight_share=sp.TNat,
-        ).layout(("token_id", ("owner", ("amm", ("epoch", "weight_share")))))
+            epoch_vote_shares=sp.TList(sp.TRecord(epoch=sp.TNat, share=sp.TNat)),
+        ).layout(("token_id", ("owner", ("amm", "epoch_vote_shares"))))
 
         c = sp.contract(param_type, self.data.fee_distributor, "claim").open_some()
 
@@ -483,8 +491,7 @@ class Voter(sp.Contract):
                 token_id=params.token_id,
                 owner=sp.sender,
                 amm=params.amm,
-                epoch=params.epoch,
-                weight_share=token_vote_share,
+                epoch_vote_shares=epoch_vote_shares.value,
             ),
             sp.tez(0),
             c,
@@ -1003,11 +1010,135 @@ if __name__ == "__main__":
             exception=Errors.PREVIOUS_EPOCH_YET_TO_END,
         )
 
+    ##########################
+    # claim_fees (valid test)
+    ##########################
+
+    @sp.add_test(name="claim_fees correctly calculates the vote weight share for one epoch")
+    def test():
+        scenario = sp.test_scenario()
+
+        # Initialize dummy vote escrow for ownership checks
+        ve = VE()
+
+        # Initialize a dummy fee distributor contract
+        fee_dist = FeeDist()
+
+        # Initialize with some votes for epoch 1
+        voter = Voter(
+            epoch=2,
+            epoch_end=sp.big_map(l={2: sp.timestamp(10)}),
+            amm_to_gauge_bribe=sp.big_map(
+                l={
+                    Addresses.AMM_1: sp.record(gauge=Addresses.CONTRACT, bribe=Addresses.CONTRACT),
+                }
+            ),
+            token_amm_votes=sp.big_map(
+                l={
+                    sp.record(token_id=1, epoch=1, amm=Addresses.AMM_1): 150,
+                }
+            ),
+            total_amm_votes=sp.big_map(
+                l={
+                    sp.record(epoch=1, amm=Addresses.AMM_1): 250,
+                }
+            ),
+            fee_distributor=fee_dist.address,
+            ve_address=ve.address,
+        )
+
+        scenario += ve
+        scenario += fee_dist
+        scenario += voter
+
+        # When ALICE calls claim_fee for epoch 1 votes
+        scenario += voter.claim_fee(
+            sp.record(
+                token_id=1,
+                epochs=[1],
+                amm=Addresses.AMM_1,
+            )
+        ).run(sender=Addresses.ALICE)
+
+        # Vote weight is calculated correctly and FeeDistributor contract is called with correct values
+        scenario.verify_equal(
+            fee_dist.data.claim_val.open_some(),
+            sp.record(
+                token_id=1,
+                amm=Addresses.AMM_1,
+                owner=Addresses.ALICE,
+                epoch_vote_shares=[sp.record(epoch=1, share=int(0.6 * VOTE_SHARE_MULTIPLIER))],
+            ),
+        )
+
+    @sp.add_test(name="claim_fees correctly calculates the vote weight share for multiple epochs")
+    def test():
+        scenario = sp.test_scenario()
+
+        # Initialize dummy vote escrow for ownership checks
+        ve = VE()
+
+        # Initialize a dummy fee distributor contract
+        fee_dist = FeeDist()
+
+        # Initialize with some votes for epoch 1
+        voter = Voter(
+            epoch=4,
+            epoch_end=sp.big_map(l={4: sp.timestamp(10)}),
+            amm_to_gauge_bribe=sp.big_map(
+                l={
+                    Addresses.AMM_1: sp.record(gauge=Addresses.CONTRACT, bribe=Addresses.CONTRACT),
+                }
+            ),
+            token_amm_votes=sp.big_map(
+                l={
+                    sp.record(token_id=1, epoch=1, amm=Addresses.AMM_1): 150,
+                    sp.record(token_id=1, epoch=2, amm=Addresses.AMM_1): 250,
+                    sp.record(token_id=1, epoch=3, amm=Addresses.AMM_1): 350,
+                }
+            ),
+            total_amm_votes=sp.big_map(
+                l={
+                    sp.record(epoch=1, amm=Addresses.AMM_1): 250,
+                    sp.record(epoch=2, amm=Addresses.AMM_1): 500,
+                    sp.record(epoch=3, amm=Addresses.AMM_1): 700,
+                }
+            ),
+            fee_distributor=fee_dist.address,
+            ve_address=ve.address,
+        )
+
+        scenario += ve
+        scenario += fee_dist
+        scenario += voter
+
+        # When ALICE calls claim_fee for votes of epochs 1, 2, 3
+        scenario += voter.claim_fee(
+            sp.record(
+                token_id=1,
+                epochs=[1, 2, 3],
+                amm=Addresses.AMM_1,
+            )
+        ).run(sender=Addresses.ALICE)
+
+        # Vote weight is calculated correctly and FeeDistributor contract is called with correct values
+        scenario.verify_equal(
+            fee_dist.data.claim_val.open_some(),
+            sp.record(
+                token_id=1,
+                amm=Addresses.AMM_1,
+                owner=Addresses.ALICE,
+                epoch_vote_shares=[
+                    sp.record(epoch=3, share=int(0.5 * VOTE_SHARE_MULTIPLIER)),
+                    sp.record(epoch=2, share=int(0.5 * VOTE_SHARE_MULTIPLIER)),
+                    sp.record(epoch=1, share=int(0.6 * VOTE_SHARE_MULTIPLIER)),
+                ],
+            ),
+        )
+
     ###########################
     # claim_bribe (valid test)
     ###########################
-
-    # NOTE: This will also be accepted for weight share calculation in claim_fee
 
     @sp.add_test(name="claim_bribe correctly calculates the vote weight share")
     def test():
