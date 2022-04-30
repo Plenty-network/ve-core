@@ -43,7 +43,7 @@
 | `increase_lock_end`   | `(pair (nat %token_id) (nat %end))`                                                               | Called by a vePLY holder to increase the expiry of a lock.                                                                                                                                      |
 | `set_voter`           | `address`                                                                                         | Called once during the origination sequence to set the address of voter contract.                                                                                                               |
 | `add_inflation`       | `(pair (nat %epoch) (nat %value))`                                                                | Called by the `Voter`contract once every epoch to set the PLY inflation.                                                                                                                        |
-| `claim_inflation`     | `(pair (nat %token_id) (nat %epoch))`                                                             | Called by a vePLY holder to add inflation to the base value of a lock.                                                                                                                          |
+| `claim_inflation`     | `(pair (nat %token_id) (list %epochs nat))`                                                       | Called by a vePLY holder to add inflation to the base value of a lock.                                                                                                                          |
 
 ## Views
 

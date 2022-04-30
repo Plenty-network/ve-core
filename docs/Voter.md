@@ -36,7 +36,7 @@
 | `remove_amm`               | `address`                                                                            | Called by `CoreFactory` to remove whitelisted AMM.                                                |
 | `vote`                     | `(pair %vote (nat %token_id) (list %vote_items (pair (address %amm) (nat %votes))))` | Called by a vePLY holder to vote for emission distribution across AMM `Gauges`.                   |
 | `claim_bribe`              | `(pair (nat %token_id) (pair (nat %epoch) (pair (address %amm) (nat %bribe_id))))`   | Called by a voter to claim available bribes for an epoch.                                         |
-| `claim_fee`                | `(pair (nat %token_id) (pair (nat %epoch) (address %amm)))`                          | Called by a voter to claim fees collected from an AMM during an epoch.                            |
+| `claim_fee`                | `(pair (nat %token_id) (pair (address %amm) (list %epochs nat)))`                    | Called by a voter to claim fees collected from an AMM during an epoch.                            |
 | `pull_amm_fee`             | `(pair (address %amm) (nat %epoch))`                                                 | Called permissionlessly once during each epoch to pull fees out of an AMM into `FeeDistributor`.  |
 | `recharge_gauge`           | `(pair (address %amm) (nat %epoch))`                                                 | Called permissionlessly once during each epoch to recharge a `Gauge` contract with PLY emissions. |
 
