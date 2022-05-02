@@ -1,4 +1,4 @@
-parameter (or (or (pair %add_amm (address %amm) (set %tokens (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))))) (pair %add_fees (nat %epoch) (map %fees (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))) nat))) (or (pair %claim (nat %token_id) (pair (address %owner) (pair (address %amm) (list %epoch_vote_shares (pair (nat %epoch) (nat %share)))))) (address %remove_amm)));
+parameter (or (or (pair %add_amm (address %amm) (set %tokens (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))))) (pair %add_fees (nat %epoch) (map %fees (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))) nat))) (or (pair %claim (nat %token_id) (pair (address %owner) (pair (address %amm) (list %epoch_vote_shares (pair (nat %epoch) (nat %share)))))) (or (unit %default) (address %remove_amm))));
 storage   (pair (pair (big_map %amm_epoch_fee (pair (address %amm) (nat %epoch)) (map (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))) nat)) (big_map %amm_to_tokens address (set (or (address %fa12) (or (pair %fa2 address nat) (unit %tez)))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter))));
 code
   {
@@ -448,32 +448,39 @@ code
             DROP;       # list operation : @storage
           }
           {
-            SWAP;       # @storage : @parameter%remove_amm
-            # == remove_amm ==
-            # sp.verify(sp.sender == self.data.core_factory, 'NOT_AUTHORISED') # @storage : @parameter%remove_amm
-            DUP;        # @storage : @storage : @parameter%remove_amm
-            DUG 2;      # @storage : @parameter%remove_amm : @storage
-            GET 5;      # address : @parameter%remove_amm : @storage
-            SENDER;     # @sender : address : @parameter%remove_amm : @storage
-            COMPARE;    # int : @parameter%remove_amm : @storage
-            EQ;         # bool : @parameter%remove_amm : @storage
-            IF
-              {}
+            IF_LEFT
               {
-                PUSH string "NOT_AUTHORISED"; # string : @parameter%remove_amm : @storage
-                FAILWITH;   # FAILED
-              }; # @parameter%remove_amm : @storage
-            SWAP;       # @storage : @parameter%remove_amm
-            # del self.data.amm_to_tokens[params] # @storage : @parameter%remove_amm
-            UNPAIR;     # pair (big_map %amm_epoch_fee (pair (address %amm) (nat %epoch)) (map (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))) nat)) (big_map %amm_to_tokens address (set (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter)) : @parameter%remove_amm
-            UNPAIR;     # big_map (pair (address %amm) (nat %epoch)) (map (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))) nat) : big_map address (set (or (address %fa12) (or (pair %fa2 address nat) (unit %tez)))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter)) : @parameter%remove_amm
-            SWAP;       # big_map address (set (or (address %fa12) (or (pair %fa2 address nat) (unit %tez)))) : big_map (pair (address %amm) (nat %epoch)) (map (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))) nat) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter)) : @parameter%remove_amm
-            NONE (set (or address (or (pair address nat) unit))); # option (set (or address (or (pair address nat) unit))) : big_map address (set (or (address %fa12) (or (pair %fa2 address nat) (unit %tez)))) : big_map (pair (address %amm) (nat %epoch)) (map (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))) nat) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter)) : @parameter%remove_amm
-            DIG 4;      # @parameter%remove_amm : option (set (or address (or (pair address nat) unit))) : big_map address (set (or (address %fa12) (or (pair %fa2 address nat) (unit %tez)))) : big_map (pair (address %amm) (nat %epoch)) (map (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))) nat) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter))
-            UPDATE;     # big_map address (set (or address (or (pair address nat) unit))) : big_map (pair (address %amm) (nat %epoch)) (map (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))) nat) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter))
-            SWAP;       # big_map (pair (address %amm) (nat %epoch)) (map (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))) nat) : big_map address (set (or address (or (pair address nat) unit))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter))
-            PAIR;       # pair (big_map (pair (address %amm) (nat %epoch)) (map (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))) nat)) (big_map address (set (or address (or (pair address nat) unit)))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter))
-            PAIR;       # pair (pair (big_map (pair (address %amm) (nat %epoch)) (map (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))) nat)) (big_map address (set (or address (or (pair address nat) unit))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter)))
+                DROP;       # @storage
+                # == default == # @storage
+              }
+              {
+                SWAP;       # @storage : @parameter%remove_amm
+                # == remove_amm ==
+                # sp.verify(sp.sender == self.data.core_factory, 'NOT_AUTHORISED') # @storage : @parameter%remove_amm
+                DUP;        # @storage : @storage : @parameter%remove_amm
+                DUG 2;      # @storage : @parameter%remove_amm : @storage
+                GET 5;      # address : @parameter%remove_amm : @storage
+                SENDER;     # @sender : address : @parameter%remove_amm : @storage
+                COMPARE;    # int : @parameter%remove_amm : @storage
+                EQ;         # bool : @parameter%remove_amm : @storage
+                IF
+                  {}
+                  {
+                    PUSH string "NOT_AUTHORISED"; # string : @parameter%remove_amm : @storage
+                    FAILWITH;   # FAILED
+                  }; # @parameter%remove_amm : @storage
+                SWAP;       # @storage : @parameter%remove_amm
+                # del self.data.amm_to_tokens[params] # @storage : @parameter%remove_amm
+                UNPAIR;     # pair (big_map %amm_epoch_fee (pair (address %amm) (nat %epoch)) (map (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))) nat)) (big_map %amm_to_tokens address (set (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter)) : @parameter%remove_amm
+                UNPAIR;     # big_map (pair (address %amm) (nat %epoch)) (map (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))) nat) : big_map address (set (or (address %fa12) (or (pair %fa2 address nat) (unit %tez)))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter)) : @parameter%remove_amm
+                SWAP;       # big_map address (set (or (address %fa12) (or (pair %fa2 address nat) (unit %tez)))) : big_map (pair (address %amm) (nat %epoch)) (map (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))) nat) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter)) : @parameter%remove_amm
+                NONE (set (or address (or (pair address nat) unit))); # option (set (or address (or (pair address nat) unit))) : big_map address (set (or (address %fa12) (or (pair %fa2 address nat) (unit %tez)))) : big_map (pair (address %amm) (nat %epoch)) (map (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))) nat) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter)) : @parameter%remove_amm
+                DIG 4;      # @parameter%remove_amm : option (set (or address (or (pair address nat) unit))) : big_map address (set (or (address %fa12) (or (pair %fa2 address nat) (unit %tez)))) : big_map (pair (address %amm) (nat %epoch)) (map (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))) nat) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter))
+                UPDATE;     # big_map address (set (or address (or (pair address nat) unit))) : big_map (pair (address %amm) (nat %epoch)) (map (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))) nat) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter))
+                SWAP;       # big_map (pair (address %amm) (nat %epoch)) (map (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))) nat) : big_map address (set (or address (or (pair address nat) unit))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter))
+                PAIR;       # pair (big_map (pair (address %amm) (nat %epoch)) (map (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))) nat)) (big_map address (set (or address (or (pair address nat) unit)))) : pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter))
+                PAIR;       # pair (pair (big_map (pair (address %amm) (nat %epoch)) (map (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))) nat)) (big_map address (set (or address (or (pair address nat) unit))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter)))
+              }; # pair (pair (big_map (pair (address %amm) (nat %epoch)) (map (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))) nat)) (big_map address (set (or address (or (pair address nat) unit))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter)))
             NIL operation; # list operation : pair (pair (big_map (pair (address %amm) (nat %epoch)) (map (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))) nat)) (big_map address (set (or address (or (pair address nat) unit))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter)))
           }; # list operation : pair (pair (big_map (pair (address %amm) (nat %epoch)) (map (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))) nat)) (big_map address (set (or address (or (pair address nat) unit))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter)))
       }; # list operation : pair (pair (big_map (pair address nat) (map (or address (or (pair address nat) unit)) nat)) (big_map address (set (or address (or (pair address nat) unit))))) (pair (big_map %claim_ledger (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit) (pair (address %core_factory) (address %voter)))
