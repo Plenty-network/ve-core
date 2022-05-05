@@ -1,0 +1,3 @@
+[submodule "flat-curve"]
+	path = flat-curve
+	url = https://github.com/Plenty-DeFi/flat-curve.git
