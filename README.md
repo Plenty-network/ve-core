@@ -7,6 +7,7 @@
 - `utils` : Utilities like token transfer calls.
 - `deploy` : Scripts to assist contract deployment.
 - `docs` : Elaborate documentation explaining the system and contract design.
+- `flat-curve`: Submodule linked to Plenty's flat curve AMM contracts that would be connected to VE system.
 
 ## Contract Files
 
