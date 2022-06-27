@@ -96,6 +96,8 @@ class Errors:
     LOCK_IS_ATTACHED = "LOCK_IS_ATTACHED"
     ALREADY_CLAIMED_INFLATION = "ALREADY_CLAIMED_INFLATION"
     INFLATION_NOT_ADDED = "INFLATION_NOT_ADDED"
+    ENTRYPOINT_DOES_NOT_ACCEPT_TEZ = "ENTRYPOINT_DOES_NOT_ACCEPT_TEZ"
+    CONTRACT_DOES_NOT_ACCEPT_TEZ = "CONTRACT_DOES_NOT_ACCEPT_TEZ"
 
     # Generic
     NOT_AUTHORISED = "NOT_AUTHORISED"
@@ -134,6 +136,14 @@ class VoteEscrow(sp.Contract):
             ),
             tvalue=sp.TUnit,
         ),
+        token_metadata=sp.big_map(
+            l={},
+            tkey=sp.TNat,
+            tvalue=sp.TRecord(
+                token_id=sp.TNat,
+                token_info=sp.TMap(sp.TString, sp.TBytes),
+            ),
+        ),
         # Vote-escrow storage items
         locks=sp.big_map(
             l={},
@@ -143,7 +153,7 @@ class VoteEscrow(sp.Contract):
         attached=sp.big_map(
             l={},
             tkey=sp.TNat,
-            tvalue=sp.TUnit,
+            tvalue=sp.TAddress,
         ),
         token_checkpoints=sp.big_map(
             l={},
@@ -184,6 +194,7 @@ class VoteEscrow(sp.Contract):
             ledger=ledger,
             operators=operators,
             locks=locks,
+            token_metadata=token_metadata,
             attached=attached,
             uid=sp.nat(0),
             token_checkpoints=token_checkpoints,
@@ -210,9 +221,16 @@ class VoteEscrow(sp.Contract):
                     ),
                     sp.TUnit,
                 ),
+                token_metadata=sp.TBigMap(
+                    sp.TNat,
+                    sp.TRecord(
+                        token_id=sp.TNat,
+                        token_info=sp.TMap(sp.TString, sp.TBytes),
+                    ),
+                ),
                 # VE specific
                 locks=sp.TBigMap(sp.TNat, Types.LOCK),
-                attached=sp.TBigMap(sp.TNat, sp.TUnit),
+                attached=sp.TBigMap(sp.TNat, sp.TAddress),
                 uid=sp.TNat,
                 token_checkpoints=sp.TBigMap(sp.TPair(sp.TNat, sp.TNat), Types.POINT),
                 num_token_checkpoints=sp.TBigMap(sp.TNat, sp.TNat),
@@ -231,6 +249,9 @@ class VoteEscrow(sp.Contract):
     @sp.entry_point
     def transfer(self, params):
         sp.set_type(params, Types.TRANSFER_PARAMS)
+
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
 
         with sp.for_("transfer", params) as transfer:
             current_from = transfer.from_
@@ -251,8 +272,8 @@ class VoteEscrow(sp.Contract):
                 # Verify that the token id belongs to a lock
                 sp.verify(self.data.locks.contains(tx.token_id), FA2_Errors.FA2_TOKEN_UNDEFINED)
 
-                # Each token is unique, so transfer amount must be 1
-                with sp.if_(tx.amount == 1):
+                # Each token is unique, so transfer amount would always be 1
+                with sp.if_(tx.amount >= 1):
                     # Verify that the address has sufficient balance for transfer
                     sp.verify(
                         self.data.ledger[(current_from, tx.token_id)] >= tx.amount,
@@ -263,12 +284,11 @@ class VoteEscrow(sp.Contract):
                     self.data.ledger[(current_from, tx.token_id)] = sp.as_nat(
                         self.data.ledger[(current_from, tx.token_id)] - tx.amount
                     )
-                    with sp.if_(~self.data.ledger.contains((tx.to_, tx.token_id))):
-                        self.data.ledger[(tx.to_, tx.token_id)] = 0
-                    self.data.ledger[(tx.to_, tx.token_id)] += tx.amount
 
+                    balance = self.data.ledger.get((tx.to_, tx.token_id), 0)
+                    self.data.ledger[(tx.to_, tx.token_id)] = balance + tx.amount
                 with sp.else_():
-                    sp.failwith(FA2_Errors.FA2_INVALID_AMOUNT)
+                    pass
 
     # Default tzip-12 specified balance_of
     @sp.entry_point
@@ -303,6 +323,9 @@ class VoteEscrow(sp.Contract):
             ),
         )
 
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         with sp.for_("update", params) as update:
             with update.match_cases() as arg:
                 with arg.match("add_operator") as upd:
@@ -333,11 +356,13 @@ class VoteEscrow(sp.Contract):
             ),
         )
 
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         with sp.for_("attachment", params.attachments) as attachment:
             with attachment.match_cases() as arg:
                 with arg.match("add_attachment") as token_id:
                     # Sanity checks
-                    sp.verify(~self.data.attached.contains(token_id), Errors.LOCK_IS_ATTACHED)
                     sp.verify(self.data.ledger.get((params.owner, token_id), 0) == 1, Errors.NOT_AUTHORISED)
                     sp.verify(
                         (sp.sender == params.owner)
@@ -348,10 +373,11 @@ class VoteEscrow(sp.Contract):
                     )
 
                     # Attach token/lock
-                    self.data.attached[token_id] = sp.unit
+                    self.data.attached[token_id] = sp.sender
                 with arg.match("remove_attachment") as token_id:
                     # Sanity checks
                     sp.verify(self.data.ledger.get((params.owner, token_id), 0) == 1, Errors.NOT_AUTHORISED)
+                    sp.verify(sp.sender == self.data.attached[token_id], Errors.NOT_AUTHORISED)
                     sp.verify(
                         (sp.sender == params.owner)
                         | self.data.operators.contains(
@@ -371,7 +397,7 @@ class VoteEscrow(sp.Contract):
         )
 
         # nat version of block timestamp
-        now_ = sp.as_nat(sp.now - sp.timestamp(0))
+        now_ = sp.compute(sp.as_nat(sp.now - sp.timestamp(0)))
 
         with sp.if_(self.data.gc_index == 0):
             # First entry check
@@ -383,12 +409,14 @@ class VoteEscrow(sp.Contract):
             )
             self.data.gc_index += 1
         with sp.else_():
-            # Calculate current global bias and slope
-            c_bias = sp.local("c_bias", self.data.global_checkpoints[self.data.gc_index].bias)
-            c_slope = sp.local("c_slope", self.data.global_checkpoints[self.data.gc_index].slope)
+            global_checkpoint = sp.compute(self.data.global_checkpoints[self.data.gc_index])
 
-            n_ts = sp.local("n_ts", ((self.data.global_checkpoints[self.data.gc_index].ts + WEEK) // WEEK) * WEEK)
-            c_ts = sp.local("c_ts", self.data.global_checkpoints[self.data.gc_index].ts)
+            # Calculate current global bias and slope
+            c_bias = sp.local("c_bias", global_checkpoint.bias)
+            c_slope = sp.local("c_slope", global_checkpoint.slope)
+
+            n_ts = sp.local("n_ts", ((global_checkpoint.ts + WEEK) // WEEK) * WEEK)
+            c_ts = sp.local("c_ts", global_checkpoint.ts)
 
             with sp.if_(n_ts.value < now_):
                 with sp.while_((n_ts.value < now_) & (c_bias.value != 0)):
@@ -422,9 +450,9 @@ class VoteEscrow(sp.Contract):
             # Add new checkpoint to global bias/slope & slope_changes
             c_bias.value += params.new_cp.bias
             c_slope.value += params.new_cp.slope
-            with sp.if_(~self.data.slope_changes.contains(params.new_end)):
-                self.data.slope_changes[params.new_end] = 0
-            self.data.slope_changes[params.new_end] += params.new_cp.slope
+
+            change = self.data.slope_changes.get(params.new_end, 0)
+            self.data.slope_changes[params.new_end] = change + params.new_cp.slope
 
             # Insert new global checkpoint
             self.data.global_checkpoints[self.data.gc_index + 1] = sp.record(
@@ -438,35 +466,43 @@ class VoteEscrow(sp.Contract):
     def create_lock(self, params):
         sp.set_type(params, Types.CREATE_LOCK_PARAMS)
 
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         # nat version of block timestamp
-        now_ = sp.as_nat(sp.now - sp.timestamp(0))
+        now_ = sp.compute(sp.as_nat(sp.now - sp.timestamp(0)))
 
         # Find a timestamp rounded off to nearest week
-        ts = (params.end // WEEK) * WEEK
+        ts = sp.compute((params.end // WEEK) * WEEK)
 
         # Lock period in seconds
-        d_ts = sp.as_nat(ts - now_, Errors.INVALID_LOCK_TIME)
+        d_ts = sp.compute(sp.as_nat(ts - now_, Errors.INVALID_LOCK_TIME))
 
         # Verify that calculated timestamp falls in the correct range
         sp.verify((d_ts >= WEEK) & (d_ts <= MAX_TIME), Errors.INVALID_LOCK_TIME)
 
         # Calculate slope & bias for linearly decreasing voting power
-        bias = (params.base_value * d_ts) // MAX_TIME
+        bias = sp.compute((params.base_value * d_ts) // MAX_TIME)
         slope = (bias * SLOPE_MULTIPLIER) // d_ts
 
         # Update uid and mint associated NFT for params.user_address
         self.data.uid += 1
-        self.data.ledger[(params.user_address, self.data.uid)] = sp.nat(1)
+
+        # Store as local variable to keep on stack
+        uid = sp.compute(self.data.uid)
+
+        # Update balance in the FA2 ledger
+        self.data.ledger[(params.user_address, uid)] = sp.nat(1)
 
         # Register a lock
-        self.data.locks[self.data.uid] = sp.record(
+        self.data.locks[uid] = sp.record(
             base_value=params.base_value,
             end=ts,
         )
 
         # Record token checkpoint
-        self.data.num_token_checkpoints[self.data.uid] = 1
-        self.data.token_checkpoints[(self.data.uid, self.data.num_token_checkpoints[self.data.uid])] = sp.record(
+        self.data.num_token_checkpoints[uid] = 1
+        self.data.token_checkpoints[(uid, 1)] = sp.record(
             slope=slope,
             bias=bias,
             ts=now_,
@@ -474,14 +510,21 @@ class VoteEscrow(sp.Contract):
 
         # Record global checkpoint for lock creation
         old_cp = sp.record(bias=0, slope=0, ts=0)
-        new_cp = self.data.token_checkpoints[(self.data.uid, self.data.num_token_checkpoints[self.data.uid])]
+        new_cp = self.data.token_checkpoints[(uid, 1)]
         self.record_global_checkpoint(
             sp.record(
                 old_cp=old_cp,
                 new_cp=new_cp,
                 prev_end=0,
-                new_end=self.data.locks[self.data.uid].end,
+                new_end=self.data.locks[uid].end,
             )
+        )
+
+        # Insert token metadata
+        # TODO: to be replaced with real IPFS data
+        self.data.token_metadata[uid] = sp.record(
+            token_id=uid,
+            token_info={"": sp.bytes("ipfs://")},
         )
 
         # Retrieve base token to self address
@@ -501,13 +544,21 @@ class VoteEscrow(sp.Contract):
     def withdraw(self, token_id):
         sp.set_type(token_id, sp.TNat)
 
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         # nat version of block timestamp
         now_ = sp.as_nat(sp.now - sp.timestamp(0))
 
-        # Sanity checks
+        # Verify that the lock with supplied token-id exists
         sp.verify(self.data.locks.contains(token_id), Errors.LOCK_DOES_NOT_EXIST)
+
+        # Store as local variable to keep on stack
+        lock = sp.compute(self.data.locks[token_id])
+
+        # Sanity checks
         sp.verify(self.data.ledger.get((sp.sender, token_id), 0) == 1, Errors.NOT_AUTHORISED)
-        sp.verify(now_ > self.data.locks[token_id].end, Errors.LOCK_YET_TO_EXPIRE)
+        sp.verify(now_ > lock.end, Errors.LOCK_YET_TO_EXPIRE)
         sp.verify(~self.data.attached.contains(token_id), Errors.LOCK_IS_ATTACHED)
 
         # Transfer underlying PLY
@@ -515,13 +566,13 @@ class VoteEscrow(sp.Contract):
             sp.record(
                 from_=sp.self_address,
                 to_=sp.sender,
-                value=self.data.locks[token_id].base_value,
+                value=lock.base_value,
                 token_address=self.data.base_token,
             )
         )
 
         # Decrease locked supply
-        self.data.locked_supply = sp.as_nat(self.data.locked_supply - self.data.locks[token_id].base_value)
+        self.data.locked_supply = sp.as_nat(self.data.locked_supply - lock.base_value)
 
         # Remove associated token
         self.data.ledger[(sp.sender, token_id)] = 0
@@ -529,65 +580,77 @@ class VoteEscrow(sp.Contract):
         # Delete the lock
         del self.data.locks[token_id]
 
+        # Delete metadata
+        del self.data.token_metadata[token_id]
+
     @sp.entry_point
     def increase_lock_value(self, params):
         sp.set_type(params, sp.TRecord(token_id=sp.TNat, value=sp.TNat).layout(("token_id", "value")))
 
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         # nat version of block timestamp
-        now_ = sp.as_nat(sp.now - sp.timestamp(0))
+        now_ = sp.compute(sp.as_nat(sp.now - sp.timestamp(0)))
+
+        # Verify that lock with token-id exists
+        sp.verify(self.data.locks.contains(params.token_id), Errors.LOCK_DOES_NOT_EXIST)
+
+        # Store as local variable to keep on stack
+        lock = sp.compute(self.data.locks[params.token_id])
 
         # Sanity checks
-        sp.verify(self.data.locks.contains(params.token_id), Errors.LOCK_DOES_NOT_EXIST)
         sp.verify(
             (sp.sender == sp.self_address) | (self.data.ledger.get((sp.sender, params.token_id), 0) == 1),
             Errors.NOT_AUTHORISED,
         )
-        sp.verify(self.data.locks[params.token_id].end > now_, Errors.LOCK_HAS_EXPIRED)
+        sp.verify((sp.sender == sp.self_address) | (lock.end > now_), Errors.LOCK_HAS_EXPIRED)
         sp.verify(params.value > 0, Errors.INVALID_INCREASE_VALUE)
 
         # Modify base value of the lock
         self.data.locks[params.token_id].base_value += params.value
 
-        # Fetch current updated bias
-        index_ = self.data.num_token_checkpoints[params.token_id]
-        last_tc = self.data.token_checkpoints[(params.token_id, index_)]
-        bias_ = sp.as_nat(last_tc.bias - (last_tc.slope * sp.as_nat(now_ - last_tc.ts)) // SLOPE_MULTIPLIER)
+        # Only add a checkpoint if the lock has not already expired
+        with sp.if_(lock.end > now_):
+            # Fetch current updated bias
+            index_ = sp.compute(self.data.num_token_checkpoints[params.token_id])
+            last_tc = sp.compute(self.data.token_checkpoints[(params.token_id, index_)])
+            bias_ = sp.as_nat(last_tc.bias - (last_tc.slope * sp.as_nat(now_ - last_tc.ts)) // SLOPE_MULTIPLIER)
 
-        # Time left in lock
-        d_ts = sp.as_nat(self.data.locks[params.token_id].end - now_)
+            # Time left in lock
+            d_ts = sp.compute(sp.as_nat(lock.end - now_))
 
-        # Increase in bias
-        i_bias = (params.value * d_ts) // MAX_TIME
+            # Increase in bias
+            i_bias = (params.value * d_ts) // MAX_TIME
 
-        # New bias & slope
-        n_bias = bias_ + i_bias
-        n_slope = (n_bias * SLOPE_MULTIPLIER) // d_ts
+            # New bias & slope
+            n_bias = sp.compute(bias_ + i_bias)
+            n_slope = (n_bias * SLOPE_MULTIPLIER) // d_ts
 
-        # Record new token checkpoint
-        self.data.token_checkpoints[
-            (params.token_id, self.data.num_token_checkpoints[params.token_id] + 1)
-        ] = sp.record(
-            slope=n_slope,
-            bias=n_bias,
-            ts=now_,
-        )
-
-        # Updated later to prevent access error
-        self.data.num_token_checkpoints[params.token_id] += 1
-
-        # Record global checkpoint
-        old_cp = self.data.token_checkpoints[
-            (params.token_id, sp.as_nat(self.data.num_token_checkpoints[params.token_id] - 1))
-        ]
-        new_cp = self.data.token_checkpoints[(params.token_id, self.data.num_token_checkpoints[params.token_id])]
-        self.record_global_checkpoint(
-            sp.record(
-                old_cp=old_cp,
-                new_cp=new_cp,
-                prev_end=self.data.locks[params.token_id].end,
-                new_end=self.data.locks[params.token_id].end,
+            # Record new token checkpoint
+            self.data.token_checkpoints[(params.token_id, index_ + 1)] = sp.record(
+                slope=n_slope,
+                bias=n_bias,
+                ts=now_,
             )
-        )
+
+            # Updated later to prevent access error
+            self.data.num_token_checkpoints[params.token_id] += 1
+
+            # Store as local variable to keep on stack
+            index__ = sp.compute(self.data.num_token_checkpoints[params.token_id])
+
+            # Record global checkpoint
+            old_cp = self.data.token_checkpoints[(params.token_id, sp.as_nat(index__ - 1))]
+            new_cp = self.data.token_checkpoints[(params.token_id, index__)]
+            self.record_global_checkpoint(
+                sp.record(
+                    old_cp=old_cp,
+                    new_cp=new_cp,
+                    prev_end=lock.end,
+                    new_end=lock.end,
+                )
+            )
 
         with sp.if_(sp.sender != sp.self_address):
             # Retrieve the increased value in base token
@@ -600,58 +663,65 @@ class VoteEscrow(sp.Contract):
                 )
             )
 
-        # Increase locked supply
-        self.data.locked_supply += params.value
+            # Increase locked supply
+            self.data.locked_supply += params.value
 
     @sp.entry_point
     def increase_lock_end(self, params):
         sp.set_type(params, sp.TRecord(token_id=sp.TNat, end=sp.TNat).layout(("token_id", "end")))
 
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         # nat version of block timestamp
-        now_ = sp.as_nat(sp.now - sp.timestamp(0))
+        now_ = sp.compute(sp.as_nat(sp.now - sp.timestamp(0)))
 
         # Find a timestamp rounded off to nearest week
-        ts = (params.end // WEEK) * WEEK
+        ts = sp.compute((params.end // WEEK) * WEEK)
 
         # Lock period in seconds
-        d_ts = sp.as_nat(ts - now_, Errors.INVALID_LOCK_TIME)
+        d_ts = sp.compute(sp.as_nat(ts - now_, Errors.INVALID_LOCK_TIME))
+
+        # Verify that lock with token-id exists
+        sp.verify(self.data.locks.contains(params.token_id), Errors.LOCK_DOES_NOT_EXIST)
+
+        # Store as local variable to keep on stack
+        lock = sp.compute(self.data.locks[params.token_id])
 
         # Sanity checks
         sp.verify(self.data.ledger[(sp.sender, params.token_id)] == 1, Errors.NOT_AUTHORISED)
-        sp.verify(self.data.locks[params.token_id].end > now_, Errors.LOCK_HAS_EXPIRED)
-        sp.verify(
-            (ts > self.data.locks[params.token_id].end) & (d_ts <= MAX_TIME), Errors.INVALID_INCREASE_END_TIMESTAMP
-        )
-
-        # Locally record previous end
-        prev_end = sp.local("prev_end", self.data.locks[params.token_id].end)
-
-        # Update lock
-        self.data.locks[params.token_id].end = ts
+        sp.verify(lock.end > now_, Errors.LOCK_HAS_EXPIRED)
+        sp.verify((ts > lock.end) & (d_ts <= MAX_TIME), Errors.INVALID_INCREASE_END_TIMESTAMP)
 
         # Calculate new bias and slope
-        bias = (self.data.locks[params.token_id].base_value * d_ts) // MAX_TIME
+        bias = (lock.base_value * d_ts) // MAX_TIME
         slope = (bias * SLOPE_MULTIPLIER) // d_ts
 
-        # Add new checkpoint for token
+        # Update lock end
+        self.data.locks[params.token_id].end = ts
+
+        # Update checkpoint index
         self.data.num_token_checkpoints[params.token_id] += 1
-        self.data.token_checkpoints[(params.token_id, self.data.num_token_checkpoints[params.token_id])] = sp.record(
+
+        # Store as local variable to keep on stack
+        index_ = sp.compute(self.data.num_token_checkpoints[params.token_id])
+
+        # Add new checkpoint for token
+        self.data.token_checkpoints[(params.token_id, index_)] = sp.record(
             slope=slope,
             bias=bias,
             ts=now_,
         )
 
         # Record global checkpoint
-        old_cp = self.data.token_checkpoints[
-            (params.token_id, sp.as_nat(self.data.num_token_checkpoints[params.token_id] - 1))
-        ]
-        new_cp = self.data.token_checkpoints[(params.token_id, self.data.num_token_checkpoints[params.token_id])]
+        old_cp = self.data.token_checkpoints[(params.token_id, sp.as_nat(index_ - 1))]
+        new_cp = self.data.token_checkpoints[(params.token_id, index_)]
         self.record_global_checkpoint(
             sp.record(
                 old_cp=old_cp,
                 new_cp=new_cp,
-                prev_end=prev_end.value,
-                new_end=self.data.locks[params.token_id].end,
+                prev_end=lock.end,
+                new_end=ts,
             )
         )
 
@@ -678,6 +748,9 @@ class VoteEscrow(sp.Contract):
     @sp.entry_point
     def claim_inflation(self, params):
         sp.set_type(params, sp.TRecord(token_id=sp.TNat, epochs=sp.TList(sp.TNat)).layout(("token_id", "epochs")))
+
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
 
         # Sanity checks
         sp.verify(self.data.ledger.get((sp.sender, params.token_id), 0) == 1, Errors.NOT_AUTHORISED)
@@ -718,9 +791,6 @@ class VoteEscrow(sp.Contract):
             # Mark as claimed
             self.data.claim_ledger[sp.record(token_id=params.token_id, epoch=epoch)] = sp.unit
 
-        # Decrease share from locked supply. This is required because of a re-addition in increase_lock_value
-        self.data.locked_supply = sp.as_nat(self.data.locked_supply - inflation_share.value)
-
         # Increase lock value using the inflation share
         c = sp.self_entry_point("increase_lock_value")
         sp.transfer(sp.record(token_id=params.token_id, value=inflation_share.value), sp.tez(0), c)
@@ -740,16 +810,16 @@ class VoteEscrow(sp.Contract):
         factor = sp.local("factor", WEEK)
         with sp.if_(params.time == Types.CURRENT):
             factor.value = 1
-        ts = (params.ts // factor.value) * factor.value
+        ts = sp.compute((params.ts // factor.value) * factor.value)
 
         # Sanity checks
         sp.verify((params.time == Types.CURRENT) | (params.time == Types.WHOLE_WEEK), Errors.INVALID_TIME)
         sp.verify(self.data.locks.contains(params.token_id), Errors.LOCK_DOES_NOT_EXIST)
         sp.verify(ts >= self.data.token_checkpoints[(params.token_id, 1)].ts, Errors.TOO_EARLY_TIMESTAMP)
 
-        last_checkpoint = self.data.token_checkpoints[
-            (params.token_id, self.data.num_token_checkpoints[params.token_id])
-        ]
+        # Store as local variables to keep on stack
+        index_ = sp.compute(self.data.num_token_checkpoints[params.token_id])
+        last_checkpoint = sp.compute(self.data.token_checkpoints[(params.token_id, index_)])
 
         with sp.if_(ts >= last_checkpoint.ts):
             i_bias = last_checkpoint.bias
@@ -760,7 +830,7 @@ class VoteEscrow(sp.Contract):
             with sp.else_():
                 sp.result(sp.as_nat(f_bias))
         with sp.else_():
-            high = sp.local("high", sp.as_nat(self.data.num_token_checkpoints[params.token_id] - 2))
+            high = sp.local("high", sp.as_nat(index_ - 2))
             low = sp.local("low", sp.nat(0))
             mid = sp.local("mid", sp.nat(0))
 
@@ -795,7 +865,7 @@ class VoteEscrow(sp.Contract):
         factor = sp.local("factor", WEEK)
         with sp.if_(params.time == Types.CURRENT):
             factor.value = 1
-        ts = (params.ts // factor.value) * factor.value
+        ts = sp.compute((params.ts // factor.value) * factor.value)
 
         # Sanity check
         sp.verify((params.time == Types.CURRENT) | (params.time == Types.WHOLE_WEEK), Errors.INVALID_TIME)
@@ -862,6 +932,11 @@ class VoteEscrow(sp.Contract):
     @sp.onchain_view()
     def get_locked_supply(self):
         sp.result(self.data.locked_supply)
+
+    # Reject tez sent to the contract address
+    @sp.entry_point
+    def default(self):
+        sp.failwith(Errors.CONTRACT_DOES_NOT_ACCEPT_TEZ)
 
 
 if __name__ == "__main__":
@@ -984,6 +1059,22 @@ if __name__ == "__main__":
     # create_lock (failure test)
     #############################
 
+    @sp.add_test(name="create_lock fails if tez is sent to the entrypoint")
+    def test():
+        scenario = sp.test_scenario()
+
+        ve = VoteEscrow()
+        scenario += ve
+
+        # When ALICE create a lock with ending before current time, the txn fails
+        scenario += ve.create_lock(user_address=Addresses.ALICE, base_value=1000 * DECIMALS, end=2 * YEAR,).run(
+            sender=Addresses.ALICE,
+            amount=sp.tez(0),
+            now=sp.timestamp(3 * YEAR),
+            valid=False,
+            exception=Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ,
+        )
+
     @sp.add_test(name="create_lock fails for invalid lock time")
     def test():
         scenario = sp.test_scenario()
@@ -1099,6 +1190,27 @@ if __name__ == "__main__":
             now=sp.timestamp(NOW + 6 * DAY),
             valid=False,
             exception=Errors.LOCK_YET_TO_EXPIRE,
+        )
+
+    @sp.add_test(name="withdraw fails if lock is attached")
+    def test():
+        scenario = sp.test_scenario()
+
+        # Setup a lock with base value of 100 PLY and ending in 7 days for ALICE
+        ve = VoteEscrow(
+            ledger=sp.big_map(l={(Addresses.ALICE, 1): 1}),
+            locks=sp.big_map(l={1: sp.record(base_value=100, end=7 * DAY)}),
+            attached=sp.big_map(l={1: Addresses.CONTRACT}),
+        )
+
+        scenario += ve
+
+        # When ALICE tries withdrawing before the lock expires, txn fails
+        scenario += ve.withdraw(1).run(
+            sender=Addresses.ALICE,
+            now=sp.timestamp(NOW + 8 * DAY),
+            valid=False,
+            exception=Errors.LOCK_IS_ATTACHED,
         )
 
     ###################################
@@ -1396,7 +1508,7 @@ if __name__ == "__main__":
         scenario.verify(ve.data.token_checkpoints[(1, 2)] == sp.record(bias=bias, slope=slope, ts=increase_ts))
 
     #################################
-    # increase_lock_end (valid test)
+    # increase_lock_end (failure test)
     #################################
 
     # NOTE: only the new lock time failure test is relevant. Other failure statements are already verified in
@@ -1609,8 +1721,8 @@ if __name__ == "__main__":
         )
 
         # Storage is updated correctly
-        scenario.verify(ve.data.attached[1] == sp.unit)
-        scenario.verify(ve.data.attached[2] == sp.unit)
+        scenario.verify(ve.data.attached[1] == Addresses.CONTRACT)
+        scenario.verify(ve.data.attached[2] == Addresses.BOB)
 
         # When JOHN (not operator for ALICE's token) tries changing attachment status of token/lock 1, txn fails
         scenario += ve.update_attachments(owner=Addresses.ALICE, attachments=[sp.variant("remove_attachment", 1)]).run(
@@ -1619,9 +1731,16 @@ if __name__ == "__main__":
             exception=Errors.NOT_AUTHORISED,
         )
 
-        # When ALICE removes her attachment
+        # When ALICE (did not attach her own token) herself tries changing attachment status of token/lock 1, txn fails
         scenario += ve.update_attachments(owner=Addresses.ALICE, attachments=[sp.variant("remove_attachment", 1)]).run(
-            sender=Addresses.ALICE
+            sender=Addresses.ALICE,
+            valid=False,
+            exception=Errors.NOT_AUTHORISED,
+        )
+
+        # When CONTRACT removes ALICE's attachment
+        scenario += ve.update_attachments(owner=Addresses.ALICE, attachments=[sp.variant("remove_attachment", 1)]).run(
+            sender=Addresses.CONTRACT
         )
 
         # Storage is updated correctly
@@ -1630,6 +1749,151 @@ if __name__ == "__main__":
     #########################
     # get_token_voting_power
     #########################
+
+    @sp.add_test(name="get_token_voting_power works for one checkpoint")
+    def test():
+        scenario = sp.test_scenario()
+
+        ve = VoteEscrow(
+            locks=sp.big_map(
+                l={
+                    1: sp.record(
+                        # Random values. Inconsequential for this test.
+                        base_value=1000,
+                        end=4 * YEAR,
+                    )
+                }
+            ),
+            num_token_checkpoints=sp.big_map(
+                l={
+                    1: 1,
+                },
+            ),
+            # Only 1 checkpoint
+            token_checkpoints=sp.big_map(
+                l={
+                    (1, 1): sp.record(
+                        bias=1000 * DECIMALS,
+                        slope=5 * SLOPE_MULTIPLIER,
+                        ts=8 * DAY,
+                    ),
+                },
+            ),
+        )
+
+        scenario += ve
+
+        # Predicted voting power (bias) for ts = 10 * DAY
+        ts = 10 * DAY
+        bias = (1000 * DECIMALS) - (5 * DAY) * 2
+
+        # Correct voting power is received for 10 * DAY
+        scenario.verify(ve.get_token_voting_power(sp.record(token_id=1, ts=ts, time=Types.CURRENT)) == bias)
+
+    @sp.add_test(name="get_token_voting_power works for two checkpoints")
+    def test():
+        scenario = sp.test_scenario()
+
+        ve = VoteEscrow(
+            locks=sp.big_map(
+                l={
+                    1: sp.record(
+                        # Random values. Inconsequential for this test.
+                        base_value=1000,
+                        end=4 * YEAR,
+                    )
+                }
+            ),
+            num_token_checkpoints=sp.big_map(
+                l={
+                    1: 2,
+                },
+            ),
+            # Only 2 checkpoints
+            token_checkpoints=sp.big_map(
+                l={
+                    (1, 1): sp.record(
+                        bias=1000 * DECIMALS,
+                        slope=5 * SLOPE_MULTIPLIER,
+                        ts=8 * DAY,
+                    ),
+                    (1, 2): sp.record(
+                        bias=800 * DECIMALS,
+                        slope=2 * SLOPE_MULTIPLIER,
+                        ts=17 * DAY,
+                    ),
+                },
+            ),
+        )
+
+        scenario += ve
+
+        # Predicted voting power (bias_1) for ts = 15 * DAY
+        ts_1 = 14 * DAY  # rounded ts
+        bias_1 = (1000 * DECIMALS) - (5 * DAY) * 6
+
+        # Predicted voting power (bias_2) for ts = 19 * DAY
+        ts_2 = 19 * DAY
+        bias_2 = (800 * DECIMALS) - (2 * DAY) * 2
+
+        # Correct voting powers are received
+        scenario.verify(ve.get_token_voting_power(sp.record(token_id=1, ts=ts_1, time=Types.WHOLE_WEEK)) == bias_1)
+        scenario.verify(ve.get_token_voting_power(sp.record(token_id=1, ts=ts_2, time=Types.CURRENT)) == bias_2)
+
+    @sp.add_test(name="get_token_voting_power works for three checkpoints")
+    def test():
+        scenario = sp.test_scenario()
+
+        ve = VoteEscrow(
+            locks=sp.big_map(
+                l={
+                    1: sp.record(
+                        # Random values. Inconsequential for this test.
+                        base_value=1000,
+                        end=4 * YEAR,
+                    )
+                }
+            ),
+            num_token_checkpoints=sp.big_map(
+                l={
+                    1: 2,
+                },
+            ),
+            # Only 3 checkpoints
+            token_checkpoints=sp.big_map(
+                l={
+                    (1, 1): sp.record(
+                        bias=1000 * DECIMALS,
+                        slope=5 * SLOPE_MULTIPLIER,
+                        ts=8 * DAY,
+                    ),
+                    (1, 2): sp.record(
+                        bias=800 * DECIMALS,
+                        slope=2 * SLOPE_MULTIPLIER,
+                        ts=17 * DAY,
+                    ),
+                    (1, 3): sp.record(
+                        bias=700 * DECIMALS,
+                        slope=3 * SLOPE_MULTIPLIER,
+                        ts=24 * DAY,
+                    ),
+                },
+            ),
+        )
+
+        scenario += ve
+
+        # Predicted voting power (bias_1) for ts = 19 * DAY
+        ts_1 = 19 * DAY
+        bias_1 = (800 * DECIMALS) - (2 * DAY) * 2
+
+        # Predicted voting power (bias_2) for ts = 22 * DAY
+        ts_2 = 21 * DAY  # rounded ts
+        bias_2 = (800 * DECIMALS) - (2 * DAY) * 4
+
+        # Correct voting powers are received
+        scenario.verify(ve.get_token_voting_power(sp.record(token_id=1, ts=ts_1, time=Types.CURRENT)) == bias_1)
+        scenario.verify(ve.get_token_voting_power(sp.record(token_id=1, ts=ts_2, time=Types.WHOLE_WEEK)) == bias_2)
 
     @sp.add_test(name="get_token_voting_power works for odd number of checkpoints")
     def test():
@@ -1910,6 +2174,126 @@ if __name__ == "__main__":
     # get_total_voting_power
     #########################
 
+    @sp.add_test(name="get_total_voting_power works for one checkpoint")
+    def test():
+        scenario = sp.test_scenario()
+
+        ve = VoteEscrow(
+            gc_index=1,
+            global_checkpoints=sp.big_map(
+                l={
+                    1: sp.record(
+                        bias=1000 * DECIMALS,
+                        slope=5 * SLOPE_MULTIPLIER,
+                        ts=3 * DAY,
+                    ),
+                },
+            ),
+            slope_changes=sp.big_map(
+                l={
+                    7 * DAY: 2 * SLOPE_MULTIPLIER,
+                    14 * DAY: 1 * SLOPE_MULTIPLIER,
+                }
+            ),
+        )
+
+        scenario += ve
+
+        # Predicted global voting power (bias) for ts = 23 * DAY (21 * DAY if rounded)
+        bias = (1000 * DECIMALS) - (4 * DAY * 5) - (WEEK * 3) - (WEEK * 2)
+
+        # Correct voting power is received for ts = 23 * DAY (rounded)
+        scenario.verify(ve.get_total_voting_power(sp.record(ts=23 * DAY, time=Types.WHOLE_WEEK)) == bias)
+
+    @sp.add_test(name="get_total_voting_power works for two checkpoints")
+    def test():
+        scenario = sp.test_scenario()
+
+        ve = VoteEscrow(
+            gc_index=2,
+            global_checkpoints=sp.big_map(
+                l={
+                    1: sp.record(
+                        bias=1000 * DECIMALS,
+                        slope=5 * SLOPE_MULTIPLIER,
+                        ts=3 * DAY,
+                    ),
+                    2: sp.record(
+                        bias=800 * DECIMALS,
+                        slope=2 * SLOPE_MULTIPLIER,
+                        ts=22 * DAY,
+                    ),
+                },
+            ),
+            slope_changes=sp.big_map(
+                l={
+                    7 * DAY: 2 * SLOPE_MULTIPLIER,
+                    14 * DAY: 1 * SLOPE_MULTIPLIER,
+                }
+            ),
+        )
+
+        scenario += ve
+
+        # Predicted global voting power (bias_1) for ts = 23
+        ts_1 = 21 * DAY  # rounded ts
+        bias_1 = (1000 * DECIMALS) - (4 * DAY * 5) - (WEEK * 3) - (WEEK * 2)
+
+        # Predicted global voting power (bias_2) for ts = 23
+        ts_2 = 23 * DAY
+        bias_2 = (800 * DECIMALS) - (2 * DAY)
+
+        # Correct voting powers are received
+        scenario.verify(ve.get_total_voting_power(sp.record(ts=ts_1, time=Types.WHOLE_WEEK)) == bias_1)
+        scenario.verify(ve.get_total_voting_power(sp.record(ts=ts_2, time=Types.CURRENT)) == bias_2)
+
+    @sp.add_test(name="get_total_voting_power works for three checkpoints")
+    def test():
+        scenario = sp.test_scenario()
+
+        ve = VoteEscrow(
+            gc_index=3,
+            global_checkpoints=sp.big_map(
+                l={
+                    1: sp.record(
+                        bias=1000 * DECIMALS,
+                        slope=5 * SLOPE_MULTIPLIER,
+                        ts=3 * DAY,
+                    ),
+                    2: sp.record(
+                        bias=800 * DECIMALS,
+                        slope=2 * SLOPE_MULTIPLIER,
+                        ts=22 * DAY,
+                    ),
+                    3: sp.record(
+                        bias=700 * DECIMALS,
+                        slope=3 * SLOPE_MULTIPLIER,
+                        ts=24 * DAY,
+                    ),
+                },
+            ),
+            slope_changes=sp.big_map(
+                l={
+                    7 * DAY: 2 * SLOPE_MULTIPLIER,
+                    14 * DAY: 1 * SLOPE_MULTIPLIER,
+                }
+            ),
+        )
+
+        scenario += ve
+
+        # Predicted global voting power (bias_1) for ts = 23
+        ts_1 = 21 * DAY  # rounded ts
+        bias_1 = (1000 * DECIMALS) - (4 * DAY * 5) - (WEEK * 3) - (WEEK * 2)
+
+        # Predicted global voting power (bias_2) for ts = 23
+        ts_2 = 23 * DAY
+        bias_2 = (800 * DECIMALS) - (2 * DAY)
+
+        # Correct voting powers are received
+        scenario.verify(ve.get_total_voting_power(sp.record(ts=ts_1, time=Types.WHOLE_WEEK)) == bias_1)
+        scenario.verify(ve.get_total_voting_power(sp.record(ts=ts_2, time=Types.CURRENT)) == bias_2)
+
     @sp.add_test(name="get_total_voting_power works for odd number of global checkpoints")
     def test():
         scenario = sp.test_scenario()
@@ -1964,6 +2348,7 @@ if __name__ == "__main__":
         # Predicted global voting power for ts = 38 * DAY (unrounded)
         bias_unrounded = (900 * DECIMALS) - (2 * DAY * 5)
 
+        # Correct voting powers are received
         scenario.verify(ve.get_total_voting_power(sp.record(ts=23 * DAY, time=Types.WHOLE_WEEK)) == bias_1)
         scenario.verify(ve.get_total_voting_power(sp.record(ts=38 * DAY, time=Types.WHOLE_WEEK)) == bias_2)
         scenario.verify(ve.get_total_voting_power(sp.record(ts=38 * DAY, time=Types.CURRENT)) == bias_unrounded)
@@ -2027,6 +2412,7 @@ if __name__ == "__main__":
         # Predicted global voting power for ts = 38 * DAY (unrounded)
         bias_unrounded = (900 * DECIMALS) - (2 * DAY * 5)
 
+        # Correct voting powers are received
         scenario.verify(ve.get_total_voting_power(sp.record(ts=23 * DAY, time=Types.WHOLE_WEEK)) == bias_1)
         scenario.verify(ve.get_total_voting_power(sp.record(ts=38 * DAY, time=Types.WHOLE_WEEK)) == bias_2)
         scenario.verify(ve.get_total_voting_power(sp.record(ts=38 * DAY, time=Types.CURRENT)) == bias_unrounded)
@@ -2134,6 +2520,7 @@ if __name__ == "__main__":
         # Predicted global voting power (bias_) for ts = 52 * DAY (49 * DAY if rounded)
         bias_ = (800 * DECIMALS) - (2 * DAY * 5) - (WEEK * 3)
 
+        # Correct voting power is received for 52 * DAY
         scenario.verify(ve.get_total_voting_power(sp.record(ts=52 * DAY, time=Types.WHOLE_WEEK)) == bias_)
 
     ###########
@@ -2207,7 +2594,7 @@ if __name__ == "__main__":
                     ): sp.unit
                 },
             ),
-            attached=sp.big_map(l={3: sp.unit}),
+            attached=sp.big_map(l={3: Addresses.CONTRACT}),
         )
 
         scenario += ve
@@ -2250,7 +2637,7 @@ if __name__ == "__main__":
         ).run(
             sender=Addresses.JOHN,
             valid=False,
-            exception=FA2_Errors.FA2_INVALID_AMOUNT,
+            exception=FA2_Errors.FA2_INSUFFICIENT_BALANCE,
         )
 
         # Transfer of amount > balance fails
@@ -2389,6 +2776,71 @@ if __name__ == "__main__":
         scenario += ve.claim_inflation(epochs=[1], token_id=1).run(
             sender=Addresses.ALICE,
             now=sp.timestamp(2 * WEEK + 5),
+        )
+
+        # Storage is updated correctly
+        scenario.verify(ve.data.locks[1].base_value == 140 * DECIMALS)  # Inflation share added to original value
+        scenario.verify(ve.data.locked_supply == 350 * DECIMALS)
+        scenario.verify(ve.data.claim_ledger[sp.record(token_id=1, epoch=1)] == sp.unit)
+
+    @sp.add_test(name="claim_inflation correctly updates the lock value even after lock expiry")
+    def test():
+        scenario = sp.test_scenario()
+
+        voter = Voter(end=sp.timestamp(2 * WEEK))
+
+        # Initialize with dummy values for testing
+        ve = VoteEscrow(
+            voter=voter.address,
+            ledger=sp.big_map(l={(Addresses.ALICE, 1): 1}),
+            locks=sp.big_map(
+                l={
+                    1: sp.record(
+                        base_value=100 * DECIMALS,
+                        end=3 * WEEK,
+                    )
+                }
+            ),
+            num_token_checkpoints=sp.big_map(
+                l={
+                    1: 1,
+                },
+            ),
+            token_checkpoints=sp.big_map(
+                l={
+                    (1, 1): sp.record(
+                        bias=100 * DECIMALS,
+                        slope=5,
+                        ts=WEEK,
+                    )
+                },
+            ),
+            gc_index=1,
+            global_checkpoints=sp.big_map(
+                l={
+                    1: sp.record(
+                        bias=250 * DECIMALS,
+                        slope=7,
+                        ts=WEEK,
+                    )
+                }
+            ),
+            slope_changes=sp.big_map(l={3 * WEEK: 100}),
+            epoch_inflation=sp.big_map(
+                l={
+                    1: 100 * DECIMALS,
+                }
+            ),
+            locked_supply=350 * DECIMALS,
+        )
+
+        scenario += voter
+        scenario += ve
+
+        # When ALICE claims the inflation for her token/lock 1
+        scenario += ve.claim_inflation(epochs=[1], token_id=1).run(
+            sender=Addresses.ALICE,
+            now=sp.timestamp(3 * WEEK + 5),
         )
 
         # Storage is updated correctly
