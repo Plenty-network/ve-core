@@ -189,14 +189,11 @@ class FeeDistributor(sp.Contract):
             key_ = sp.record(amm=params.amm, epoch=epoch_vote_share.epoch)
 
             # Iterate through the two tokens and record cumulative fees
-            with sp.for_("token", self.data.amm_epoch_fee[key_].keys()) as token:
-                total_fees = self.data.amm_epoch_fee[key_][token]
-                voter_fees_share = (total_fees * epoch_vote_share.share) // VOTE_SHARE_MULTIPLIER
-
-                with sp.if_(~token_fees.value.contains(token)):
-                    token_fees.value[token] = sp.nat(0)
-
-                token_fees.value[token] += voter_fees_share
+            amm_epoch_fee = sp.compute(self.data.amm_epoch_fee[key_])
+            with sp.for_("token", amm_epoch_fee.keys()) as token:
+                total_fees = amm_epoch_fee[token]
+                fees_share = token_fees.value.get(token, 0)
+                token_fees.value[token] = fees_share + (total_fees * epoch_vote_share.share)
 
                 # Mark the voter (vePLY token id) as claimed
                 self.data.claim_ledger[
@@ -209,7 +206,7 @@ class FeeDistributor(sp.Contract):
 
         # Iterate through the two tokens and transfer the share to token / lock owner
         with sp.for_("token", token_fees.value.keys()) as token:
-            voter_fees_share = token_fees.value[token]
+            voter_fees_share = token_fees.value[token] // VOTE_SHARE_MULTIPLIER
 
             with token.match_cases() as arg:
                 with arg.match("fa12") as address:
@@ -232,11 +229,8 @@ class FeeDistributor(sp.Contract):
                         )
                     )
                 with arg.match("tez") as _:
-                    sp.send(params.owner, sp.utils.nat_to_mutez(voter_fees_share))
-
-    @sp.entry_point
-    def default(self):
-        pass
+                    with sp.if_(voter_fees_share > 0):
+                        sp.send(params.owner, sp.utils.nat_to_mutez(voter_fees_share))
 
 
 if __name__ == "__main__":
