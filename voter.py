@@ -118,6 +118,8 @@ class Errors:
     SENDER_DOES_NOT_OWN_LOCK = "SENDER_DOES_NOT_OWN_LOCK"
     ZERO_VOTE_NOT_ALLOWED = "ZERO_VOTE_NOT_ALLOWED"
     NOT_ENOUGH_VOTING_POWER_AVAILABLE = "NOT_ENOUGH_VOTING_POWER_AVAILABLE"
+    ENTRYPOINT_DOES_NOT_ACCEPT_TEZ = "ENTRYPOINT_DOES_NOT_ACCEPT_TEZ"
+    CONTRACT_DOES_NOT_ACCEPT_TEZ = "CONTRACT_DOES_NOT_ACCEPT_TEZ"
 
     # Generic
     INVALID_VIEW = "INVALID_VIEW"
@@ -207,11 +209,14 @@ class Voter(sp.Contract):
 
     @sp.entry_point
     def next_epoch(self):
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         with sp.if_(self.data.epoch == 0):
 
             # Calculate timestamp rounded to nearest whole week, based on Unix epoch - 12 AM UTC, Thursday
             now_ = sp.as_nat(sp.now - sp.timestamp(0))
-            ts_ = ((now_ + WEEK) // WEEK) * WEEK
+            ts_ = sp.compute(((now_ + WEEK) // WEEK) * WEEK)
 
             # Set genesis for emission
             self.data.emission.genesis = ts_
@@ -224,29 +229,36 @@ class Voter(sp.Contract):
             sp.verify(sp.now > self.data.epoch_end[self.data.epoch], Errors.PREVIOUS_EPOCH_YET_TO_END)
 
             now_ = sp.as_nat(sp.now - sp.timestamp(0))
-            rounded_now = (now_ // WEEK) * WEEK
+            rounded_now = sp.compute((now_ // WEEK) * WEEK)
 
             # Fetch total supply of PLY
-            ply_total_supply = sp.view(
-                "get_total_supply",
-                self.data.ply_address,
-                sp.unit,
-                sp.TNat,
-            ).open_some(Errors.INVALID_VIEW)
+            ply_total_supply = sp.compute(
+                sp.view(
+                    "get_total_supply",
+                    self.data.ply_address,
+                    sp.unit,
+                    sp.TNat,
+                ).open_some(Errors.INVALID_VIEW)
+            )
 
             # Fetch PLY supply locked up in vote escrow
-            ply_locked_supply = sp.view(
-                "get_locked_supply",
-                self.data.ve_address,
-                sp.unit,
-                sp.TNat,
-            ).open_some(Errors.INVALID_VIEW)
+            ply_locked_supply = sp.compute(
+                sp.view(
+                    "get_locked_supply",
+                    self.data.ve_address,
+                    sp.unit,
+                    sp.TNat,
+                ).open_some(Errors.INVALID_VIEW)
+            )
+
+            # Store as local variable to keep on stack
+            current_emission = sp.compute(self.data.emission)
 
             # Calculate decrease offset based on locked supply ratio
-            emission_offset = (self.data.emission.base * ply_locked_supply) // ply_total_supply
+            emission_offset = (current_emission.base * ply_locked_supply) // ply_total_supply
 
             # Calculate real emission for the epoch that just ended
-            real_emission = sp.as_nat(self.data.emission.base - emission_offset)
+            real_emission = sp.as_nat(current_emission.base - emission_offset)
             self.data.emission.real = real_emission
 
             # Calculate growth due to the emission
@@ -278,10 +290,10 @@ class Voter(sp.Contract):
             )
 
             # Adjust base emission value based on emission drop
-            with sp.if_((rounded_now - self.data.emission.genesis) == (4 * WEEK)):
-                self.data.emission.base = (self.data.emission.base * INITIAL_DROP) // (100 * DROP_GRANULARITY)
-            with sp.if_(((rounded_now - self.data.emission.genesis) % YEAR) == 0):
-                self.data.emission.base = (self.data.emission.base * YEARLY_DROP) // (100 * DROP_GRANULARITY)
+            with sp.if_((rounded_now - current_emission.genesis) == (4 * WEEK)):
+                self.data.emission.base = (current_emission.base * INITIAL_DROP) // (100 * DROP_GRANULARITY)
+            with sp.if_(((rounded_now - current_emission.genesis) % YEAR) == 0):
+                self.data.emission.base = (current_emission.base * YEARLY_DROP) // (100 * DROP_GRANULARITY)
                 with sp.if_(self.data.emission.base < TRAIL_EMISSION):
                     self.data.emission.base = TRAIL_EMISSION
 
@@ -327,13 +339,17 @@ class Voter(sp.Contract):
     def vote(self, params):
         sp.set_type(params, Types.VOTE_PARAMS)
 
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         # Verify that current epoch is not yet over
         sp.verify(sp.now < self.data.epoch_end[self.data.epoch], Errors.EPOCH_ENDED)
 
         # nat version of block timestamp
         now_ = sp.as_nat(sp.now - sp.timestamp(0))
 
-        epoch_ = self.data.epoch
+        # Store as local variable to keep on stack
+        epoch_ = sp.compute(self.data.epoch)
 
         # Get available voting power for the lock / token-id (rounded to previous whole week)
         max_token_voting_power = sp.view(
@@ -369,26 +385,22 @@ class Voter(sp.Contract):
 
             # Re-votes in the same epoch gets added up
             key_ = sp.record(token_id=params.token_id, epoch=epoch_, amm=vote_item.amm)
-            with sp.if_(~self.data.token_amm_votes.contains(key_)):
-                self.data.token_amm_votes[key_] = 0
-            self.data.token_amm_votes[key_] += vote_item.votes
+            votes_ = self.data.token_amm_votes.get(key_, 0)
+            self.data.token_amm_votes[key_] = votes_ + vote_item.votes
 
             # Update total epoch votes for amm
             key_ = sp.record(amm=vote_item.amm, epoch=epoch_)
-            with sp.if_(~self.data.total_amm_votes.contains(key_)):
-                self.data.total_amm_votes[key_] = 0
-            self.data.total_amm_votes[key_] += vote_item.votes
+            votes_ = self.data.total_amm_votes.get(key_, 0)
+            self.data.total_amm_votes[key_] = votes_ + vote_item.votes
 
             # Update total epoch votes for token
             key_ = sp.record(token_id=params.token_id, epoch=epoch_)
-            with sp.if_(~self.data.total_token_votes.contains(key_)):
-                self.data.total_token_votes[key_] = 0
-            self.data.total_token_votes[key_] += vote_item.votes
+            votes_ = self.data.total_token_votes.get(key_, 0)
+            self.data.total_token_votes[key_] = votes_ + vote_item.votes
 
             # Update total epoch votes as a whole
-            with sp.if_(~self.data.total_epoch_votes.contains(epoch_)):
-                self.data.total_epoch_votes[epoch_] = 0
-            self.data.total_epoch_votes[epoch_] += vote_item.votes
+            votes_ = self.data.total_epoch_votes.get(epoch_, 0)
+            self.data.total_epoch_votes[epoch_] = votes_ + vote_item.votes
 
             # Update power used & verify that available voting power of token has not been overshot
             power_available.value = sp.as_nat(
@@ -398,6 +410,9 @@ class Voter(sp.Contract):
     @sp.entry_point
     def claim_bribe(self, params):
         sp.set_type(params, Types.CLAIM_BRIBE_PARAMS)
+
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
 
         # Sanity checks
         sp.verify(self.data.epoch > params.epoch, Errors.INVALID_EPOCH)
@@ -446,6 +461,9 @@ class Voter(sp.Contract):
     @sp.entry_point
     def claim_fee(self, params):
         sp.set_type(params, Types.CLAIM_FEE_PARAMS)
+
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
 
         # Sanity checks
         sp.verify(self.data.amm_to_gauge_bribe.contains(params.amm), Errors.AMM_INVALID_OR_NOT_WHITELISTED)
@@ -501,6 +519,9 @@ class Voter(sp.Contract):
     def pull_amm_fee(self, params):
         sp.set_type(params, sp.TRecord(amm=sp.TAddress, epoch=sp.TNat).layout(("amm", "epoch")))
 
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         # Sanity checks
         sp.verify(self.data.epoch > params.epoch, Errors.INVALID_EPOCH)
         sp.verify(self.data.amm_to_gauge_bribe.contains(params.amm), Errors.AMM_INVALID_OR_NOT_WHITELISTED)
@@ -521,6 +542,9 @@ class Voter(sp.Contract):
     def recharge_gauge(self, params):
         sp.set_type(params, sp.TRecord(amm=sp.TAddress, epoch=sp.TNat).layout(("amm", "epoch")))
 
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         # Sanity checks
         sp.verify(self.data.epoch > params.epoch, Errors.INVALID_EPOCH)
         sp.verify(self.data.amm_to_gauge_bribe.contains(params.amm), Errors.AMM_INVALID_OR_NOT_WHITELISTED)
@@ -531,7 +555,7 @@ class Voter(sp.Contract):
         amm_vote_share = (total_votes_for_amm * VOTE_SHARE_MULTIPLIER) // total_votes_for_epoch
 
         # Calculate recharge amount based on share
-        recharge_amount = (self.data.emission.real * amm_vote_share) // VOTE_SHARE_MULTIPLIER
+        recharge_amount = sp.compute((self.data.emission.real * amm_vote_share) // VOTE_SHARE_MULTIPLIER)
 
         # Mint PLY tokens for the concerned gauge contract
         c = sp.contract(
@@ -585,6 +609,11 @@ class Voter(sp.Contract):
     def get_total_epoch_votes(self, param):
         sp.set_type(param, sp.TNat)
         sp.result(self.data.total_epoch_votes.get(param, 0))
+
+    # Reject tez sent to the contract address
+    @sp.entry_point
+    def default(self):
+        sp.failwith(Errors.CONTRACT_DOES_NOT_ACCEPT_TEZ)
 
 
 if __name__ == "__main__":
@@ -1011,10 +1040,10 @@ if __name__ == "__main__":
         )
 
     ##########################
-    # claim_fees (valid test)
+    # claim_fee (valid test)
     ##########################
 
-    @sp.add_test(name="claim_fees correctly calculates the vote share for one epoch")
+    @sp.add_test(name="claim_fee correctly calculates the vote share for one epoch")
     def test():
         scenario = sp.test_scenario()
 
@@ -1071,7 +1100,7 @@ if __name__ == "__main__":
             ),
         )
 
-    @sp.add_test(name="claim_fees correctly calculates the vote share for multiple epochs")
+    @sp.add_test(name="claim_fee correctly calculates the vote share for multiple epochs")
     def test():
         scenario = sp.test_scenario()
 
@@ -1134,6 +1163,45 @@ if __name__ == "__main__":
                     sp.record(epoch=1, share=int(0.6 * VOTE_SHARE_MULTIPLIER)),
                 ],
             ),
+        )
+
+    ############################
+    # claim_fee (failure test)
+    ############################
+
+    @sp.add_test(name="claim_fee fails if epoch is in the future or amm is not whitelisted")
+    def test():
+        scenario = sp.test_scenario()
+
+        # Initialize dummy vote escrow for ownership checks
+        ve = VE()
+
+        voter = Voter(
+            epoch=1,
+            epoch_end=sp.big_map(l={1: sp.timestamp(10)}),
+            amm_to_gauge_bribe=sp.big_map(
+                l={
+                    Addresses.AMM_1: sp.record(gauge=Addresses.CONTRACT, bribe=Addresses.CONTRACT),
+                }
+            ),
+            ve_address=ve.address,
+        )
+
+        scenario += ve
+        scenario += voter
+
+        # When ALICE tries to call claim_fee for future epoch 2, txn fails
+        scenario += voter.claim_fee(sp.record(token_id=1, epochs=[1, 2], amm=Addresses.AMM_1)).run(
+            sender=Addresses.ALICE,
+            valid=False,
+            exception=Errors.INVALID_EPOCH,
+        )
+
+        # When ALICE tries to call claim_fee for non-whitelisted AMM, txn fails
+        scenario += voter.claim_fee(sp.record(token_id=1, epochs=[1], amm=Addresses.AMM_2)).run(
+            sender=Addresses.ALICE,
+            valid=False,
+            exception=Errors.AMM_INVALID_OR_NOT_WHITELISTED,
         )
 
     ###########################
@@ -1201,8 +1269,6 @@ if __name__ == "__main__":
     #############################
     # claim_bribe (failure test)
     #############################
-
-    # NOTE: This failure test is also accepted for claim_fee, recharge_gauge and pull_amm_fee
 
     @sp.add_test(name="claim_bribe fails if epoch is in the future or amm is not whitelisted")
     def test():
@@ -1292,6 +1358,74 @@ if __name__ == "__main__":
 
         # PLY tokens are minted correctly for gauge
         scenario.verify(ply_token.data.balances[gauge.address].balance == 1_000_000 * DECIMALS)
+
+    ################################
+    # recharge_gauge (failure test)
+    ################################
+
+    @sp.add_test(name="recharge_gauge fails if epoch is in the future or amm is not whitelisted")
+    def test():
+        scenario = sp.test_scenario()
+
+        voter = Voter(
+            epoch=1,
+            epoch_end=sp.big_map(l={1: sp.timestamp(10)}),
+            amm_to_gauge_bribe=sp.big_map(
+                l={
+                    Addresses.AMM_1: sp.record(gauge=Addresses.CONTRACT, bribe=Addresses.CONTRACT),
+                }
+            ),
+        )
+
+        scenario += voter
+
+        # When ALICE tries to call recharge_gauge for future epoch 2, txn fails
+        scenario += voter.recharge_gauge(epoch=2, amm=Addresses.AMM_1).run(
+            sender=Addresses.ALICE,
+            valid=False,
+            exception=Errors.INVALID_EPOCH,
+        )
+
+        # When ALICE tries to call recharge_gauge for non-whitelisted AMM, txn fails
+        scenario += voter.recharge_gauge(epoch=0, amm=Addresses.AMM_2).run(
+            sender=Addresses.ALICE,
+            valid=False,
+            exception=Errors.AMM_INVALID_OR_NOT_WHITELISTED,
+        )
+
+    ##############################
+    # pull_amm_fee (failure test)
+    ##############################
+
+    @sp.add_test(name="pull_amm_fee fails if epoch is in the future or amm is not whitelisted")
+    def test():
+        scenario = sp.test_scenario()
+
+        voter = Voter(
+            epoch=1,
+            epoch_end=sp.big_map(l={1: sp.timestamp(10)}),
+            amm_to_gauge_bribe=sp.big_map(
+                l={
+                    Addresses.AMM_1: sp.record(gauge=Addresses.CONTRACT, bribe=Addresses.CONTRACT),
+                }
+            ),
+        )
+
+        scenario += voter
+
+        # When ALICE tries to call pull_amm_fee for future epoch 2, txn fails
+        scenario += voter.pull_amm_fee(epoch=2, amm=Addresses.AMM_1).run(
+            sender=Addresses.ALICE,
+            valid=False,
+            exception=Errors.INVALID_EPOCH,
+        )
+
+        # When ALICE tries to call pull_amm_fee for non-whitelisted AMM, txn fails
+        scenario += voter.pull_amm_fee(epoch=0, amm=Addresses.AMM_2).run(
+            sender=Addresses.ALICE,
+            valid=False,
+            exception=Errors.AMM_INVALID_OR_NOT_WHITELISTED,
+        )
 
     ####################
     # onchain_view test
