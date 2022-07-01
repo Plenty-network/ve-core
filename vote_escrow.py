@@ -524,7 +524,7 @@ class VoteEscrow(sp.Contract):
         # TODO: to be replaced with real IPFS data
         self.data.token_metadata[uid] = sp.record(
             token_id=uid,
-            token_info={"": sp.bytes("ipfs://")},
+            token_info={"": sp.utils.bytes_of_string("ipfs://")},
         )
 
         # Retrieve base token to self address
@@ -1066,10 +1066,10 @@ if __name__ == "__main__":
         ve = VoteEscrow()
         scenario += ve
 
-        # When ALICE create a lock with ending before current time, the txn fails
+        # When ALICE sends tez to the entrypoint, the txn fails
         scenario += ve.create_lock(user_address=Addresses.ALICE, base_value=1000 * DECIMALS, end=2 * YEAR,).run(
             sender=Addresses.ALICE,
-            amount=sp.tez(0),
+            amount=sp.tez(1),
             now=sp.timestamp(3 * YEAR),
             valid=False,
             exception=Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ,
