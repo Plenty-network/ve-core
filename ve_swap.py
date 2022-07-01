@@ -34,6 +34,8 @@ class Errors:
     SWAP_YET_TO_BEGIN = "SWAP_YET_TO_BEGIN"
     NOTHING_TO_CLAIM = "NOTHING_TO_CLAIM"
     CLAIMING_BEFORE_24_HOURS = "CLAIMING_BEFORE_24_HOURS"
+    ENTRYPOINT_DOES_NOT_ACCEPT_TEZ = "ENTRYPOINT_DOES_NOT_ACCEPT_TEZ"
+    CONTRACT_DOES_NOT_ACCEPT_TEZ = "CONTRACT_DOES_NOT_ACCEPT_TEZ"
 
 
 ###########
@@ -142,6 +144,9 @@ class VESwap(sp.Contract):
     def exchange(self, params):
         sp.set_type(params, sp.TRecord(token=sp.TNat, value=sp.TNat))
 
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         # Verify that timing is correct
         sp.verify(sp.now >= self.data.genesis, Errors.SWAP_YET_TO_BEGIN)
 
@@ -189,6 +194,9 @@ class VESwap(sp.Contract):
     @sp.entry_point
     def claim(self):
 
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         # Sanity checks
         sp.verify(sp.now >= self.data.genesis, Errors.SWAP_YET_TO_BEGIN)
         sp.verify(self.data.ledger.contains(sp.sender), Errors.NOTHING_TO_CLAIM)
@@ -216,6 +224,11 @@ class VESwap(sp.Contract):
 
         # Reset vested amount
         self.data.ledger[sp.sender].vested = sp.nat(0)
+
+    # Reject tez sent to the contract address
+    @sp.entry_point
+    def default(self):
+        sp.failwith(Errors.CONTRACT_DOES_NOT_ACCEPT_TEZ)
 
 
 if __name__ == "__main__":

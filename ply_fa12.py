@@ -23,6 +23,11 @@ CONTRACT_METADATA = {
 }
 
 
+class Errors:
+    ENTRYPOINT_DOES_NOT_ACCEPT_TEZ = "ENTRYPOINT_DOES_NOT_ACCEPT_TEZ"
+    CONTRACT_DOES_NOT_ACCEPT_TEZ = "CONTRACT_DOES_NOT_ACCEPT_TEZ"
+
+
 class FA12_Error:
     def make(s):
         return "FA1.2_" + s
@@ -67,6 +72,9 @@ class FA12_core(sp.Contract, FA12_common):
             FA12_Error.NotAllowed,
         )
 
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         self.addAddressIfNecessary(params.from_)
         self.addAddressIfNecessary(params.to_)
         sp.verify(self.data.balances[params.from_].balance >= params.value, FA12_Error.InsufficientBalance)
@@ -80,6 +88,8 @@ class FA12_core(sp.Contract, FA12_common):
 
     @sp.entry_point
     def approve(self, params):
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
         sp.set_type(params, sp.TRecord(spender=sp.TAddress, value=sp.TNat).layout(("spender", "value")))
         self.addAddressIfNecessary(sp.sender)
         alreadyApproved = self.data.balances[sp.sender].approvals.get(params.spender, 0)
@@ -164,6 +174,11 @@ class FA12_token_metadata(FA12_core):
 class FA12_contract_metadata(FA12_core):
     def set_contract_metadata(self, metadata):
         self.update_initial_storage(metadata=sp.big_map(self.normalize_metadata(metadata)))
+
+    # Reject tez sent to the contract address
+    @sp.entry_point
+    def default(self):
+        sp.failwith(Errors.CONTRACT_DOES_NOT_ACCEPT_TEZ)
 
 
 class FA12(

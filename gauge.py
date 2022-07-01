@@ -38,6 +38,8 @@ class Errors:
     ZERO_STAKE_NOT_ALLOWED = "ZERO_STAKE_NOT_ALLOWED"
     NO_STAKE_TO_WITHDRAW = "NO_STAKE_TO_WITHDRAW"
     ALREADY_RECHARGED_FOR_EPOCH = "ALREADY_RECHARGED_FOR_EPOCH"
+    ENTRYPOINT_DOES_NOT_ACCEPT_TEZ = "ENTRYPOINT_DOES_NOT_ACCEPT_TEZ"
+    CONTRACT_DOES_NOT_ACCEPT_TEZ = "CONTRACT_DOES_NOT_ACCEPT_TEZ"
 
     # Generic
     INVALID_VIEW = "INVALID_VIEW"
@@ -219,6 +221,9 @@ class Gauge(sp.Contract):
             sp.TRecord(amount=sp.TNat, token_id=sp.TNat),
         )
 
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         # Update global and user specific reward metrics
         self.update_reward(sp.sender)
 
@@ -288,6 +293,9 @@ class Gauge(sp.Contract):
     def withdraw(self, amount):
         sp.set_type(amount, sp.TNat)
 
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         # Verify that withdrawal amount is non zero
         sp.verify(amount > 0, Errors.ZERO_WITHDRAWAL_NOT_ALLOWED)
 
@@ -338,6 +346,9 @@ class Gauge(sp.Contract):
         # Update global and user specific reward metrics
         self.update_reward(sp.sender)
 
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         # If there is a non-zero reward to withdraw for the sender
         with sp.if_(self.data.rewards[sp.sender] != 0):
             # Transfer rewards to the user
@@ -356,6 +367,9 @@ class Gauge(sp.Contract):
     @sp.entry_point
     def recharge(self, params):
         sp.set_type(params, sp.TRecord(amount=sp.TNat, epoch=sp.TNat))
+
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
 
         # Verify that the voter is the sender
         sp.verify(sp.sender == self.data.voter, Errors.NOT_AUTHORISED)
@@ -392,6 +406,11 @@ class Gauge(sp.Contract):
 
         # Mark recharged for the epoch
         self.data.recharge_ledger[params.epoch] = sp.unit
+
+    # Reject tez sent to the contract address
+    @sp.entry_point
+    def default(self):
+        sp.failwith(Errors.CONTRACT_DOES_NOT_ACCEPT_TEZ)
 
 
 if __name__ == "__main__":
