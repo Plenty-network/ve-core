@@ -428,35 +428,58 @@ class Voter(sp.Contract):
         sp.verify(is_owner, Errors.SENDER_DOES_NOT_OWN_LOCK)
 
         # Calculate vote share for the vePLY token
-        token_votes_for_amm = self.data.token_amm_votes[
-            sp.record(token_id=params.token_id, epoch=params.epoch, amm=params.amm)
-        ]
-        total_votes_for_amm = self.data.total_amm_votes[sp.record(epoch=params.epoch, amm=params.amm)]
-
-        token_vote_share = (token_votes_for_amm * VOTE_SHARE_MULTIPLIER) // total_votes_for_amm
-
-        # call the 'claim' entrypoint in bribe contract
-        param_type = sp.TRecord(
-            token_id=sp.TNat,
-            owner=sp.TAddress,
-            epoch=sp.TNat,
-            bribe_id=sp.TNat,
-            vote_share=sp.TNat,
-        ).layout(("token_id", ("owner", ("epoch", ("bribe_id", "vote_share")))))
-
-        c = sp.contract(param_type, self.data.amm_to_gauge_bribe[params.amm].bribe, "claim").open_some()
-
-        sp.transfer(
-            sp.record(
-                token_id=params.token_id,
-                owner=sp.sender,
-                epoch=params.epoch,
-                bribe_id=params.bribe_id,
-                vote_share=token_vote_share,
-            ),
-            sp.tez(0),
-            c,
+        token_votes_for_amm = self.data.token_amm_votes.get(
+            sp.record(token_id=params.token_id, epoch=params.epoch, amm=params.amm),
+            0,
         )
+
+        total_votes_for_amm = sp.compute(
+            self.data.total_amm_votes.get(
+                sp.record(epoch=params.epoch, amm=params.amm),
+                0,
+            )
+        )
+
+        with sp.if_(total_votes_for_amm > 0):
+            token_vote_share = (token_votes_for_amm * VOTE_SHARE_MULTIPLIER) // total_votes_for_amm
+
+            # call the 'claim' entrypoint in bribe contract
+            param_type = sp.TRecord(
+                token_id=sp.TNat,
+                owner=sp.TAddress,
+                epoch=sp.TNat,
+                bribe_id=sp.TNat,
+                vote_share=sp.TNat,
+            ).layout(("token_id", ("owner", ("epoch", ("bribe_id", "vote_share")))))
+
+            c = sp.contract(param_type, self.data.amm_to_gauge_bribe[params.amm].bribe, "claim").open_some()
+
+            sp.transfer(
+                sp.record(
+                    token_id=params.token_id,
+                    owner=sp.sender,
+                    epoch=params.epoch,
+                    bribe_id=params.bribe_id,
+                    vote_share=token_vote_share,
+                ),
+                sp.tez(0),
+                c,
+            )
+        with sp.else_():
+            # Retutn the bribe to the provider is no votes received by the AMM
+            c = sp.contract(
+                sp.TRecord(epoch=sp.TNat, bribe_id=sp.TNat),
+                self.data.amm_to_gauge_bribe[params.amm].bribe,
+                "return_bribe",
+            ).open_some()
+            sp.transfer(
+                sp.record(
+                    epoch=params.epoch,
+                    bribe_id=params.bribe_id,
+                ),
+                sp.tez(0),
+                c,
+            )
 
     @sp.entry_point
     def claim_fee(self, params):
@@ -1265,6 +1288,45 @@ if __name__ == "__main__":
                 vote_share=int(0.6 * VOTE_SHARE_MULTIPLIER),
             )
         )
+
+    @sp.add_test(name="claim_bribe calls return_bribe when total votes for the amm is zero")
+    def test():
+        scenario = sp.test_scenario()
+
+        # Initialize dummy vote escrow for ownership checks
+        ve = VE()
+
+        # Initialize a dummy bribe contract and set it in the voter for AMM_1
+        bribe = GaugeBribe()
+
+        # Initialize with no votes for epoch 1
+        voter = Voter(
+            epoch=2,
+            epoch_end=sp.big_map(l={2: sp.timestamp(10)}),
+            amm_to_gauge_bribe=sp.big_map(
+                l={
+                    Addresses.AMM_1: sp.record(gauge=Addresses.CONTRACT, bribe=bribe.address),
+                }
+            ),
+            ve_address=ve.address,
+        )
+
+        scenario += ve
+        scenario += bribe
+        scenario += voter
+
+        # When ALICE calls claim_bribe for epoch 1 votes
+        scenario += voter.claim_bribe(
+            sp.record(
+                token_id=1,
+                epoch=1,
+                amm=Addresses.AMM_1,
+                bribe_id=1,
+            )
+        ).run(sender=Addresses.ALICE)
+
+        # return_bribe is executed in the bribe contract
+        scenario.verify(bribe.data.return_val.open_some() == sp.record(epoch=1, bribe_id=1))
 
     #############################
     # claim_bribe (failure test)
