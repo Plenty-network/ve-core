@@ -234,7 +234,7 @@ class Voter(sp.Contract):
 
             # Calculate growth due to the emission
             growth = (real_emission * PRECISION) // ply_total_supply
-            lockers_inflation = (growth * ply_locked_supply) // PRECISION
+            lockers_inflation = sp.compute((growth * ply_locked_supply) // PRECISION)
 
             # Mint required number of PLY tokens (lockers inflation) for VoteEscrow
             c = sp.contract(
@@ -890,11 +890,13 @@ if __name__ == "__main__":
         scenario.verify(voter.data.epoch == 6)
         scenario.verify(voter.data.epoch_end[6] == sp.timestamp(7 * WEEK))
 
+        # Predicted values
         emission_offset = ((INITIAL_EMISSION * 1_000_000 * DECIMALS) // (4_000_000 * DECIMALS)) // EMISSION_FACTOR
         real_emission = INITIAL_EMISSION - emission_offset
+        base_emission = (INITIAL_EMISSION * INITIAL_DROP) // (100 * DROP_GRANULARITY)
 
         # Emission values are updated correctly
-        scenario.verify(voter.data.emission.base == 700_000 * DECIMALS)
+        scenario.verify(voter.data.emission.base == base_emission)
         scenario.verify(voter.data.emission.real == real_emission)
 
         # Predicted locker inflation
@@ -911,11 +913,12 @@ if __name__ == "__main__":
         scenario.verify(voter.data.epoch == 7)
         scenario.verify(voter.data.epoch_end[7] == sp.timestamp(8 * WEEK))
 
-        emission_offset = ((700_000 * DECIMALS * 1_000_000 * DECIMALS) // (4_000_000 * DECIMALS)) // EMISSION_FACTOR
-        real_emission = (700_000 * DECIMALS) - emission_offset
+        # Predicted values
+        emission_offset = ((base_emission * 1_000_000 * DECIMALS) // (4_000_000 * DECIMALS)) // EMISSION_FACTOR
+        real_emission = base_emission - emission_offset
 
         # Emission values are updated correctly
-        scenario.verify(voter.data.emission.base == 700_000 * DECIMALS)
+        scenario.verify(voter.data.emission.base == base_emission)
         scenario.verify(voter.data.emission.real == real_emission)
 
         # Predicted locker inflation
@@ -958,11 +961,13 @@ if __name__ == "__main__":
         scenario.verify(voter.data.epoch == 54)
         scenario.verify(voter.data.epoch_end[54] == sp.timestamp(55 * WEEK))
 
+        # Predicted values
         emission_offset = ((700_000 * DECIMALS * 1_000_000 * DECIMALS) // (4_000_000 * DECIMALS)) // EMISSION_FACTOR
         real_emission = (700_000 * DECIMALS) - emission_offset
+        base_emission = (700_000 * DECIMALS * YEARLY_DROP) // (100 * DROP_GRANULARITY)
 
         # Emission values are updated correctly
-        scenario.verify(voter.data.emission.base == 385_000 * DECIMALS)
+        scenario.verify(voter.data.emission.base == base_emission)
         scenario.verify(voter.data.emission.real == real_emission)
 
         # Predicted locker inflation
@@ -982,11 +987,13 @@ if __name__ == "__main__":
         # Initialize Ply token with total supply 400
         ply = Ply(total_supply=sp.nat(4_000_000 * DECIMALS))
 
+        base_emission = TRAIL_EMISSION + 5_000 * DECIMALS
+
         voter = Voter(
             epoch=53,
             epoch_end=sp.big_map(l={53: sp.timestamp(54 * WEEK)}),
             emission=sp.record(
-                base=15_000 * DECIMALS,
+                base=base_emission,
                 real=sp.nat(0),
                 genesis=2 * WEEK,
             ),
@@ -1005,11 +1012,12 @@ if __name__ == "__main__":
         scenario.verify(voter.data.epoch == 54)
         scenario.verify(voter.data.epoch_end[54] == sp.timestamp(55 * WEEK))
 
-        emission_offset = ((15_000 * DECIMALS * 1_000_000 * DECIMALS) // (4_000_000 * DECIMALS)) // EMISSION_FACTOR
-        real_emission = (15_000 * DECIMALS) - emission_offset
+        emission_offset = ((base_emission * 1_000_000 * DECIMALS) // (4_000_000 * DECIMALS)) // EMISSION_FACTOR
+        real_emission = (base_emission) - emission_offset
+        base_emission = (base_emission * YEARLY_DROP) // (100 * DROP_GRANULARITY)
 
         # Emission values are updated correctly
-        scenario.verify(voter.data.emission.base == 10_000 * DECIMALS)
+        scenario.verify(voter.data.emission.base == TRAIL_EMISSION)
         scenario.verify(voter.data.emission.real == real_emission)
 
         # Predicted locker inflation
