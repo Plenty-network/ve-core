@@ -11,7 +11,7 @@ interface VEStorageParams {
 }
 
 export const getVEStorage = (params: VEStorageParams): string => {
-  return `(Pair (Pair (Pair {} (Pair "${params.baseToken}" {})) (Pair (Pair {} 0) (Pair {} {}))) (Pair (Pair (Pair 0 {}) (Pair {} {})) (Pair (Pair {} {}) (Pair 0 "tz1RBkXZSiQb3fS7Sg3zbFdPMBFPJUNHdcFo"))))`;
+  return `(Pair (Pair (Pair (Pair {} "${params.baseToken}") (Pair {} {})) (Pair (Pair 0 {}) (Pair {} 0))) (Pair (Pair (Pair {} {}) (Pair {} {})) (Pair (Pair {} {}) (Pair 0 "tz1RBkXZSiQb3fS7Sg3zbFdPMBFPJUNHdcFo"))))`;
 };
 
 interface VoterStorageParams {
@@ -31,7 +31,7 @@ interface FactoryStorageParams {
 }
 
 export const getFactoryStorage = (params: FactoryStorageParams): string => {
-  return `(Pair (Pair "${params.admin}" (Pair {} "tz1RBkXZSiQb3fS7Sg3zbFdPMBFPJUNHdcFo")) (Pair "${params.plyAddress}" (Pair "${params.veAddress}" "${params.voterAddress}")))`;
+  return `(Pair (Pair (Pair "${params.admin}" {}) (Pair "tz1RBkXZSiQb3fS7Sg3zbFdPMBFPJUNHdcFo" "${params.plyAddress}")) (Pair (Pair None None) (Pair "${params.admin}" (Pair "${params.veAddress}" "${params.voterAddress}"))))`;
 };
 
 interface FeeDistributorStorageParams {

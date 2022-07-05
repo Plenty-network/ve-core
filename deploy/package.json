@@ -5,7 +5,7 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "deploy:testnet": "ts-node ./src/index.ts ithacanet"
+    "deploy": "ts-node ./src/index.ts"
   },
   "dependencies": {
     "@taquito/signer": "^12.0.0",
