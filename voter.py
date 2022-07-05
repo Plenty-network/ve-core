@@ -314,7 +314,7 @@ class Voter(sp.Contract):
         sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
 
         # Verify that current epoch is not yet over
-        sp.verify(sp.now < self.data.epoch_end[self.data.epoch], Errors.EPOCH_ENDED)
+        sp.verify(sp.now <= self.data.epoch_end[self.data.epoch], Errors.EPOCH_ENDED)
 
         # nat version of block timestamp
         now_ = sp.as_nat(sp.now - sp.timestamp(0))

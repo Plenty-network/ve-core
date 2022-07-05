@@ -1313,7 +1313,7 @@ code
                         FAILWITH;   # FAILED
                       }; # @parameter%vote : @storage
                     SWAP;       # @storage : @parameter%vote
-                    # sp.verify(sp.now < self.data.epoch_end[self.data.epoch], 'EPOCH_ENDED') # @storage : @parameter%vote
+                    # sp.verify(sp.now <= self.data.epoch_end[self.data.epoch], 'EPOCH_ENDED') # @storage : @parameter%vote
                     DUP;        # @storage : @storage : @parameter%vote
                     CAR;        # pair (pair (big_map %amm_to_gauge_bribe address (pair (address %gauge) (address %bribe))) (pair (address %core_factory) (pair %emission (nat %base) (pair (nat %genesis) (nat %real))))) (pair (nat %epoch) (pair (big_map %epoch_end nat timestamp) (address %fee_distributor))) : @storage : @parameter%vote
                     GET 5;      # big_map nat timestamp : @storage : @parameter%vote
@@ -1331,7 +1331,7 @@ code
                       {}; # @some : @parameter%vote : @storage
                     NOW;        # @now : @some : @parameter%vote : @storage
                     COMPARE;    # int : @parameter%vote : @storage
-                    LT;         # bool : @parameter%vote : @storage
+                    LE;         # bool : @parameter%vote : @storage
                     IF
                       {}
                       {
