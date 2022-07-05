@@ -39,6 +39,9 @@ INITIAL_DROP = 35 * DROP_GRANULARITY  # Percentage with granularity
 # Emission drop after every one year
 YEARLY_DROP = 55 * DROP_GRANULARITY  # Percentage with granularity
 
+# A factor to relax the reduction of emissions
+EMISSION_FACTOR = 5
+
 ########
 # Types
 ########
@@ -255,7 +258,7 @@ class Voter(sp.Contract):
             current_emission = sp.compute(self.data.emission)
 
             # Calculate decrease offset based on locked supply ratio
-            emission_offset = (current_emission.base * ply_locked_supply) // ply_total_supply
+            emission_offset = ((current_emission.base * ply_locked_supply) // ply_total_supply) // EMISSION_FACTOR
 
             # Calculate real emission for the epoch that just ended
             real_emission = sp.as_nat(current_emission.base - emission_offset)
@@ -919,12 +922,15 @@ if __name__ == "__main__":
         scenario.verify(voter.data.epoch == 6)
         scenario.verify(voter.data.epoch_end[6] == sp.timestamp(7 * WEEK))
 
+        emission_offset = ((INITIAL_EMISSION * 1_000_000 * DECIMALS) // (4_000_000 * DECIMALS)) // EMISSION_FACTOR
+        real_emission = INITIAL_EMISSION - emission_offset
+
         # Emission values are updated correctly
         scenario.verify(voter.data.emission.base == 700_000 * DECIMALS)
-        scenario.verify(voter.data.emission.real == 1_500_000 * DECIMALS)
+        scenario.verify(voter.data.emission.real == real_emission)
 
         # Predicted locker inflation
-        growth = (1_500_000 * DECIMALS * PRECISION) // (4_000_000 * DECIMALS)
+        growth = (real_emission * PRECISION) // (4_000_000 * DECIMALS)
         locker_inflation = (1_000_000 * DECIMALS * growth) // PRECISION
 
         # Correct inflation is record
@@ -937,12 +943,15 @@ if __name__ == "__main__":
         scenario.verify(voter.data.epoch == 7)
         scenario.verify(voter.data.epoch_end[7] == sp.timestamp(8 * WEEK))
 
+        emission_offset = ((700_000 * DECIMALS * 1_000_000 * DECIMALS) // (4_000_000 * DECIMALS)) // EMISSION_FACTOR
+        real_emission = (700_000 * DECIMALS) - emission_offset
+
         # Emission values are updated correctly
         scenario.verify(voter.data.emission.base == 700_000 * DECIMALS)
-        scenario.verify(voter.data.emission.real == 525_000 * DECIMALS)
+        scenario.verify(voter.data.emission.real == real_emission)
 
         # Predicted locker inflation
-        growth = (525_000 * DECIMALS * PRECISION) // (4_000_000 * DECIMALS)
+        growth = (real_emission * PRECISION) // (4_000_000 * DECIMALS)
         locker_inflation = (1_000_000 * DECIMALS * growth) // PRECISION
 
         # Correct inflation is record
@@ -981,12 +990,15 @@ if __name__ == "__main__":
         scenario.verify(voter.data.epoch == 54)
         scenario.verify(voter.data.epoch_end[54] == sp.timestamp(55 * WEEK))
 
+        emission_offset = ((700_000 * DECIMALS * 1_000_000 * DECIMALS) // (4_000_000 * DECIMALS)) // EMISSION_FACTOR
+        real_emission = (700_000 * DECIMALS) - emission_offset
+
         # Emission values are updated correctly
         scenario.verify(voter.data.emission.base == 385_000 * DECIMALS)
-        scenario.verify(voter.data.emission.real == 525_000 * DECIMALS)
+        scenario.verify(voter.data.emission.real == real_emission)
 
         # Predicted locker inflation
-        growth = (525_000 * DECIMALS * PRECISION) // (4_000_000 * DECIMALS)
+        growth = (real_emission * PRECISION) // (4_000_000 * DECIMALS)
         locker_inflation = (1_000_000 * DECIMALS * growth) // PRECISION
 
         # Correct inflation is record
@@ -1025,12 +1037,15 @@ if __name__ == "__main__":
         scenario.verify(voter.data.epoch == 54)
         scenario.verify(voter.data.epoch_end[54] == sp.timestamp(55 * WEEK))
 
+        emission_offset = ((15_000 * DECIMALS * 1_000_000 * DECIMALS) // (4_000_000 * DECIMALS)) // EMISSION_FACTOR
+        real_emission = (15_000 * DECIMALS) - emission_offset
+
         # Emission values are updated correctly
         scenario.verify(voter.data.emission.base == 10_000 * DECIMALS)
-        scenario.verify(voter.data.emission.real == 11_250 * DECIMALS)
+        scenario.verify(voter.data.emission.real == real_emission)
 
         # Predicted locker inflation
-        growth = (11_250 * DECIMALS * PRECISION) // (4_000_000 * DECIMALS)
+        growth = (real_emission * PRECISION) // (4_000_000 * DECIMALS)
         locker_inflation = (1_000_000 * DECIMALS * growth) // PRECISION
 
         # Correct inflation is record
