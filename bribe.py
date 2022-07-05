@@ -163,6 +163,9 @@ class Bribe(sp.Contract):
     def claim(self, params):
         sp.set_type(params, Types.CLAIM_PARAMS)
 
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         # Sanity checks
         sp.verify(sp.sender == self.data.voter, Errors.NOT_AUTHORISED)
         sp.verify(
@@ -242,6 +245,11 @@ class Bribe(sp.Contract):
                 sp.send(epoch_bribe.provider, sp.utils.nat_to_mutez(epoch_bribe.bribe.value))
 
         self.data.epoch_bribes[params].bribe.value = sp.nat(0)
+
+    # Reject tez sent to the contract address
+    @sp.entry_point
+    def default(self):
+        sp.failwith(Errors.CONTRACT_DOES_NOT_ACCEPT_TEZ)
 
 
 if __name__ == "__main__":
