@@ -1,46 +1,35 @@
 import smartpy as sp
 
-Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
-VE = sp.io.import_script_from_url("file:helpers/dummy/ve.py").VE
-Ply = sp.io.import_script_from_url("file:helpers/dummy/ply.py").Ply
-TokenUtils = sp.io.import_script_from_url("file:utils/token.py")
+Errors = sp.io.import_script_from_url("file:utils/errors.py")
 FA12 = sp.io.import_script_from_url("file:ply_fa12.py").FA12
-GaugeBribe = sp.io.import_script_from_url("file:helpers/dummy/gauge_bribe.py").GaugeBribe
+TokenUtils = sp.io.import_script_from_url("file:utils/token.py")
+VE = sp.io.import_script_from_url("file:helpers/dummy/ve.py").VE
+Constants = sp.io.import_script_from_url("file:utils/constants.py")
+Ply = sp.io.import_script_from_url("file:helpers/dummy/ply.py").Ply
+Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
 FeeDist = sp.io.import_script_from_url("file:helpers/dummy/fee_dist.py").FeeDist
+GaugeBribe = sp.io.import_script_from_url("file:helpers/dummy/gauge_bribe.py").GaugeBribe
+
 
 ############
 # Constants
 ############
 
-DECIMALS = PRECISION = 10 ** 18
 
-DAY = 86400
-WEEK = 7 * DAY
-YEAR = 52 * WEEK
-MAX_TIME = 4 * YEAR
+DAY = Constants.DAY
+WEEK = Constants.WEEK
+YEAR = Constants.YEAR
+MAX_TIME = Constants.MAX_TIME
+DECIMALS = Constants.DECIMALS
+PRECISION = Constants.PRECISION
+YEARLY_DROP = Constants.YEARLY_DROP
+INITIAL_DROP = Constants.INITIAL_DROP
+TRAIL_EMISSION = Constants.TRAIL_EMISSION
+EMISSION_FACTOR = Constants.EMISSION_FACTOR
+INITIAL_EMISSION = Constants.INITIAL_EMISSION
+DROP_GRANULARITY = Constants.DROP_GRANULARITY
+VOTE_SHARE_MULTIPLIER = Constants.VOTE_SHARE_MULTIPLIER
 
-VOTE_SHARE_MULTIPLIER = 10 ** 18
-
-# NOTE: Emission values here are only for testing. Values in the system deployed on the mainnet can be different.
-
-# Initial weekly ply emission in number of tokens
-INITIAL_EMISSION = 2_000_000 * DECIMALS
-
-# Long term fixed trailing emission rate
-TRAIL_EMISSION = 10_000 * DECIMALS
-
-# The precision multiplier for drop percentages
-DROP_GRANULARITY = 1_000_000
-
-# Emission drop after the high initial rate for 4 weeks (period may change)
-# This implies emission drops to 35% of the initial value
-INITIAL_DROP = 35 * DROP_GRANULARITY  # Percentage with granularity
-
-# Emission drop after every one year
-YEARLY_DROP = 55 * DROP_GRANULARITY  # Percentage with granularity
-
-# A factor to relax the reduction of emissions
-EMISSION_FACTOR = 5
 
 ########
 # Types
@@ -106,27 +95,6 @@ class Types:
     # Enumeration for voting power readers
     CURRENT = sp.nat(0)
     WHOLE_WEEK = sp.nat(1)
-
-
-#########
-# Errors
-#########
-
-
-class Errors:
-    EPOCH_ENDED = "EPOCH_ENDED"
-    PREVIOUS_EPOCH_YET_TO_END = "PREVIOUS_EPOCH_YET_TO_END"
-    INVALID_EPOCH = "INVALID_EPOCH"
-    AMM_INVALID_OR_NOT_WHITELISTED = "AMM_INVALID_OR_NOT_WHITELISTED"
-    SENDER_DOES_NOT_OWN_LOCK = "SENDER_DOES_NOT_OWN_LOCK"
-    ZERO_VOTE_NOT_ALLOWED = "ZERO_VOTE_NOT_ALLOWED"
-    NOT_ENOUGH_VOTING_POWER_AVAILABLE = "NOT_ENOUGH_VOTING_POWER_AVAILABLE"
-    ENTRYPOINT_DOES_NOT_ACCEPT_TEZ = "ENTRYPOINT_DOES_NOT_ACCEPT_TEZ"
-    CONTRACT_DOES_NOT_ACCEPT_TEZ = "CONTRACT_DOES_NOT_ACCEPT_TEZ"
-
-    # Generic
-    INVALID_VIEW = "INVALID_VIEW"
-    NOT_AUTHORISED = "NOT_AUTHORISED"
 
 
 ###########

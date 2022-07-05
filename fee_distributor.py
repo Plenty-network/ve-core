@@ -1,16 +1,19 @@
 import smartpy as sp
 
-Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
+Errors = sp.io.import_script_from_url("file:utils/errors.py")
 TokenUtils = sp.io.import_script_from_url("file:utils/token.py")
-FA12 = sp.io.import_script_from_url("file:helpers/tokens/fa12.py").FA12
 FA2 = sp.io.import_script_from_url("file:helpers/tokens/fa2.py")
+Constants = sp.io.import_script_from_url("file:utils/constants.py")
+Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
 Pure = sp.io.import_script_from_url("file:helpers/dummy/pure.py").Pure
+FA12 = sp.io.import_script_from_url("file:helpers/tokens/fa12.py").FA12
+
 
 ############
 # Constants
 ############
 
-VOTE_SHARE_MULTIPLIER = 10 ** 18
+VOTE_SHARE_MULTIPLIER = Constants.VOTE_SHARE_MULTIPLIER
 
 ########
 # Types
@@ -61,24 +64,6 @@ class Types:
         amm=sp.TAddress,
         epoch_vote_shares=sp.TList(sp.TRecord(epoch=sp.TNat, share=sp.TNat)),
     ).layout(("token_id", ("owner", ("amm", "epoch_vote_shares"))))
-
-
-#########
-# Errors
-#########
-
-
-class Errors:
-    AMM_INVALID_OR_NOT_WHITELISTED = "AMM_INVALID_OR_NOT_WHITELISTED"
-    ALREADY_ADDED_FEES_FOR_EPOCH = "ALREADY_ADDED_FEES_FOR_EPOCH"
-    VOTER_ALREADY_CLAIMED_FEES_FOR_EPOCH = "VOTER_ALREADY_CLAIMED_FEES_FOR_EPOCH"
-    FEES_NOT_YET_ADDED = "FEES_NOT_YET_ADDED"
-    INVALID_TOKEN = "INVALID_TOKEN"
-    ENTRYPOINT_DOES_NOT_ACCEPT_TEZ = "ENTRYPOINT_DOES_NOT_ACCEPT_TEZ"
-    CONTRACT_DOES_NOT_ACCEPT_TEZ = "CONTRACT_DOES_NOT_ACCEPT_TEZ"
-
-    # Generic
-    NOT_AUTHORISED = "NOT_AUTHORISED"
 
 
 ############

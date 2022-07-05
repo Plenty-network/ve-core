@@ -44,7 +44,7 @@ code
             SWAP;       # pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
           }; # pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         SWAP;       # pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)) : pair address nat
-        # compute_ve_swap_112 = sp.local("compute_ve_swap_112", self.data.ledger[_x0.address]) # pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)) : pair address nat
+        # compute_ve_swap_101 = sp.local("compute_ve_swap_101", self.data.ledger[_x0.address]) # pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)) : pair address nat
         DUP;        # pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)) : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)) : pair address nat
         DUG 2;      # pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)) : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         CAR;        # pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address) : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
@@ -56,21 +56,21 @@ code
         GET;        # option (pair nat (pair nat (pair nat timestamp))) : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         IF_NONE
           {
-            PUSH int 112; # int : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
+            PUSH int 101; # int : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
             FAILWITH;   # FAILED
           }
           {}; # @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
-        # compute_ve_swap_113 = sp.local("compute_ve_swap_113", self.data.genesis) # @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
+        # compute_ve_swap_102 = sp.local("compute_ve_swap_102", self.data.genesis) # @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         DUP 3;      # pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)) : @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         CAR;        # pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address) : @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         CAR;        # pair timestamp timestamp : @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         CDR;        # timestamp : @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
-        # compute_ve_swap_114 = sp.local("compute_ve_swap_114", self.data.end) # timestamp : @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
+        # compute_ve_swap_103 = sp.local("compute_ve_swap_103", self.data.end) # timestamp : @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         DUP 4;      # pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)) : timestamp : @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         CAR;        # pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address) : timestamp : @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         CAR;        # pair timestamp timestamp : timestamp : @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         CAR;        # timestamp : timestamp : @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
-        # self.data.ledger[_x0.address].vested += sp.min(_x0.value, (_x0.value // sp.as_nat(compute_ve_swap_114.value - compute_ve_swap_113.value)) * sp.as_nat(sp.now - compute_ve_swap_113.value)) + sp.min(compute_ve_swap_112.value.balance, compute_ve_swap_112.value.release_rate * sp.as_nat(sp.now - compute_ve_swap_112.value.last_claim)) # timestamp : timestamp : @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
+        # self.data.ledger[_x0.address].vested += sp.min(_x0.value, (_x0.value // sp.as_nat(compute_ve_swap_103.value - compute_ve_swap_102.value)) * sp.as_nat(sp.now - compute_ve_swap_102.value)) + sp.min(compute_ve_swap_101.value.balance, compute_ve_swap_101.value.release_rate * sp.as_nat(sp.now - compute_ve_swap_101.value.last_claim)) # timestamp : timestamp : @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         DIG 4;      # pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)) : timestamp : timestamp : @some : pair address nat
         UNPAIR;     # pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address) : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
         UNPAIR;     # pair timestamp timestamp : pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
@@ -84,7 +84,7 @@ code
         GET;        # option (pair nat (pair nat (pair nat timestamp))) : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
         IF_NONE
           {
-            PUSH int 128; # int : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
+            PUSH int 117; # int : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
             FAILWITH;   # FAILED
           }
           {}; # @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
@@ -97,7 +97,7 @@ code
         ISNAT;      # option nat : nat : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
         IF_NONE
           {
-            PUSH int 124; # int : nat : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
+            PUSH int 113; # int : nat : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
             FAILWITH;   # FAILED
           }
           {}; # @some : nat : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
@@ -124,7 +124,7 @@ code
         ISNAT;      # option nat : nat : nat : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
         IF_NONE
           {
-            PUSH int 120; # int : nat : nat : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
+            PUSH int 109; # int : nat : nat : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
             FAILWITH;   # FAILED
           }
           {}; # @some : nat : nat : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
@@ -134,7 +134,7 @@ code
         ISNAT;      # option nat : @some : nat : nat : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
         IF_NONE
           {
-            PUSH int 117; # int : @some : nat : nat : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
+            PUSH int 106; # int : @some : nat : nat : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
             FAILWITH;   # FAILED
           }
           {}; # @some : @some : nat : nat : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
@@ -143,7 +143,7 @@ code
         EDIV;       # option (pair nat nat) : @some : nat : nat : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
         IF_NONE
           {
-            PUSH int 117; # int : @some : nat : nat : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
+            PUSH int 106; # int : @some : nat : nat : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
             FAILWITH;   # FAILED
           }
           {
@@ -170,7 +170,7 @@ code
         SOME;       # option (pair nat (pair nat (pair nat timestamp))) : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
         SWAP;       # address : option (pair nat (pair nat (pair nat timestamp))) : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
         UPDATE;     # big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
-        # self.data.ledger[_x0.address].balance = sp.as_nat(compute_ve_swap_112.value.balance - sp.min(compute_ve_swap_112.value.balance, compute_ve_swap_112.value.release_rate * sp.as_nat(sp.now - compute_ve_swap_112.value.last_claim))) + sp.as_nat(_x0.value - sp.min(_x0.value, (_x0.value // sp.as_nat(compute_ve_swap_114.value - compute_ve_swap_113.value)) * sp.as_nat(sp.now - compute_ve_swap_113.value))) # big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
+        # self.data.ledger[_x0.address].balance = sp.as_nat(compute_ve_swap_101.value.balance - sp.min(compute_ve_swap_101.value.balance, compute_ve_swap_101.value.release_rate * sp.as_nat(sp.now - compute_ve_swap_101.value.last_claim))) + sp.as_nat(_x0.value - sp.min(_x0.value, (_x0.value // sp.as_nat(compute_ve_swap_103.value - compute_ve_swap_102.value)) * sp.as_nat(sp.now - compute_ve_swap_102.value))) # big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
         DUP;        # big_map address (pair nat (pair nat (pair nat timestamp))) : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
         DUP 9;      # pair address nat : big_map address (pair nat (pair nat (pair nat timestamp))) : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
         CAR;        # address : big_map address (pair nat (pair nat (pair nat timestamp))) : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
@@ -179,7 +179,7 @@ code
         GET;        # option (pair nat (pair nat (pair nat timestamp))) : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
         IF_NONE
           {
-            PUSH int 129; # int : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
+            PUSH int 118; # int : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
             FAILWITH;   # FAILED
           }
           {}; # @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
@@ -189,7 +189,7 @@ code
         ISNAT;      # option nat : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
         IF_NONE
           {
-            PUSH int 120; # int : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
+            PUSH int 109; # int : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
             FAILWITH;   # FAILED
           }
           {}; # @some : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
@@ -199,7 +199,7 @@ code
         ISNAT;      # option nat : @some : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
         IF_NONE
           {
-            PUSH int 117; # int : @some : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
+            PUSH int 106; # int : @some : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
             FAILWITH;   # FAILED
           }
           {}; # @some : @some : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
@@ -208,7 +208,7 @@ code
         EDIV;       # option (pair nat nat) : @some : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
         IF_NONE
           {
-            PUSH int 117; # int : @some : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
+            PUSH int 106; # int : @some : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
             FAILWITH;   # FAILED
           }
           {
@@ -235,7 +235,7 @@ code
         ISNAT;      # option nat : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
         IF_NONE
           {
-            PUSH int 129; # int : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
+            PUSH int 118; # int : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
             FAILWITH;   # FAILED
           }
           {}; # @some : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
@@ -246,7 +246,7 @@ code
         ISNAT;      # option nat : @some : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
         IF_NONE
           {
-            PUSH int 124; # int : @some : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
+            PUSH int 113; # int : @some : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
             FAILWITH;   # FAILED
           }
           {}; # @some : @some : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
@@ -273,7 +273,7 @@ code
         ISNAT;      # option nat : @some : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
         IF_NONE
           {
-            PUSH int 129; # int : @some : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
+            PUSH int 118; # int : @some : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
             FAILWITH;   # FAILED
           }
           {}; # @some : @some : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
@@ -286,7 +286,7 @@ code
         SWAP;       # pair timestamp timestamp : pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
         PAIR;       # pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address) : pair (pair nat address) (pair address nat) : timestamp : timestamp : @some : pair address nat
         PAIR;       # pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)) : timestamp : timestamp : @some : pair address nat
-        # compute_ve_swap_134 = sp.local("compute_ve_swap_134", self.data.ledger[_x0.address]) # pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)) : timestamp : timestamp : @some : pair address nat
+        # compute_ve_swap_123 = sp.local("compute_ve_swap_123", self.data.ledger[_x0.address]) # pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)) : timestamp : timestamp : @some : pair address nat
         DUP;        # pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)) : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)) : timestamp : timestamp : @some : pair address nat
         DUG 5;      # pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)) : timestamp : timestamp : @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         CAR;        # pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address) : timestamp : timestamp : @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
@@ -296,11 +296,11 @@ code
         GET;        # option (pair nat (pair nat (pair nat timestamp))) : timestamp : timestamp : @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         IF_NONE
           {
-            PUSH int 134; # int : timestamp : timestamp : @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
+            PUSH int 123; # int : timestamp : timestamp : @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
             FAILWITH;   # FAILED
           }
           {}; # @some : timestamp : timestamp : @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
-        # if compute_ve_swap_134.value.balance != 0: # @some : timestamp : timestamp : @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
+        # if compute_ve_swap_123.value.balance != 0: # @some : timestamp : timestamp : @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         DUP;        # @some : @some : timestamp : timestamp : @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         CAR;        # nat : @some : timestamp : timestamp : @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         PUSH nat 0; # nat : nat : @some : timestamp : timestamp : @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
@@ -312,7 +312,7 @@ code
             DROP;       # @some : timestamp : @some : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
             DIG 2;      # @some : @some : timestamp : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
             DROP;       # @some : timestamp : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
-            # self.data.ledger[_x0.address].release_rate = compute_ve_swap_134.value.balance // sp.as_nat(compute_ve_swap_114.value - sp.now) # @some : timestamp : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
+            # self.data.ledger[_x0.address].release_rate = compute_ve_swap_123.value.balance // sp.as_nat(compute_ve_swap_103.value - sp.now) # @some : timestamp : pair address nat : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
             DIG 3;      # pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)) : @some : timestamp : pair address nat
             UNPAIR;     # pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address) : pair (pair nat address) (pair address nat) : @some : timestamp : pair address nat
             UNPAIR;     # pair timestamp timestamp : pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address : pair (pair nat address) (pair address nat) : @some : timestamp : pair address nat
@@ -326,7 +326,7 @@ code
             GET;        # option (pair nat (pair nat (pair nat timestamp))) : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : @some : timestamp : pair address nat
             IF_NONE
               {
-                PUSH int 138; # int : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : @some : timestamp : pair address nat
+                PUSH int 127; # int : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : @some : timestamp : pair address nat
                 FAILWITH;   # FAILED
               }
               {}; # @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : @some : timestamp : pair address nat
@@ -336,7 +336,7 @@ code
             ISNAT;      # option nat : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : @some : pair address nat
             IF_NONE
               {
-                PUSH int 138; # int : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : @some : pair address nat
+                PUSH int 127; # int : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : @some : pair address nat
                 FAILWITH;   # FAILED
               }
               {}; # @some : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : @some : pair address nat
@@ -345,7 +345,7 @@ code
             EDIV;       # option (pair nat nat) : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : pair address nat
             IF_NONE
               {
-                PUSH int 138; # int : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : pair address nat
+                PUSH int 127; # int : @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : pair address nat
                 FAILWITH;   # FAILED
               }
               {
@@ -378,7 +378,7 @@ code
         GET;        # option (pair nat (pair nat (pair nat timestamp))) : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat)
         IF_NONE
           {
-            PUSH int 141; # int : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat)
+            PUSH int 130; # int : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat)
             FAILWITH;   # FAILED
           }
           {}; # @some : address : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat)
@@ -447,7 +447,7 @@ code
         GET;        # option (pair (nat %balance) (pair (nat %release_rate) (pair (nat %vested) (timestamp %last_claim)))) : int : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
         IF_NONE
           {
-            PUSH int 203; # int : int : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
+            PUSH int 192; # int : int : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
             FAILWITH;   # FAILED
           }
           {}; # @some : int : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
@@ -463,7 +463,7 @@ code
             FAILWITH;   # FAILED
           }; # @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
         SWAP;       # lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) : @storage
-        # compute_ve_swap_205 = sp.local("compute_ve_swap_205", self.update_ledger(sp.record(address = sp.sender, value = 0))) # lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) : @storage
+        # compute_ve_swap_194 = sp.local("compute_ve_swap_194", self.update_ledger(sp.record(address = sp.sender, value = 0))) # lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) : @storage
         PUSH nat 0; # nat : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) : @storage
         SENDER;     # @sender : nat : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) : @storage
         PAIR;       # pair @sender nat : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) : @storage
@@ -472,7 +472,7 @@ code
         PAIR;       # pair (pair @sender nat) @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
         EXEC;       # pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))
         CDR;        # pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
-        # compute_ve_swap_208 = sp.local("compute_ve_swap_208", self.data.ledger[sp.sender]) # pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
+        # compute_ve_swap_197 = sp.local("compute_ve_swap_197", self.data.ledger[sp.sender]) # pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         DUP;        # pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)) : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         CAR;        # pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address) : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         GET 3;      # big_map address (pair nat (pair nat (pair nat timestamp))) : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
@@ -480,11 +480,11 @@ code
         GET;        # option (pair nat (pair nat (pair nat timestamp))) : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         IF_NONE
           {
-            PUSH int 208; # int : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
+            PUSH int 197; # int : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
             FAILWITH;   # FAILED
           }
           {}; # @some : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
-        # sp.verify(compute_ve_swap_208.value.vested != 0, 'NOTHING_TO_CLAIM') # @some : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
+        # sp.verify(compute_ve_swap_197.value.vested != 0, 'NOTHING_TO_CLAIM') # @some : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         DUP;        # @some : @some : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         GET 5;      # nat : @some : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         PUSH nat 0; # nat : nat : @some : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
@@ -496,7 +496,7 @@ code
             PUSH string "NOTHING_TO_CLAIM"; # string : @some : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
             FAILWITH;   # FAILED
           }; # @some : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
-        # sp.transfer(sp.record(address = sp.sender, value = compute_ve_swap_208.value.vested), sp.tez(0), sp.contract(sp.TRecord(address = sp.TAddress, value = sp.TNat).layout(("address", "value")), self.data.ply_address, entry_point='mint').open_some()) # @some : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
+        # sp.transfer(sp.record(address = sp.sender, value = compute_ve_swap_197.value.vested), sp.tez(0), sp.contract(sp.TRecord(address = sp.TAddress, value = sp.TNat).layout(("address", "value")), self.data.ply_address, entry_point='mint').open_some()) # @some : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         NIL operation; # list operation : @some : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         DUP 3;      # pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)) : list operation : @some : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         GET 3;      # pair nat address : list operation : @some : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
@@ -504,7 +504,7 @@ code
         CONTRACT %mint (pair (address %address) (nat %value)); # option (contract (pair (address %address) (nat %value))) : list operation : @some : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
         IF_NONE
           {
-            PUSH int 214; # int : list operation : @some : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
+            PUSH int 203; # int : list operation : @some : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
             FAILWITH;   # FAILED
           }
           {}; # @some : list operation : @some : pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))
@@ -528,7 +528,7 @@ code
         GET;        # option (pair nat (pair nat (pair nat timestamp))) : @sender : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : list operation
         IF_NONE
           {
-            PUSH int 226; # int : @sender : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : list operation
+            PUSH int 215; # int : @sender : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : list operation
             FAILWITH;   # FAILED
           }
           {}; # @some : @sender : big_map address (pair nat (pair nat (pair nat timestamp))) : address : pair timestamp timestamp : pair (pair nat address) (pair address nat) : list operation
@@ -599,7 +599,7 @@ code
                 EDIV;       # option (pair nat nat) : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
                 IF_NONE
                   {
-                    PUSH int 156; # int : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
+                    PUSH int 145; # int : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
                     FAILWITH;   # FAILED
                   }
                   {
@@ -618,26 +618,26 @@ code
                 EDIV;       # option (pair nat nat) : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
                 IF_NONE
                   {
-                    PUSH int 158; # int : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
+                    PUSH int 147; # int : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
                     FAILWITH;   # FAILED
                   }
                   {
                     CAR;        # nat : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
                   }; # nat : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
               }; # nat : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
-            # compute_ve_swap_161 = sp.local("compute_ve_swap_161", ply_converted.value // 2) # nat : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
+            # compute_ve_swap_150 = sp.local("compute_ve_swap_150", ply_converted.value // 2) # nat : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
             PUSH nat 2; # nat : nat : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
             SWAP;       # nat : nat : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
             EDIV;       # option (pair nat nat) : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
             IF_NONE
               {
-                PUSH int 161; # int : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
+                PUSH int 150; # int : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
                 FAILWITH;   # FAILED
               }
               {
                 CAR;        # nat : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
               }; # nat : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
-            # sp.transfer(sp.record(address = sp.sender, value = compute_ve_swap_161.value), sp.tez(0), sp.contract(sp.TRecord(address = sp.TAddress, value = sp.TNat).layout(("address", "value")), self.data.ply_address, entry_point='mint').open_some()) # nat : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
+            # sp.transfer(sp.record(address = sp.sender, value = compute_ve_swap_150.value), sp.tez(0), sp.contract(sp.TRecord(address = sp.TAddress, value = sp.TNat).layout(("address", "value")), self.data.ply_address, entry_point='mint').open_some()) # nat : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
             NIL operation; # list operation : nat : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
             DUP 4;      # @storage : list operation : nat : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
             GET 3;      # pair (nat %plenty_exchange_val) (address %ply_address) : list operation : nat : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
@@ -645,7 +645,7 @@ code
             CONTRACT %mint (pair (address %address) (nat %value)); # option (contract (pair (address %address) (nat %value))) : list operation : nat : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
             IF_NONE
               {
-                PUSH int 164; # int : list operation : nat : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
+                PUSH int 153; # int : list operation : nat : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
                 FAILWITH;   # FAILED
               }
               {}; # @some : list operation : nat : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
@@ -655,7 +655,7 @@ code
             PAIR;       # pair @sender nat : mutez : @some : list operation : nat : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
             TRANSFER_TOKENS; # operation : list operation : nat : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
             CONS;       # list operation : nat : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
-            # compute_ve_swap_171 = sp.local("compute_ve_swap_171", self.update_ledger(sp.record(address = sp.sender, value = compute_ve_swap_161.value))) # list operation : nat : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
+            # compute_ve_swap_160 = sp.local("compute_ve_swap_160", self.update_ledger(sp.record(address = sp.sender, value = compute_ve_swap_150.value))) # list operation : nat : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
             DUP 5;      # lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) : list operation : nat : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
             DIG 2;      # nat : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) : list operation : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))
             SENDER;     # @sender : nat : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) : list operation : @parameter%exchange : @storage : lambda (pair (pair address nat) (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat)))) (pair unit (pair (pair (pair timestamp timestamp) (pair (big_map address (pair nat (pair nat (pair nat timestamp)))) address)) (pair (pair nat address) (pair address nat))))

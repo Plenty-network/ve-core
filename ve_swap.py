@@ -6,36 +6,25 @@
 
 import smartpy as sp
 
-Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
-TokenUtils = sp.io.import_script_from_url("file:utils/token.py")
+Errors = sp.io.import_script_from_url("file:utils/errors.py")
 FA12 = sp.io.import_script_from_url("file:ply_fa12.py").FA12
+TokenUtils = sp.io.import_script_from_url("file:utils/token.py")
 FA2 = sp.io.import_script_from_url("file:helpers/tokens/fa2.py")
+Constants = sp.io.import_script_from_url("file:utils/constants.py")
+Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
+
 
 ############
 # Constants
 ############
 
-DAY = 86400
-
-PRECISION = 10 ** 18
+DAY = Constants.DAY
+PRECISION = Constants.PRECISION
 
 # Enumeration
 class Token:
     PLENTY = sp.nat(0)
     WRAP = sp.nat(1)
-
-
-#########
-# Errors
-#########
-
-
-class Errors:
-    SWAP_YET_TO_BEGIN = "SWAP_YET_TO_BEGIN"
-    NOTHING_TO_CLAIM = "NOTHING_TO_CLAIM"
-    CLAIMING_BEFORE_24_HOURS = "CLAIMING_BEFORE_24_HOURS"
-    ENTRYPOINT_DOES_NOT_ACCEPT_TEZ = "ENTRYPOINT_DOES_NOT_ACCEPT_TEZ"
-    CONTRACT_DOES_NOT_ACCEPT_TEZ = "CONTRACT_DOES_NOT_ACCEPT_TEZ"
 
 
 ###########

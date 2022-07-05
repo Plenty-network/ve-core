@@ -1,19 +1,21 @@
 import smartpy as sp
 
-Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
+Errors = sp.io.import_script_from_url("file:utils/errors.py")
+FA12 = sp.io.import_script_from_url("file:ply_fa12.py").FA12
 TokenUtils = sp.io.import_script_from_url("file:utils/token.py")
 VE = sp.io.import_script_from_url("file:helpers/dummy/ve.py").VE
-FA12 = sp.io.import_script_from_url("file:ply_fa12.py").FA12
+Constants = sp.io.import_script_from_url("file:utils/constants.py")
+Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
+
 
 ############
 # Constants
 ############
 
-DECIMALS = 10 ** 18
-PRECISION = 10 ** 18
-
-DAY = 86400
-WEEK = 7 * DAY
+DAY = Constants.DAY
+WEEK = Constants.WEEK
+DECIMALS = Constants.DECIMALS
+PRECISION = Constants.PRECISION
 
 ########
 # Types
@@ -25,25 +27,6 @@ class Types:
     # Enumeration for voting power readers
     CURRENT = sp.nat(0)  # Curren timestamp
     WHOLE_WEEK = sp.nat(1)  # Timestamp rounded down to a whole week
-
-
-#########
-# Errors
-#########
-
-
-class Errors:
-    SENDER_DOES_NOT_OWN_LOCK = "SENDER_DOES_NOT_OWN_LOCK"
-    ZERO_WITHDRAWAL_NOT_ALLOWED = "ZERO_WITHDRAWAL_NOT_ALLOWED"
-    ZERO_STAKE_NOT_ALLOWED = "ZERO_STAKE_NOT_ALLOWED"
-    NO_STAKE_TO_WITHDRAW = "NO_STAKE_TO_WITHDRAW"
-    ALREADY_RECHARGED_FOR_EPOCH = "ALREADY_RECHARGED_FOR_EPOCH"
-    ENTRYPOINT_DOES_NOT_ACCEPT_TEZ = "ENTRYPOINT_DOES_NOT_ACCEPT_TEZ"
-    CONTRACT_DOES_NOT_ACCEPT_TEZ = "CONTRACT_DOES_NOT_ACCEPT_TEZ"
-
-    # Generic
-    INVALID_VIEW = "INVALID_VIEW"
-    NOT_AUTHORISED = "NOT_AUTHORISED"
 
 
 ###########

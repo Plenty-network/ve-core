@@ -1,17 +1,20 @@
 import smartpy as sp
 
-Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
-TokenUtils = sp.io.import_script_from_url("file:utils/token.py")
-Voter = sp.io.import_script_from_url("file:helpers/dummy/voter.py").Voter
-FA12 = sp.io.import_script_from_url("file:helpers/tokens/fa12.py").FA12
+Errors = sp.io.import_script_from_url("file:utils/errors.py")
 FA2 = sp.io.import_script_from_url("file:helpers/tokens/fa2.py")
+TokenUtils = sp.io.import_script_from_url("file:utils/token.py")
+Constants = sp.io.import_script_from_url("file:utils/constants.py")
+Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
 Pure = sp.io.import_script_from_url("file:helpers/dummy/pure.py").Pure
+FA12 = sp.io.import_script_from_url("file:helpers/tokens/fa12.py").FA12
+Voter = sp.io.import_script_from_url("file:helpers/dummy/voter.py").Voter
+
 
 ############
 # Constants
 ############
 
-VOTE_SHARE_MULTIPLIER = 10 ** 18
+VOTE_SHARE_MULTIPLIER = Constants.VOTE_SHARE_MULTIPLIER
 
 ########
 # Types
@@ -62,23 +65,6 @@ class Types:
         bribe_id=sp.TNat,
         vote_share=sp.TNat,
     ).layout(("token_id", ("owner", ("epoch", ("bribe_id", "vote_share")))))
-
-
-#########
-# Errors
-#########
-
-
-class Errors:
-    EPOCH_IN_THE_PAST = "EPOCH_IN_THE_PAST"
-    INVALID_BRIBE_ID_OR_EPOCH = "INVALID_BRIBE_ID_OR_EPOCH"
-    VOTER_HAS_ALREADY_CLAIMED_BRIBE = "VOTER_HAS_ALREADY_CLAIMED_BRIBE"
-    EPOCH_NOT_YET_OVER = "EPOCH_NOT_YET_OVER"
-    INCORRECT_TEZ_VALUE_SENT = "INCORRECT_TEZ_VALUE_SENT"
-
-    # Generic
-    INVALID_VIEW = "INVALID_VIEW"
-    NOT_AUTHORISED = "NOT_AUTHORISED"
 
 
 ###########

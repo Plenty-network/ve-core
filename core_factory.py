@@ -1,9 +1,10 @@
 import smartpy as sp
 
-Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
 Voter = sp.io.import_script_from_url("file:voter.py").Voter
 Bribe = sp.io.import_script_from_url("file:bribe.py").Bribe
 Gauge = sp.io.import_script_from_url("file:gauge.py").Gauge
+Errors = sp.io.import_script_from_url("file:utils/errors.py")
+Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
 FeeDistributor = sp.io.import_script_from_url("file:fee_distributor.py").FeeDistributor
 
 ########
@@ -25,22 +26,6 @@ class Types:
         lp_token_address=sp.TAddress,
         tokens=sp.TSet(TOKEN_VARIANT),
     ).layout(("amm", ("lp_token_address", "tokens")))
-
-
-#########
-# Errors
-#########
-
-
-class Errors:
-    AMM_ALREADY_ADDED = "AMM_ALREADY_ADDED"
-    AMM_INVALID = "AMM_INVALID"
-    NO_ADMIN_PROPOSED = "NO_ADMIN_PROPOSED"
-    ENTRYPOINT_DOES_NOT_ACCEPT_TEZ = "ENTRYPOINT_DOES_NOT_ACCEPT_TEZ"
-    CONTRACT_DOES_NOT_ACCEPT_TEZ = "CONTRACT_DOES_NOT_ACCEPT_TEZ"
-
-    # Generic
-    NOT_AUTHORISED = "NOT_AUTHORISED"
 
 
 ###########

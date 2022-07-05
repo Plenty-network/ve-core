@@ -1,13 +1,15 @@
 import smartpy as sp
 
+Errors = sp.io.import_script_from_url("file:utils/errors.py")
+Constants = sp.io.import_script_from_url("file:utils/constants.py")
 Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
 
 ############
 # Constants
 ############
 
-DECIMALS = 10 ** 18
-MAX_SUPPLY = 100_000_000 * DECIMALS
+DECIMALS = Constants.DECIMALS
+MAX_SUPPLY = Constants.MAX_SUPPLY
 
 # TODO: Update icon url
 TOKEN_METADATA = {
@@ -21,11 +23,6 @@ TOKEN_METADATA = {
 CONTRACT_METADATA = {
     "": "ipfs://dummy",
 }
-
-
-class Errors:
-    ENTRYPOINT_DOES_NOT_ACCEPT_TEZ = "ENTRYPOINT_DOES_NOT_ACCEPT_TEZ"
-    CONTRACT_DOES_NOT_ACCEPT_TEZ = "CONTRACT_DOES_NOT_ACCEPT_TEZ"
 
 
 class FA12_Error:

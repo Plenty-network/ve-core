@@ -1,21 +1,21 @@
 import smartpy as sp
 
-Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
-TokenUtils = sp.io.import_script_from_url("file:utils/token.py")
+Errors = sp.io.import_script_from_url("file:utils/errors.py")
 FA12 = sp.io.import_script_from_url("file:ply_fa12.py").FA12
+TokenUtils = sp.io.import_script_from_url("file:utils/token.py")
+Constants = sp.io.import_script_from_url("file:utils/constants.py")
+Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
 Voter = sp.io.import_script_from_url("file:helpers/dummy/voter.py").Voter
 
 ############
 # Constants
 ############
 
-DAY = 86400
-WEEK = 7 * DAY
-YEAR = 52 * WEEK
-MAX_TIME = 4 * YEAR
-
-# Increase precision during slope and associated bias calculation
-SLOPE_MULTIPLIER = 10 ** 18
+DAY = Constants.DAY
+WEEK = Constants.WEEK
+YEAR = Constants.YEAR
+MAX_TIME = Constants.MAX_TIME
+SLOPE_MULTIPLIER = Constants.SLOPE_MULTIPLIER
 
 ########
 # Types
@@ -77,31 +77,6 @@ class Types:
     # Enumeration for voting power readers
     CURRENT = sp.nat(0)
     WHOLE_WEEK = sp.nat(1)
-
-
-#########
-# Errors
-#########
-
-
-class Errors:
-    INVALID_LOCK_TIME = "INVALID_LOCK_TIME"
-    LOCK_DOES_NOT_EXIST = "LOCK_DOES_NOT_EXIST"
-    LOCK_YET_TO_EXPIRE = "LOCK_YET_TO_EXPIRE"
-    LOCK_HAS_EXPIRED = "LOCK_HAS_EXPIRED"
-    INVALID_INCREASE_VALUE = "INVALID_INCREASE_VALUE"
-    INVALID_INCREASE_END_TIMESTAMP = "INVALID_INCREASE_END_TIMESTAMP"
-    TOO_EARLY_TIMESTAMP = "TOO_EARLY_TIMESTAMP"
-    INVALID_TIME = "INVALID_TIME"
-    LOCK_IS_ATTACHED = "LOCK_IS_ATTACHED"
-    ALREADY_CLAIMED_INFLATION = "ALREADY_CLAIMED_INFLATION"
-    INFLATION_NOT_ADDED = "INFLATION_NOT_ADDED"
-    ENTRYPOINT_DOES_NOT_ACCEPT_TEZ = "ENTRYPOINT_DOES_NOT_ACCEPT_TEZ"
-    CONTRACT_DOES_NOT_ACCEPT_TEZ = "CONTRACT_DOES_NOT_ACCEPT_TEZ"
-
-    # Generic
-    NOT_AUTHORISED = "NOT_AUTHORISED"
-    INVALID_VIEW = "INVALID_VIEW"
 
 
 # TZIP-12 specified errors for FA2 standard
