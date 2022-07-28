@@ -270,6 +270,9 @@ class VoteEscrow(sp.Contract):
     def balance_of(self, params):
         sp.set_type(params, Types.BALANCE_OF_PARAMS)
 
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         # Response object
         response = sp.local("response", [])
 

@@ -154,9 +154,6 @@ class FeeDistributor(sp.Contract):
     def claim(self, params):
         sp.set_type(params, Types.CLAIM_PARAMS)
 
-        # Reject tez
-        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
-
         # Sanity checks
         sp.verify(sp.sender == self.data.voter, Errors.NOT_AUTHORISED)
 
@@ -221,11 +218,6 @@ class FeeDistributor(sp.Contract):
                 with arg.match("tez") as _:
                     with sp.if_(voter_fees_share > 0):
                         sp.send(params.owner, sp.utils.nat_to_mutez(voter_fees_share))
-
-    # Reject tez sent to the contract address
-    @sp.entry_point
-    def default(self):
-        sp.failwith(Errors.CONTRACT_DOES_NOT_ACCEPT_TEZ)
 
 
 if __name__ == "__main__":

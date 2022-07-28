@@ -163,9 +163,6 @@ class Bribe(sp.Contract):
     def claim(self, params):
         sp.set_type(params, Types.CLAIM_PARAMS)
 
-        # Reject tez
-        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
-
         # Sanity checks
         sp.verify(sp.sender == self.data.voter, Errors.NOT_AUTHORISED)
         sp.verify(

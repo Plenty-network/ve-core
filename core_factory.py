@@ -200,6 +200,9 @@ class CoreFactory(sp.Contract):
     def propose_add_admin(self, address):
         sp.set_type(address, sp.TAddress)
 
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         # Verify that sender is add admin
         sp.verify(sp.sender == self.data.add_admin, Errors.NOT_AUTHORISED)
 
@@ -209,6 +212,9 @@ class CoreFactory(sp.Contract):
     def propose_remove_admin(self, address):
         sp.set_type(address, sp.TAddress)
 
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         # Verify that sender is remove admin
         sp.verify(sp.sender == self.data.remove_admin, Errors.NOT_AUTHORISED)
 
@@ -216,6 +222,9 @@ class CoreFactory(sp.Contract):
 
     @sp.entry_point
     def accept_add_admin(self):
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         # Sanity checks
         sp.verify(self.data.proposed_add_admin.is_some(), Errors.NO_ADMIN_PROPOSED)
         sp.verify(sp.sender == self.data.proposed_add_admin.open_some(), Errors.NOT_AUTHORISED)
@@ -226,6 +235,9 @@ class CoreFactory(sp.Contract):
 
     @sp.entry_point
     def accept_remove_admin(self):
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         # Sanity checks
         sp.verify(self.data.proposed_remove_admin.is_some(), Errors.NO_ADMIN_PROPOSED)
         sp.verify(sp.sender == self.data.proposed_remove_admin.open_some(), Errors.NOT_AUTHORISED)

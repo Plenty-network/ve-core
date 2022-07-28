@@ -351,9 +351,6 @@ class Gauge(sp.Contract):
     def recharge(self, params):
         sp.set_type(params, sp.TRecord(amount=sp.TNat, epoch=sp.TNat))
 
-        # Reject tez
-        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
-
         # Verify that the voter is the sender
         sp.verify(sp.sender == self.data.voter, Errors.NOT_AUTHORISED)
 
