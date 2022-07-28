@@ -30,9 +30,9 @@ class FA12_Error:
         return "FA1.2_" + s
 
     NotAdmin = make("NotAdmin")
-    InsufficientBalance = make("InsufficientBalance")
+    NotEnoughBalance = make("NotEnoughBalance")
     UnsafeAllowanceChange = make("UnsafeAllowanceChange")
-    NotAllowed = make("NotAllowed")
+    NotEnoughAllowance = make("NotEnoughAllowance")
     MaxSupplyMinted = make("MaxSupplyMinted")
 
 
@@ -65,8 +65,9 @@ class FA12_core(sp.Contract, FA12_common):
             ),
         )
         sp.verify(
-            (params.from_ == sp.sender) | (self.data.balances[params.from_].approvals[sp.sender] >= params.value),
-            FA12_Error.NotAllowed,
+            (params.from_ == sp.sender)
+            | (self.data.balances[params.from_].approvals.get(sp.sender, 0) >= params.value),
+            FA12_Error.NotEnoughAllowance,
         )
 
         # Reject tez
@@ -74,7 +75,7 @@ class FA12_core(sp.Contract, FA12_common):
 
         self.addAddressIfNecessary(params.from_)
         self.addAddressIfNecessary(params.to_)
-        sp.verify(self.data.balances[params.from_].balance >= params.value, FA12_Error.InsufficientBalance)
+        sp.verify(self.data.balances[params.from_].balance >= params.value, FA12_Error.NotEnoughBalance)
         self.data.balances[params.from_].balance = sp.as_nat(self.data.balances[params.from_].balance - params.value)
         self.data.balances[params.to_].balance += params.value
 
