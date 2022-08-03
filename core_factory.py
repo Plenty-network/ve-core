@@ -99,11 +99,39 @@ class CoreFactory(sp.Contract):
         # Mark AMM as added
         self.data.amm_registered[params.amm] = sp.unit
 
+        # Storage for gauge contract
+        gauge_storage = sp.record(
+            lp_token_address=params.lp_token_address,
+            ply_address=self.data.ply_address,
+            ve_address=self.data.ve_address,
+            voter=self.data.voter,
+            reward_rate=sp.nat(0),
+            reward_per_token=sp.nat(0),
+            last_update_time=sp.nat(0),
+            period_finish=sp.nat(0),
+            recharge_ledger=sp.big_map(l={}),
+            user_reward_per_token_debt=sp.big_map(l={}),
+            balances=sp.big_map(l={}),
+            derived_balances=sp.big_map(l={}),
+            attached_tokens=sp.big_map(l={}),
+            rewards=sp.big_map(l={}),
+            total_supply=sp.nat(0),
+            derived_supply=sp.nat(0),
+        )
+
         # Deploy gauge for AMM
-        gauge_ = sp.create_contract(contract=self.gauge, storage=self.get_gauge_storage(params.lp_token_address))
+        gauge_ = sp.create_contract(contract=self.gauge, storage=gauge_storage)
+
+        # Storage for bribe contract
+        bribe_storage = sp.record(
+            uid=sp.nat(0),
+            epoch_bribes=sp.big_map(l={}),
+            claim_ledger=sp.big_map(l={}),
+            voter=self.data.voter,
+        )
 
         # Deploy bribe for AMM
-        bribe_ = sp.create_contract(contract=self.bribe, storage=self.get_bribe_storage())
+        bribe_ = sp.create_contract(contract=self.bribe, storage=bribe_storage)
 
         # Set bribe and gauge for the AMM in Voter
         c_voter = sp.contract(
@@ -157,44 +185,6 @@ class CoreFactory(sp.Contract):
             "remove_amm",
         ).open_some()
         sp.transfer(amm, sp.tez(0), c_fee)
-
-    ##################
-    # Utility Lambdas
-    ##################
-
-    def get_gauge_storage(self, lp_token_address):
-        sp.set_type(lp_token_address, sp.TAddress)
-
-        sp.result(
-            sp.record(
-                lp_token_address=lp_token_address,
-                ply_address=self.data.ply_address,
-                ve_address=self.data.ve_address,
-                voter=self.data.voter,
-                reward_rate=sp.nat(0),
-                reward_per_token=sp.nat(0),
-                last_update_time=sp.nat(0),
-                period_finish=sp.nat(0),
-                recharge_ledger=sp.big_map(l={}),
-                user_reward_per_token_debt=sp.big_map(l={}),
-                balances=sp.big_map(l={}),
-                derived_balances=sp.big_map(l={}),
-                attached_tokens=sp.big_map(l={}),
-                rewards=sp.big_map(l={}),
-                total_supply=sp.nat(0),
-                derived_supply=sp.nat(0),
-            )
-        )
-
-    def get_bribe_storage(self):
-        sp.result(
-            sp.record(
-                uid=sp.nat(0),
-                epoch_bribes=sp.big_map(l={}),
-                claim_ledger=sp.big_map(l={}),
-                voter=self.data.voter,
-            )
-        )
 
     @sp.entry_point
     def propose_add_admin(self, address):
