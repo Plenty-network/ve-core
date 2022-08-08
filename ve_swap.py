@@ -20,6 +20,7 @@ Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
 
 DAY = Constants.DAY
 PRECISION = Constants.PRECISION
+DECIMALS = Constants.DECIMALS
 
 # Enumeration
 class Token:
@@ -563,6 +564,64 @@ if __name__ == "__main__":
             now=sp.timestamp(DAY),
             valid=False,
             exception=Errors.CLAIMING_BEFORE_24_HOURS,
+        )
+
+    ##################################
+    # update_ledger (edge-case test)
+    ##################################
+
+    @sp.add_test(
+        name="update_ledger logic may revert if called very close to the end but passes after a few extra seconds"
+    )
+    def test():
+        scenario = sp.test_scenario()
+
+        ply = FA12(Addresses.ADMIN)
+        plenty = FA12(Addresses.ADMIN)
+
+        ve_swap = VESwap(
+            genesis=sp.timestamp(0),
+            end=sp.timestamp(215360),
+            plenty_exchange_val=5 * PRECISION,
+            ply_address=ply.address,
+            plenty_address=plenty.address,
+        )
+
+        scenario += ply
+        scenario += plenty
+        scenario += ve_swap
+
+        # Make ve_swap a mint admin in PLY
+        scenario += ply.addMintAdmin(ve_swap.address).run(sender=Addresses.ADMIN)
+
+        # Mint PLENTY for ALICE (randomly selected value)
+        scenario += plenty.mint(address=Addresses.ALICE, value=1530864662).run(sender=Addresses.ADMIN)
+
+        # Approve PLENTY spending by ve_swap for ALICE
+        scenario += plenty.approve(spender=ve_swap.address, value=1530864662).run(sender=Addresses.ALICE)
+
+        # When ALICE exchanges her PLENTY tokens for PLY, very close to the end, the txn fails
+        scenario += ve_swap.exchange(token=Token.PLENTY, value=1530864662).run(
+            sender=Addresses.ALICE, now=sp.timestamp(215361), valid=False
+        )
+
+        # When ALICE exchanges her PLENTY tokens for PLY, few more seconds after end, the txn passes
+        scenario += ve_swap.exchange(token=Token.PLENTY, value=1530864662).run(
+            sender=Addresses.ALICE, now=sp.timestamp(215380)
+        )
+
+        # She gets 3827161655 PLY tokens (50% of (5 * 1530864662))
+        scenario.verify(ply.data.balances[Addresses.ALICE].balance == 3827161655)
+
+        # Her ledger is updated correctly with already vested token amount (250 PLY since exchanging after 'end')
+        scenario.verify(
+            ve_swap.data.ledger[Addresses.ALICE]
+            == sp.record(
+                balance=0,
+                release_rate=0,
+                vested=3827161655,
+                last_claim=sp.timestamp(215380),
+            )
         )
 
     sp.add_compilation_target("ve_swap", VESwap())
