@@ -111,14 +111,6 @@ class VoteEscrow(sp.Contract):
             ),
             tvalue=sp.TUnit,
         ),
-        token_metadata=sp.big_map(
-            l={},
-            tkey=sp.TNat,
-            tvalue=sp.TRecord(
-                token_id=sp.TNat,
-                token_info=sp.TMap(sp.TString, sp.TBytes),
-            ),
-        ),
         # Vote-escrow storage items
         locks=sp.big_map(
             l={},
@@ -169,7 +161,6 @@ class VoteEscrow(sp.Contract):
             ledger=ledger,
             operators=operators,
             locks=locks,
-            token_metadata=token_metadata,
             attached=attached,
             uid=sp.nat(0),
             token_checkpoints=token_checkpoints,
@@ -195,13 +186,6 @@ class VoteEscrow(sp.Contract):
                         operator=sp.TAddress,
                     ),
                     sp.TUnit,
-                ),
-                token_metadata=sp.TBigMap(
-                    sp.TNat,
-                    sp.TRecord(
-                        token_id=sp.TNat,
-                        token_info=sp.TMap(sp.TString, sp.TBytes),
-                    ),
                 ),
                 # VE specific
                 locks=sp.TBigMap(sp.TNat, Types.LOCK),
@@ -498,13 +482,6 @@ class VoteEscrow(sp.Contract):
             )
         )
 
-        # Insert token metadata
-        # TODO: to be replaced with real IPFS data
-        self.data.token_metadata[uid] = sp.record(
-            token_id=uid,
-            token_info={"": sp.utils.bytes_of_string("ipfs://")},
-        )
-
         # Retrieve base token to self address
         TokenUtils.transfer_FA12(
             sp.record(
@@ -557,9 +534,6 @@ class VoteEscrow(sp.Contract):
 
         # Delete the lock
         del self.data.locks[token_id]
-
-        # Delete metadata
-        del self.data.token_metadata[token_id]
 
     @sp.entry_point
     def increase_lock_value(self, params):
@@ -910,6 +884,20 @@ class VoteEscrow(sp.Contract):
     @sp.onchain_view()
     def get_locked_supply(self):
         sp.result(self.data.locked_supply)
+
+    @sp.onchain_view()
+    def token_metadata(self, token_id):
+        sp.set_type(token_id, sp.TNat)
+
+        # NOTE: ipfs string shall be updated
+        sp.result(
+            sp.record(
+                token_id=token_id,
+                token_info={
+                    "": sp.utils.bytes_of_string("ipfs://"),
+                },
+            )
+        )
 
     # Reject tez sent to the contract address
     @sp.entry_point
