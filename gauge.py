@@ -387,11 +387,6 @@ class Gauge(sp.Contract):
         # Mark recharged for the epoch
         self.data.recharge_ledger[params.epoch] = sp.unit
 
-    # Reject tez sent to the contract address
-    @sp.entry_point
-    def default(self):
-        sp.failwith(Errors.CONTRACT_DOES_NOT_ACCEPT_TEZ)
-
 
 if __name__ == "__main__":
 

@@ -173,11 +173,6 @@ class FA12_contract_metadata(FA12_core):
     def set_contract_metadata(self, metadata):
         self.update_initial_storage(metadata=sp.big_map(self.normalize_metadata(metadata)))
 
-    # Reject tez sent to the contract address
-    @sp.entry_point
-    def default(self):
-        sp.failwith(Errors.CONTRACT_DOES_NOT_ACCEPT_TEZ)
-
 
 class FA12(
     FA12_mint,

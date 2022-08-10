@@ -243,11 +243,6 @@ class Bribe(sp.Contract):
 
         self.data.epoch_bribes[params].bribe.value = sp.nat(0)
 
-    # Reject tez sent to the contract address
-    @sp.entry_point
-    def default(self):
-        sp.failwith(Errors.CONTRACT_DOES_NOT_ACCEPT_TEZ)
-
 
 if __name__ == "__main__":
 
