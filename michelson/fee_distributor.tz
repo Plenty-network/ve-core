@@ -222,7 +222,7 @@ code
                     FAILWITH;   # FAILED
                   }
                   {}; # pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                # compute_fee_distributor_179i = sp.local("compute_fee_distributor_179i", self.data.amm_epoch_fee[sp.record(amm = params.amm, epoch = epoch_vote_share.epoch)]) # pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                # compute_fee_distributor_179 = sp.local("compute_fee_distributor_179", self.data.amm_epoch_fee[sp.record(amm = params.amm, epoch = epoch_vote_share.epoch)]) # pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                 DUP 4;      # @storage : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                 CAR;        # pair (big_map %amm_epoch_fee (pair (address %amm) (nat %epoch)) (map (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))) nat)) (big_map %amm_to_tokens address (set (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))))) : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                 CAR;        # big_map (pair (address %amm) (nat %epoch)) (map (or (address %fa12) (or (pair %fa2 address nat) (unit %tez))) nat) : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
@@ -240,12 +240,12 @@ code
                     FAILWITH;   # FAILED
                   }
                   {}; # @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                # for token in compute_fee_distributor_179i.value.keys(): ... # @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                # for token in compute_fee_distributor_179.value.keys(): ... # @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                 DUP;        # @some : @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                 ITER
                   {
                     CAR;        # or (address %fa12) (or (pair %fa2 address nat) (unit %tez)) : @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                    # token_fees.value[token] = token_fees.value.get(token, default_value = 0) + (compute_fee_distributor_179i.value[token] * epoch_vote_share.share) # or (address %fa12) (or (pair %fa2 address nat) (unit %tez)) : @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                    # token_fees.value[token] = token_fees.value.get(token, default_value = 0) + (compute_fee_distributor_179.value[token] * epoch_vote_share.share) # or (address %fa12) (or (pair %fa2 address nat) (unit %tez)) : @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                     DUP 4;      # map (or address (or (pair address nat) unit)) nat : or (address %fa12) (or (pair %fa2 address nat) (unit %tez)) : @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                     DUP 4;      # pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : or (address %fa12) (or (pair %fa2 address nat) (unit %tez)) : @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                     CDR;        # nat : map (or address (or (pair address nat) unit)) nat : or (address %fa12) (or (pair %fa2 address nat) (unit %tez)) : @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
@@ -272,26 +272,26 @@ code
                     DIG 2;      # or (address %fa12) (or (pair %fa2 address nat) (unit %tez)) : option nat : map (or address (or (pair address nat) unit)) nat : @some : pair (nat %epoch) (nat %share) : @parameter%claim : @storage
                     UPDATE;     # map (or address (or (pair address nat) unit)) nat : @some : pair (nat %epoch) (nat %share) : @parameter%claim : @storage
                     DUG 2;      # @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                    # self.data.claim_ledger[sp.record(token_id = params.token_id, amm = params.amm, epoch = epoch_vote_share.epoch)] = sp.unit # @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                    DIG 4;      # @storage : @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim
-                    DUP;        # @storage : @storage : @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim
-                    GET 3;      # big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit : @storage : @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim
-                    PUSH (option unit) (Some Unit); # option unit : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit : @storage : @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim
-                    DUP 5;      # pair (nat %epoch) (nat %share) : option unit : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit : @storage : @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim
-                    CAR;        # nat : option unit : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit : @storage : @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim
-                    DIG 7;      # @parameter%claim : nat : option unit : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit : @storage : @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat
-                    DUP;        # @parameter%claim : @parameter%claim : nat : option unit : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit : @storage : @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat
-                    GET 5;      # address : @parameter%claim : nat : option unit : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit : @storage : @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat
-                    SWAP;       # @parameter%claim : address : nat : option unit : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit : @storage : @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat
-                    DUP;        # @parameter%claim : @parameter%claim : address : nat : option unit : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit : @storage : @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat
-                    DUG 9;      # @parameter%claim : address : nat : option unit : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit : @storage : @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim
-                    CAR;        # nat : address : nat : option unit : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit : @storage : @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim
-                    PAIR 3;     # pair nat (pair address nat) : option unit : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit : @storage : @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim
-                    UPDATE;     # big_map (pair nat (pair address nat)) unit : @storage : @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim
-                    UPDATE 3;   # @storage : @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim
-                    DUG 4;      # @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                   }; # @some : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                DROP 2;     # map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                DROP;       # pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                # self.data.claim_ledger[sp.record(token_id = params.token_id, amm = params.amm, epoch = epoch_vote_share.epoch)] = sp.unit # pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                DIG 3;      # @storage : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim
+                DUP;        # @storage : @storage : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim
+                GET 3;      # big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit : @storage : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim
+                PUSH (option unit) (Some Unit); # option unit : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit : @storage : pair (nat %epoch) (nat %share) : map (or address (or (pair address nat) unit)) nat : @parameter%claim
+                DIG 3;      # pair (nat %epoch) (nat %share) : option unit : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit : @storage : map (or address (or (pair address nat) unit)) nat : @parameter%claim
+                CAR;        # nat : option unit : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit : @storage : map (or address (or (pair address nat) unit)) nat : @parameter%claim
+                DIG 5;      # @parameter%claim : nat : option unit : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit : @storage : map (or address (or (pair address nat) unit)) nat
+                DUP;        # @parameter%claim : @parameter%claim : nat : option unit : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit : @storage : map (or address (or (pair address nat) unit)) nat
+                GET 5;      # address : @parameter%claim : nat : option unit : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit : @storage : map (or address (or (pair address nat) unit)) nat
+                SWAP;       # @parameter%claim : address : nat : option unit : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit : @storage : map (or address (or (pair address nat) unit)) nat
+                DUP;        # @parameter%claim : @parameter%claim : address : nat : option unit : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit : @storage : map (or address (or (pair address nat) unit)) nat
+                DUG 7;      # @parameter%claim : address : nat : option unit : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit : @storage : map (or address (or (pair address nat) unit)) nat : @parameter%claim
+                CAR;        # nat : address : nat : option unit : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit : @storage : map (or address (or (pair address nat) unit)) nat : @parameter%claim
+                PAIR 3;     # pair nat (pair address nat) : option unit : big_map (pair (nat %token_id) (pair (address %amm) (nat %epoch))) unit : @storage : map (or address (or (pair address nat) unit)) nat : @parameter%claim
+                UPDATE;     # big_map (pair nat (pair address nat)) unit : @storage : map (or address (or (pair address nat) unit)) nat : @parameter%claim
+                UPDATE 3;   # @storage : map (or address (or (pair address nat) unit)) nat : @parameter%claim
+                DUG 2;      # map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
               }; # map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
             # for token in token_fees.value.keys(): ... # map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
             DUP;        # map (or address (or (pair address nat) unit)) nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
@@ -300,65 +300,53 @@ code
             ITER
               {
                 CAR;        # or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                # with token.match_cases(...): # or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                DUP;        # or address (or (pair address nat) unit) : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                # compute_fee_distributor_196 = sp.local("compute_fee_distributor_196", token_fees.value[token] // 1000000000000000000) # or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                PUSH nat 1000000000000000000; # nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                DUP 4;      # map (or address (or (pair address nat) unit)) nat : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                DUP 3;      # or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                GET;        # option nat : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                IF_NONE
+                  {
+                    PUSH int 196; # int : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                    FAILWITH;   # FAILED
+                  }
+                  {}; # @some : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                EDIV;       # option (pair nat nat) : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                IF_NONE
+                  {
+                    PUSH int 196; # int : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                    FAILWITH;   # FAILED
+                  }
+                  {
+                    CAR;        # nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                  }; # nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                SWAP;       # or address (or (pair address nat) unit) : nat : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                # with token.match_cases(...): # or address (or (pair address nat) unit) : nat : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                DUP;        # or address (or (pair address nat) unit) : or address (or (pair address nat) unit) : nat : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                DUG 2;      # or address (or (pair address nat) unit) : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                 IF_LEFT
                   {
-                    # if (token_fees.value[token] // 1000000000000000000) > 0: # address : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                    PUSH nat 0; # nat : address : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                    PUSH nat 1000000000000000000; # nat : nat : address : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                    DUP 6;      # map (or address (or (pair address nat) unit)) nat : nat : nat : address : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                    DUP 5;      # or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : nat : nat : address : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                    GET;        # option nat : nat : nat : address : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                    IF_NONE
-                      {
-                        PUSH int 196; # int : nat : nat : address : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        FAILWITH;   # FAILED
-                      }
-                      {}; # @some : nat : nat : address : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                    EDIV;       # option (pair nat nat) : nat : address : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                    IF_NONE
-                      {
-                        PUSH int 196; # int : nat : address : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        FAILWITH;   # FAILED
-                      }
-                      {
-                        CAR;        # nat : nat : address : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                      }; # nat : nat : address : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                    COMPARE;    # int : address : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                    GT;         # bool : address : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                    # if compute_fee_distributor_196.value > 0: # address : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                    PUSH nat 0; # nat : address : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                    DUP 3;      # nat : nat : address : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                    COMPARE;    # int : address : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                    GT;         # bool : address : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                     IF
                       {
-                        # sp.transfer(sp.record(from_ = sp.self_address, to_ = params.owner, value = token_fees.value[token] // 1000000000000000000), sp.tez(0), sp.contract(sp.TRecord(from_ = sp.TAddress, to_ = sp.TAddress, value = sp.TNat).layout(("from_ as from", ("to_ as to", "value"))), fa12, entry_point='transfer').open_some()) # address : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        DIG 2;      # list operation : address : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        SWAP;       # address : list operation : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        CONTRACT %transfer (pair (address %from) (pair (address %to) (nat %value))); # option (contract (pair (address %from) (pair (address %to) (nat %value)))) : list operation : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                        DIG 2;      # or address (or (pair address nat) unit) : address : nat : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                        DROP;       # address : nat : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                        # sp.transfer(sp.record(from_ = sp.self_address, to_ = params.owner, value = compute_fee_distributor_196.value), sp.tez(0), sp.contract(sp.TRecord(from_ = sp.TAddress, to_ = sp.TAddress, value = sp.TNat).layout(("from_ as from", ("to_ as to", "value"))), fa12, entry_point='transfer').open_some()) # address : nat : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                        DIG 2;      # list operation : address : nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                        SWAP;       # address : list operation : nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                        CONTRACT %transfer (pair (address %from) (pair (address %to) (nat %value))); # option (contract (pair (address %from) (pair (address %to) (nat %value)))) : list operation : nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                         IF_NONE
                           {
-                            PUSH int 16; # int : list operation : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                            PUSH int 16; # int : list operation : nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                             FAILWITH;   # FAILED
                           }
-                          {}; # @some : list operation : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        PUSH mutez 0; # mutez : @some : list operation : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        PUSH nat 1000000000000000000; # nat : mutez : @some : list operation : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        DUP 6;      # map (or address (or (pair address nat) unit)) nat : nat : mutez : @some : list operation : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        DIG 5;      # or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : nat : mutez : @some : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        GET;        # option nat : nat : mutez : @some : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        IF_NONE
-                          {
-                            PUSH int 196; # int : nat : mutez : @some : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            FAILWITH;   # FAILED
-                          }
-                          {}; # @some : nat : mutez : @some : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        EDIV;       # option (pair nat nat) : mutez : @some : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        IF_NONE
-                          {
-                            PUSH int 196; # int : mutez : @some : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            FAILWITH;   # FAILED
-                          }
-                          {
-                            CAR;        # nat : mutez : @some : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                          }; # nat : mutez : @some : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                          {}; # @some : list operation : nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                        PUSH mutez 0; # mutez : @some : list operation : nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                        DIG 3;      # nat : mutez : @some : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                         DUP 6;      # @parameter%claim : nat : mutez : @some : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                         GET 3;      # address : nat : mutez : @some : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                         SELF_ADDRESS; # @self : address : nat : mutez : @some : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
@@ -367,72 +355,38 @@ code
                         CONS;       # list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                       }
                       {
-                        DROP 2;     # list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                        DROP 3;     # list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                       }; # list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                   }
                   {
                     IF_LEFT
                       {
-                        # if (token_fees.value[token] // 1000000000000000000) > 0: # pair address nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        PUSH nat 0; # nat : pair address nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        PUSH nat 1000000000000000000; # nat : nat : pair address nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        DUP 6;      # map (or address (or (pair address nat) unit)) nat : nat : nat : pair address nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        DUP 5;      # or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : nat : nat : pair address nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        GET;        # option nat : nat : nat : pair address nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        IF_NONE
-                          {
-                            PUSH int 196; # int : nat : nat : pair address nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            FAILWITH;   # FAILED
-                          }
-                          {}; # @some : nat : nat : pair address nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        EDIV;       # option (pair nat nat) : nat : pair address nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        IF_NONE
-                          {
-                            PUSH int 196; # int : nat : pair address nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            FAILWITH;   # FAILED
-                          }
-                          {
-                            CAR;        # nat : nat : pair address nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                          }; # nat : nat : pair address nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        COMPARE;    # int : pair address nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        GT;         # bool : pair address nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                        # if compute_fee_distributor_196.value > 0: # pair address nat : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                        PUSH nat 0; # nat : pair address nat : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                        DUP 3;      # nat : nat : pair address nat : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                        COMPARE;    # int : pair address nat : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                        GT;         # bool : pair address nat : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                         IF
                           {
-                            # sp.transfer(sp.list([sp.record(from_ = sp.self_address, txs = sp.list([sp.record(to_ = params.owner, token_id = sp.snd(fa2), amount = token_fees.value[token] // 1000000000000000000)]))]), sp.tez(0), sp.contract(sp.TList(sp.TRecord(from_ = sp.TAddress, txs = sp.TList(sp.TRecord(amount = sp.TNat, to_ = sp.TAddress, token_id = sp.TNat).layout(("to_", ("token_id", "amount"))))).layout(("from_", "txs"))), sp.fst(fa2), entry_point='transfer').open_some()) # pair address nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            DIG 2;      # list operation : pair address nat : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            SWAP;       # pair address nat : list operation : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            DUP;        # pair address nat : pair address nat : list operation : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            DUG 2;      # pair address nat : list operation : pair address nat : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            CAR;        # address : list operation : pair address nat : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            CONTRACT %transfer (list (pair (address %from_) (list %txs (pair (address %to_) (pair (nat %token_id) (nat %amount)))))); # option (contract (list (pair (address %from_) (list %txs (pair (address %to_) (pair (nat %token_id) (nat %amount))))))) : list operation : pair address nat : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                            DIG 2;      # or address (or (pair address nat) unit) : pair address nat : nat : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                            DROP;       # pair address nat : nat : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                            # sp.transfer(sp.list([sp.record(from_ = sp.self_address, txs = sp.list([sp.record(to_ = params.owner, token_id = sp.snd(fa2), amount = compute_fee_distributor_196.value)]))]), sp.tez(0), sp.contract(sp.TList(sp.TRecord(from_ = sp.TAddress, txs = sp.TList(sp.TRecord(amount = sp.TNat, to_ = sp.TAddress, token_id = sp.TNat).layout(("to_", ("token_id", "amount"))))).layout(("from_", "txs"))), sp.fst(fa2), entry_point='transfer').open_some()) # pair address nat : nat : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                            DIG 2;      # list operation : pair address nat : nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                            SWAP;       # pair address nat : list operation : nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                            DUP;        # pair address nat : pair address nat : list operation : nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                            DUG 2;      # pair address nat : list operation : pair address nat : nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                            CAR;        # address : list operation : pair address nat : nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                            CONTRACT %transfer (list (pair (address %from_) (list %txs (pair (address %to_) (pair (nat %token_id) (nat %amount)))))); # option (contract (list (pair (address %from_) (list %txs (pair (address %to_) (pair (nat %token_id) (nat %amount))))))) : list operation : pair address nat : nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                             IF_NONE
                               {
-                                PUSH int 55; # int : list operation : pair address nat : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                                PUSH int 55; # int : list operation : pair address nat : nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                                 FAILWITH;   # FAILED
                               }
-                              {}; # @some : list operation : pair address nat : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            PUSH mutez 0; # mutez : @some : list operation : pair address nat : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            NIL (pair address (list (pair address (pair nat nat)))); # list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair address nat : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            NIL (pair address (pair nat nat)); # list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair address nat : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            PUSH nat 1000000000000000000; # nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair address nat : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            DUP 9;      # map (or address (or (pair address nat) unit)) nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair address nat : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            DIG 8;      # or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair address nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            GET;        # option nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair address nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            IF_NONE
-                              {
-                                PUSH int 196; # int : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair address nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                                FAILWITH;   # FAILED
-                              }
-                              {}; # @some : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair address nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            EDIV;       # option (pair nat nat) : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair address nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            IF_NONE
-                              {
-                                PUSH int 196; # int : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair address nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                                FAILWITH;   # FAILED
-                              }
-                              {
-                                CAR;        # nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair address nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                              }; # nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair address nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                              {}; # @some : list operation : pair address nat : nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                            PUSH mutez 0; # mutez : @some : list operation : pair address nat : nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                            NIL (pair address (list (pair address (pair nat nat)))); # list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair address nat : nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                            NIL (pair address (pair nat nat)); # list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair address nat : nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                            DIG 6;      # nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : pair address nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                             DIG 6;      # pair address nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                             CDR;        # nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                             DUP 9;      # @parameter%claim : nat : nat : list (pair address (pair nat nat)) : list (pair address (list (pair address (pair nat nat)))) : mutez : @some : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
@@ -446,74 +400,40 @@ code
                             CONS;       # list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                           }
                           {
-                            DROP 2;     # list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                            DROP 3;     # list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                           }; # list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                       }
                       {
-                        DROP;       # or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        # if (token_fees.value[token] // 1000000000000000000) > 0: # or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        PUSH nat 0; # nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        PUSH nat 1000000000000000000; # nat : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        DUP 5;      # map (or address (or (pair address nat) unit)) nat : nat : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        DUP 4;      # or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : nat : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        GET;        # option nat : nat : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        IF_NONE
-                          {
-                            PUSH int 196; # int : nat : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            FAILWITH;   # FAILED
-                          }
-                          {}; # @some : nat : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        EDIV;       # option (pair nat nat) : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        IF_NONE
-                          {
-                            PUSH int 196; # int : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            FAILWITH;   # FAILED
-                          }
-                          {
-                            CAR;        # nat : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                          }; # nat : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        COMPARE;    # int : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                        GT;         # bool : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                        DROP;       # nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                        # if compute_fee_distributor_196.value > 0: # nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                        DUP;        # nat : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                        PUSH nat 0; # nat : nat : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                        COMPARE;    # int : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                        LT;         # bool : nat : or address (or (pair address nat) unit) : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                         IF
                           {
-                            SWAP;       # list operation : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            # sp.send(params.owner, sp.mul(token_fees.value[token] // 1000000000000000000, sp.mutez(1))) # list operation : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            DUP 4;      # @parameter%claim : list operation : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            GET 3;      # address : list operation : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            CONTRACT unit; # option (contract unit) : list operation : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                            SWAP;       # or address (or (pair address nat) unit) : nat : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                            DROP;       # nat : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                            SWAP;       # list operation : nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                            # sp.send(params.owner, sp.mul(compute_fee_distributor_196.value, sp.mutez(1))) # list operation : nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                            DUP 4;      # @parameter%claim : list operation : nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                            GET 3;      # address : list operation : nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                            CONTRACT unit; # option (contract unit) : list operation : nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                             IF_NONE
                               {
-                                PUSH int 220; # int : list operation : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                                PUSH int 220; # int : list operation : nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                                 FAILWITH;   # FAILED
                               }
-                              {}; # @some : list operation : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            PUSH mutez 1; # mutez : @some : list operation : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            PUSH nat 1000000000000000000; # nat : mutez : @some : list operation : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            DUP 6;      # map (or address (or (pair address nat) unit)) nat : nat : mutez : @some : list operation : or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            DIG 5;      # or address (or (pair address nat) unit) : map (or address (or (pair address nat) unit)) nat : nat : mutez : @some : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            GET;        # option nat : nat : mutez : @some : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            IF_NONE
-                              {
-                                PUSH int 196; # int : nat : mutez : @some : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                                FAILWITH;   # FAILED
-                              }
-                              {}; # @some : nat : mutez : @some : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            EDIV;       # option (pair nat nat) : mutez : @some : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                            IF_NONE
-                              {
-                                PUSH int 196; # int : mutez : @some : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                                FAILWITH;   # FAILED
-                              }
-                              {
-                                CAR;        # nat : mutez : @some : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
-                              }; # nat : mutez : @some : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                              {}; # @some : list operation : nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                            PUSH mutez 1; # mutez : @some : list operation : nat : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                            DIG 3;      # nat : mutez : @some : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                             MUL;        # mutez : @some : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                             UNIT;       # unit : mutez : @some : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                             TRANSFER_TOKENS; # operation : list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                             CONS;       # list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                           }
                           {
-                            DROP;       # list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
+                            DROP 2;     # list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                           }; # list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                       }; # list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage
                   }; # list operation : map (or address (or (pair address nat) unit)) nat : @parameter%claim : @storage

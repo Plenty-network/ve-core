@@ -182,18 +182,18 @@ class FeeDistributor(sp.Contract):
                 fees_share = token_fees.value.get(token, 0)
                 token_fees.value[token] = fees_share + (total_fees * epoch_vote_share.share)
 
-                # Mark the voter (vePLY token id) as claimed
-                self.data.claim_ledger[
-                    sp.record(
-                        token_id=params.token_id,
-                        amm=params.amm,
-                        epoch=epoch_vote_share.epoch,
-                    )
-                ] = sp.unit
+            # Mark the voter (vePLY token id) as claimed
+            self.data.claim_ledger[
+                sp.record(
+                    token_id=params.token_id,
+                    amm=params.amm,
+                    epoch=epoch_vote_share.epoch,
+                )
+            ] = sp.unit
 
         # Iterate through the two tokens and transfer the share to token / lock owner
         with sp.for_("token", token_fees.value.keys()) as token:
-            voter_fees_share = token_fees.value[token] // VOTE_SHARE_MULTIPLIER
+            voter_fees_share = sp.compute(token_fees.value[token] // VOTE_SHARE_MULTIPLIER)
 
             with token.match_cases() as arg:
                 with arg.match("fa12") as address:

@@ -194,8 +194,9 @@ class Gauge(sp.Contract):
             mark_up.value = (((self.data.total_supply * token_voting_power) // total_voting_power) * 60) // 100
 
         base_balance = (balance_ * 40) // 100
-        self.data.derived_balances[params.address] = sp.min(base_balance + mark_up.value, balance_)
-        self.data.derived_supply += self.data.derived_balances[params.address]
+        derived_balance = sp.compute(sp.min(base_balance + mark_up.value, balance_))
+        self.data.derived_balances[params.address] = derived_balance
+        self.data.derived_supply += derived_balance
 
     @sp.entry_point
     def stake(self, params):
@@ -291,19 +292,22 @@ class Gauge(sp.Contract):
         # Store as local variable to keep on stack
         balance = sp.compute(self.data.balances[sp.sender])
 
+        # Push withdrawal amount on stack
+        withdrawal_amount = sp.compute(sp.min(amount, balance))
+
         # Transfer withdrawn tokens back to sender
         TokenUtils.transfer_FA12(
             sp.record(
                 from_=sp.self_address,
                 to_=sp.sender,
-                value=sp.min(amount, balance),
+                value=withdrawal_amount,
                 token_address=self.data.lp_token_address,
             )
         )
 
         # Modify balance and total supply
-        self.data.total_supply = sp.as_nat(self.data.total_supply - sp.min(amount, balance))
-        self.data.balances[sp.sender] = sp.as_nat(balance - sp.min(amount, balance))
+        self.data.total_supply = sp.as_nat(self.data.total_supply - withdrawal_amount)
+        self.data.balances[sp.sender] = sp.as_nat(balance - withdrawal_amount)
 
         # Detach boost token if all balance is withdrawn
         with sp.if_(self.data.balances[sp.sender] == 0):

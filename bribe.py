@@ -176,7 +176,7 @@ class Bribe(sp.Contract):
 
         # Calculate bribe share for voter
         epoch_bribe = sp.compute(self.data.epoch_bribes[sp.record(epoch=params.epoch, bribe_id=params.bribe_id)])
-        voter_bribe_share = (epoch_bribe.bribe.value * params.vote_share) // VOTE_SHARE_MULTIPLIER
+        voter_bribe_share = sp.compute((epoch_bribe.bribe.value * params.vote_share) // VOTE_SHARE_MULTIPLIER)
 
         # Transfer bribe to voter
         with epoch_bribe.bribe.type.match_cases() as arg:

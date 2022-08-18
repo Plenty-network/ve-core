@@ -263,12 +263,9 @@ class VoteEscrow(sp.Contract):
         with sp.for_("request", params.requests) as request:
             sp.verify(self.data.locks.contains(request.token_id), FA2_Errors.FA2_TOKEN_UNDEFINED)
 
-            with sp.if_(self.data.ledger.contains((request.owner, request.token_id))):
-                response.value.push(
-                    sp.record(request=request, balance=self.data.ledger[(request.owner, request.token_id)])
-                )
-            with sp.else_():
-                response.value.push(sp.record(request=request, balance=sp.nat(0)))
+            balance = self.data.ledger.get((request.owner, request.token_id), 0)
+
+            response.value.push(sp.record(request=request, balance=balance))
 
         sp.transfer(response.value, sp.tez(0), params.callback)
 
@@ -646,7 +643,7 @@ class VoteEscrow(sp.Contract):
         sp.verify((ts > lock.end) & (d_ts <= MAX_TIME), Errors.INVALID_INCREASE_END_TIMESTAMP)
 
         # Calculate new bias and slope
-        bias = (lock.base_value * d_ts) // MAX_TIME
+        bias = sp.compute((lock.base_value * d_ts) // MAX_TIME)
         slope = (bias * SLOPE_MULTIPLIER) // d_ts
 
         # Update lock end
@@ -721,11 +718,13 @@ class VoteEscrow(sp.Contract):
             # Get epoch ending from Voter
             epoch_end = sp.view("get_epoch_end", self.data.voter, epoch, sp.TNat).open_some(Errors.INVALID_VIEW)
 
+            ts_ = sp.compute(sp.as_nat(epoch_end - WEEK))
+
             # Get token voting power at the beginning of epoch
             token_vp = sp.view(
                 "get_token_voting_power",
                 sp.self_address,
-                sp.record(token_id=params.token_id, ts=sp.as_nat(epoch_end - WEEK), time=Types.WHOLE_WEEK),
+                sp.record(token_id=params.token_id, ts=ts_, time=Types.WHOLE_WEEK),
                 sp.TNat,
             ).open_some(Errors.INVALID_VIEW)
 
@@ -733,7 +732,7 @@ class VoteEscrow(sp.Contract):
             total_vp = sp.view(
                 "get_total_voting_power",
                 sp.self_address,
-                sp.record(ts=sp.as_nat(epoch_end - WEEK), time=Types.WHOLE_WEEK),
+                sp.record(ts=ts_, time=Types.WHOLE_WEEK),
                 sp.TNat,
             ).open_some(Errors.INVALID_VIEW)
 
@@ -776,7 +775,7 @@ class VoteEscrow(sp.Contract):
         with sp.if_(ts >= last_checkpoint.ts):
             i_bias = last_checkpoint.bias
             slope = last_checkpoint.slope
-            f_bias = i_bias - (sp.as_nat(ts - last_checkpoint.ts) * slope) // SLOPE_MULTIPLIER
+            f_bias = sp.compute(i_bias - (sp.as_nat(ts - last_checkpoint.ts) * slope) // SLOPE_MULTIPLIER)
             with sp.if_(f_bias < 0):
                 sp.result(sp.nat(0))
             with sp.else_():
@@ -798,9 +797,10 @@ class VoteEscrow(sp.Contract):
             with sp.if_(self.data.token_checkpoints[(params.token_id, mid.value + 1)].ts == ts):
                 sp.result(self.data.token_checkpoints[(params.token_id, mid.value + 1)].bias)
             with sp.else_():
-                bias = self.data.token_checkpoints[(params.token_id, low.value + 1)].bias
-                slope = self.data.token_checkpoints[(params.token_id, low.value + 1)].slope
-                d_ts = ts - self.data.token_checkpoints[(params.token_id, low.value + 1)].ts
+                checkpoint = sp.compute(self.data.token_checkpoints[(params.token_id, low.value + 1)])
+                bias = checkpoint.bias
+                slope = checkpoint.slope
+                d_ts = ts - checkpoint.ts
                 sp.result(sp.as_nat(bias - (sp.as_nat(d_ts) * slope) // SLOPE_MULTIPLIER))
 
     @sp.onchain_view()
@@ -873,13 +873,12 @@ class VoteEscrow(sp.Contract):
     def is_owner(self, params):
         sp.set_type(params, sp.TRecord(address=sp.TAddress, token_id=sp.TNat))
 
-        with sp.if_(~self.data.ledger.contains((params.address, params.token_id))):
+        balance = self.data.ledger.get((params.address, params.token_id), 0)
+
+        with sp.if_(balance != 1):
             sp.result(sp.bool(False))
         with sp.else_():
-            with sp.if_(self.data.ledger[(params.address, params.token_id)] != 1):
-                sp.result(sp.bool(False))
-            with sp.else_():
-                sp.result(sp.bool(True))
+            sp.result(sp.bool(True))
 
     @sp.onchain_view()
     def get_locked_supply(self):
