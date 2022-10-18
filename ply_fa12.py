@@ -11,17 +11,16 @@ Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
 DECIMALS = Constants.DECIMALS
 MAX_SUPPLY = Constants.MAX_SUPPLY
 
-# TODO: Update icon url
 TOKEN_METADATA = {
-    "decimals": "18",
     "name": "Plenty PLY",
     "symbol": "PLY",
-    "icon": "ipfs://dummy",
+    "decimals": "18",
+    "thumbnailUri": "ipfs://QmRwP8UJUqQf2u5Ttx4bdWuhihkcGtRoJoAekq9j6A7hJM",
+    "shouldPreferSymbol": "true",
 }
 
-# TODO: Update url
 CONTRACT_METADATA = {
-    "": "ipfs://dummy",
+    "": "ipfs://Qmdywzwsn5preNna8iPRg8P8g3rQWzrLXhnrkJeStvZtUh",
 }
 
 
