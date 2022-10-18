@@ -288,10 +288,10 @@ if __name__ == "__main__":
         scenario += token.addMintAdmin(Addresses.CONTRACT).run(sender=Addresses.ADMIN)
 
         # Mint admin mints 90_000_000 tokens
-        scenario += token.mint(address=Addresses.ALICE, value=90_000_000 * DECIMALS).run(sender=Addresses.CONTRACT)
+        scenario += token.mint(address=Addresses.ALICE, value=900_000_000 * DECIMALS).run(sender=Addresses.CONTRACT)
 
         # Mint admin mints 20_000_000 tokens (overshoots max supply, so value gets adjusted), txn fails
-        scenario += token.mint(address=Addresses.ALICE, value=20_000_000 * DECIMALS).run(
+        scenario += token.mint(address=Addresses.ALICE, value=200_000_000 * DECIMALS).run(
             sender=Addresses.CONTRACT,
             valid=False,
             exception=FA12_Error.MaxSupplyMinted,

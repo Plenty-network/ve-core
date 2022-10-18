@@ -234,7 +234,7 @@ class Voter(sp.Contract):
 
             # Calculate growth due to the emission
             growth = (real_emission * PRECISION) // ply_total_supply
-            lockers_inflation = sp.compute((growth * ply_locked_supply) // PRECISION)
+            lockers_inflation = sp.compute((growth * ply_locked_supply) // (PRECISION * EMISSION_FACTOR))
 
             # Mint required number of PLY tokens (lockers inflation) for VoteEscrow
             c = sp.contract(
@@ -607,6 +607,11 @@ class Voter(sp.Contract):
 
 if __name__ == "__main__":
 
+    # Test helper
+    def precision_equal(a, b, dec):
+        # Check if values are equal after removing precision digits
+        return (a // dec) == (b // dec)
+
     ####################
     # vote (valid test)
     ####################
@@ -856,10 +861,10 @@ if __name__ == "__main__":
     def test():
         scenario = sp.test_scenario()
 
-        # Initialize vote escrow with locked supply of 100 tokens
+        # Initialize vote escrow with locked supply of 1,00,000 tokens
         ve = VE(locked_supply=sp.nat(1_000_000 * DECIMALS))
 
-        # Initialize Ply token with total supply 400
+        # Initialize Ply token with total supply 4,00,000 tokens
         ply = Ply(total_supply=sp.nat(4_000_000 * DECIMALS))
 
         voter = Voter(
@@ -886,20 +891,19 @@ if __name__ == "__main__":
         scenario.verify(voter.data.epoch_end[6] == sp.timestamp(7 * WEEK))
 
         # Predicted values
-        emission_offset = ((INITIAL_EMISSION * 1_000_000 * DECIMALS) // (4_000_000 * DECIMALS)) // EMISSION_FACTOR
-        real_emission = INITIAL_EMISSION - emission_offset
-        base_emission = (INITIAL_EMISSION * INITIAL_DROP) // (100 * DROP_GRANULARITY)
+        emission_offset = 375_000 * DECIMALS
+        real_emission = 2_625_000 * DECIMALS
+        base_emission = 2_000_000 * DECIMALS
 
         # Emission values are updated correctly
-        scenario.verify(voter.data.emission.base == base_emission)
-        scenario.verify(voter.data.emission.real == real_emission)
+        scenario.verify(precision_equal(voter.data.emission.base, base_emission, DECIMALS))
+        scenario.verify(precision_equal(voter.data.emission.real, real_emission, DECIMALS))
 
         # Predicted locker inflation
-        growth = (real_emission * PRECISION) // (4_000_000 * DECIMALS)
-        locker_inflation = (1_000_000 * DECIMALS * growth) // PRECISION
+        locker_inflation = 328_125 * DECIMALS
 
         # Correct inflation is record
-        scenario.verify(ve.data.inflation == locker_inflation)
+        scenario.verify(precision_equal(ve.data.inflation, locker_inflation, DECIMALS))
 
         # When next epoch is called again at the end of 7 Weeks
         scenario += voter.next_epoch().run(now=sp.timestamp(7 * WEEK + 73))
@@ -909,35 +913,34 @@ if __name__ == "__main__":
         scenario.verify(voter.data.epoch_end[7] == sp.timestamp(8 * WEEK))
 
         # Predicted values
-        emission_offset = ((base_emission * 1_000_000 * DECIMALS) // (4_000_000 * DECIMALS)) // EMISSION_FACTOR
-        real_emission = base_emission - emission_offset
+        emission_offset = 250_000 * DECIMALS
+        real_emission = 1_750_000 * DECIMALS
 
         # Emission values are updated correctly
-        scenario.verify(voter.data.emission.base == base_emission)
-        scenario.verify(voter.data.emission.real == real_emission)
+        scenario.verify(precision_equal(voter.data.emission.base, base_emission, DECIMALS))
+        scenario.verify(precision_equal(voter.data.emission.real, real_emission, DECIMALS))
 
         # Predicted locker inflation
-        growth = (real_emission * PRECISION) // (4_000_000 * DECIMALS)
-        locker_inflation = (1_000_000 * DECIMALS * growth) // PRECISION
+        locker_inflation = 218_750 * DECIMALS
 
         # Correct inflation is record
-        scenario.verify(ve.data.inflation == locker_inflation)
+        scenario.verify(precision_equal(ve.data.inflation, locker_inflation, DECIMALS))
 
     @sp.add_test(name="next_epoch correctly updates epoch during yearly emission drop")
     def test():
         scenario = sp.test_scenario()
 
-        # Initialize vote escrow with locked supply of 100 tokens
+        # Initialize vote escrow with locked supply of 1,00,000 tokens
         ve = VE(locked_supply=sp.nat(1_000_000 * DECIMALS))
 
-        # Initialize Ply token with total supply 400
+        # Initialize Ply token with total supply 4,00,000 tokens
         ply = Ply(total_supply=sp.nat(4_000_000 * DECIMALS))
 
         voter = Voter(
             epoch=53,
             epoch_end=sp.big_map(l={53: sp.timestamp(54 * WEEK)}),
             emission=sp.record(
-                base=700_000 * DECIMALS,
+                base=2_000_000 * DECIMALS,
                 real=sp.nat(0),
                 genesis=2 * WEEK,
             ),
@@ -949,7 +952,7 @@ if __name__ == "__main__":
         scenario += ply
         scenario += voter
 
-        # When next epoch is called again at the end of 1st complete year
+        # When next epoch is called at the end of 1st complete year
         scenario += voter.next_epoch().run(now=sp.timestamp(54 * WEEK + 24))
 
         # Epoch is updated correctly
@@ -957,70 +960,19 @@ if __name__ == "__main__":
         scenario.verify(voter.data.epoch_end[54] == sp.timestamp(55 * WEEK))
 
         # Predicted values
-        emission_offset = ((700_000 * DECIMALS * 1_000_000 * DECIMALS) // (4_000_000 * DECIMALS)) // EMISSION_FACTOR
-        real_emission = (700_000 * DECIMALS) - emission_offset
-        base_emission = (700_000 * DECIMALS * YEARLY_DROP) // (100 * DROP_GRANULARITY)
+        emission_offset = 250_000 * DECIMALS
+        real_emission = 1_750_000 * DECIMALS
+        base_emission = 1_414_213 * DECIMALS
 
         # Emission values are updated correctly
-        scenario.verify(voter.data.emission.base == base_emission)
-        scenario.verify(voter.data.emission.real == real_emission)
+        scenario.verify(precision_equal(voter.data.emission.base, base_emission, DECIMALS))
+        scenario.verify(precision_equal(voter.data.emission.real, real_emission, DECIMALS))
 
         # Predicted locker inflation
-        growth = (real_emission * PRECISION) // (4_000_000 * DECIMALS)
-        locker_inflation = (1_000_000 * DECIMALS * growth) // PRECISION
+        locker_inflation = 218_750 * DECIMALS
 
         # Correct inflation is record
-        scenario.verify(ve.data.inflation == locker_inflation)
-
-    @sp.add_test(name="next_epoch correctly sets trail emission")
-    def test():
-        scenario = sp.test_scenario()
-
-        # Initialize vote escrow with locked supply of 100 tokens
-        ve = VE(locked_supply=sp.nat(1_000_000 * DECIMALS))
-
-        # Initialize Ply token with total supply 400
-        ply = Ply(total_supply=sp.nat(4_000_000 * DECIMALS))
-
-        base_emission = TRAIL_EMISSION + 5_000 * DECIMALS
-
-        voter = Voter(
-            epoch=53,
-            epoch_end=sp.big_map(l={53: sp.timestamp(54 * WEEK)}),
-            emission=sp.record(
-                base=base_emission,
-                real=sp.nat(0),
-                genesis=2 * WEEK,
-            ),
-            ve_address=ve.address,
-            ply_address=ply.address,
-        )
-
-        scenario += ve
-        scenario += ply
-        scenario += voter
-
-        # When next epoch is called again at the end of 1st complete year
-        scenario += voter.next_epoch().run(now=sp.timestamp(54 * WEEK + 24))
-
-        # Epoch is updated correctly
-        scenario.verify(voter.data.epoch == 54)
-        scenario.verify(voter.data.epoch_end[54] == sp.timestamp(55 * WEEK))
-
-        emission_offset = ((base_emission * 1_000_000 * DECIMALS) // (4_000_000 * DECIMALS)) // EMISSION_FACTOR
-        real_emission = (base_emission) - emission_offset
-        base_emission = (base_emission * YEARLY_DROP) // (100 * DROP_GRANULARITY)
-
-        # Emission values are updated correctly
-        scenario.verify(voter.data.emission.base == TRAIL_EMISSION)
-        scenario.verify(voter.data.emission.real == real_emission)
-
-        # Predicted locker inflation
-        growth = (real_emission * PRECISION) // (4_000_000 * DECIMALS)
-        locker_inflation = (1_000_000 * DECIMALS * growth) // PRECISION
-
-        # Correct inflation is record
-        scenario.verify(ve.data.inflation == locker_inflation)
+        scenario.verify(precision_equal(ve.data.inflation, locker_inflation, DECIMALS))
 
     ############################
     # next_epoch (failure test)
@@ -1401,11 +1353,11 @@ if __name__ == "__main__":
 
         # AMM's vote share is calculated correctly and gauge contract is called with correct amount value
         scenario.verify(
-            gauge.data.recharge_val.open_some() == sp.record(amount=1_000_000 * DECIMALS, epoch=1)
+            gauge.data.recharge_val.open_some() == sp.record(amount=1_500_000 * DECIMALS, epoch=1)
         )  # 0.5 of the real emission
 
         # PLY tokens are minted correctly for gauge
-        scenario.verify(ply_token.data.balances[gauge.address].balance == 1_000_000 * DECIMALS)
+        scenario.verify(ply_token.data.balances[gauge.address].balance == 1_500_000 * DECIMALS)
 
     ################################
     # recharge_gauge (failure test)
