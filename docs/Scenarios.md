@@ -15,15 +15,16 @@ Given below are some of the integral real-world scenarios or actions that could 
 
 ## 1. Swap existing PLENTY or WRAP tokens with PLY or associated vePLY tokens
 
-If you hold the existing PLENTY and/or WRAP tokens, you can exchange them for the tokens of the new system - after the merger. There will be predetermined exchange rates for both tokens. You would receive the new token PLY through a special form of vesting designed to work closely with the Ve(3, 3) system.
+If you hold the existing PLENTY and/or WRAP tokens, you can exchange them for the tokens of the new system - after the merger. There will be predetermined exchange rates for both tokens. You will receive 50% of the exchanged tokens immediately, and another 50% will ve linearly vested for 2 years. Claim on the vested tokens can be made every 24 hours.
 
 **Scenario:**
 
 - You have 1000 PLENTY tokens (would work similarly for WRAP, with a different exchange rate).
 - You deposit 1000 PLENTY into an **Exchange contract** and have 500 PLY tokens ‘assigned’ to you (dummy exchange rate of 0.5 PLY/PLENTY).
-- You do not end up getting 500 PLY all at once like a standard swap, instead, you will have two options to retrieve the PLY assigned to you:
-  - The PLY is initially locked and will keep getting unlocked at a rate of say 0.1 PLY/second (this is once again a dummy value). So, 60 seconds after the exchange, you can claim 6 PLY tokens. This can be thought of as vesting on a per-second basis.
-  - You can also claim the part that is locked as a vePLY NFT. When you make such a ‘future’ claim, your PLY is sent to the Escrow Locker and **locked for a period of time** selected by you, and you receive a **transferable NFT** (that can be sold on a secondary market) representing the ownership of the underlying locked PLY.
+- You get 250 PLY (50%) immediately.
+- The remaining 250 PLY is vested over 2 years and you can make a claim once every 24 hours.
+
+This vesting structure is highly flexible and an extended explanation can be found here: https://whitepaper.plenty.network/tokenomics/migration
 
 ## 2. Lock PLY tokens in Vote-Escrow (VE) Locker to get a vePLY NFT
 

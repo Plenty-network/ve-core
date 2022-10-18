@@ -1,4 +1,4 @@
-# Plenty PLY/vePLY Core
+# Plenty's VE System Contracts
 
 ## Folder Structure
 
