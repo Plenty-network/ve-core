@@ -24,7 +24,6 @@ DECIMALS = Constants.DECIMALS
 PRECISION = Constants.PRECISION
 YEARLY_DROP = Constants.YEARLY_DROP
 INITIAL_DROP = Constants.INITIAL_DROP
-TRAIL_EMISSION = Constants.TRAIL_EMISSION
 EMISSION_FACTOR = Constants.EMISSION_FACTOR
 INITIAL_EMISSION = Constants.INITIAL_EMISSION
 DROP_GRANULARITY = Constants.DROP_GRANULARITY
@@ -265,8 +264,6 @@ class Voter(sp.Contract):
                 self.data.emission.base = (current_emission.base * INITIAL_DROP) // (100 * DROP_GRANULARITY)
             with sp.if_(((rounded_now - current_emission.genesis) % YEAR) == 0):
                 self.data.emission.base = (current_emission.base * YEARLY_DROP) // (100 * DROP_GRANULARITY)
-                with sp.if_(self.data.emission.base < TRAIL_EMISSION):
-                    self.data.emission.base = TRAIL_EMISSION
 
             # Update weekly epoch
             self.data.epoch += 1

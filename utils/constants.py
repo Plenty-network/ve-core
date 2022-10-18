@@ -22,9 +22,6 @@ MAX_SUPPLY = 1_000_000_000 * DECIMALS
 # Initial weekly ply emission in number of tokens
 INITIAL_EMISSION = 3_000_000 * DECIMALS
 
-# Long term fixed trailing emission rate
-TRAIL_EMISSION = 10_000 * DECIMALS
-
 # The precision multiplier for drop percentages
 DROP_GRANULARITY = 1_000_000
 
