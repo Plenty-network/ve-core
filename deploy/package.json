@@ -1,7 +1,7 @@
 {
   "name": "deploy",
   "version": "1.0.0",
-  "description": "Deplyment scripts for Plenty's PLY/vePLY system",
+  "description": "Deployment scripts for Plenty's Vote Escrow system",
   "main": "index.js",
   "license": "MIT",
   "scripts": {

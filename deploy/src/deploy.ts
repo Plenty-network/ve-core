@@ -19,9 +19,9 @@ export interface DeployParams {
 
 export const deploy = async (deployParams: DeployParams) => {
   try {
-    console.log("--------------------------------------");
-    console.log(` Deploying PLY/vePLY System Contracts`);
-    console.log("--------------------------------------");
+    console.log("----------------------------------");
+    console.log(` Deploying VE System Contracts`);
+    console.log("----------------------------------");
 
     // Prepare storage and contract for PLY FA1.2
     const plyStorage = storageUtils.getPlyStorage({ admin: deployParams.plyAdmin });
@@ -126,9 +126,9 @@ export const deploy = async (deployParams: DeployParams) => {
     await batchOp.confirmation(1);
     console.log(">>> Inter-contract connections configured. Operation Hash: ", batchOp.hash);
 
-    console.log("\n--------------------------------------");
+    console.log("\n----------------------------------");
     console.log(` Deployment Complete!`);
-    console.log("--------------------------------------");
+    console.log("----------------------------------");
   } catch (err) {
     console.log(err.message);
   }

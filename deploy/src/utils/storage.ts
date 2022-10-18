@@ -3,7 +3,7 @@ interface PlyStorageParams {
 }
 
 export const getPlyStorage = (params: PlyStorageParams): string => {
-  return `(Pair (Pair "${params.admin}" (Pair {} {Elt "" 0x697066733a2f2f64756d6d79})) (Pair {} (Pair {Elt 0 (Pair 0 {Elt "decimals" 0x3138; Elt "icon" 0x697066733a2f2f64756d6d79; Elt "name" 0x506c656e747920504c59; Elt "symbol" 0x504c59})} 0)))`;
+  return `(Pair (Pair "${params.admin}" (Pair {} {Elt "" 0x697066733a2f2f516d6479777a77736e357072654e6e61386950526738503867337251577a724c58686e726b4a655374765a745568})) (Pair {} (Pair {Elt 0 (Pair 0 {Elt "decimals" 0x3138; Elt "name" 0x506c656e747920504c59; Elt "shouldPreferSymbol" 0x74727565; Elt "symbol" 0x504c59; Elt "thumbnailUri" 0x697066733a2f2f516d52775038554a5571516632753554747834626457756869686b634774526f4a6f41656b71396a364137684a4d})} 0)))`;
 };
 
 interface VEStorageParams {
@@ -11,7 +11,7 @@ interface VEStorageParams {
 }
 
 export const getVEStorage = (params: VEStorageParams): string => {
-  return `(Pair (Pair (Pair (Pair {} "${params.baseToken}") (Pair {} {})) (Pair (Pair 0 {}) (Pair {} 0))) (Pair (Pair (Pair {} {}) (Pair {} {})) (Pair (Pair {} {}) (Pair 0 "tz1RBkXZSiQb3fS7Sg3zbFdPMBFPJUNHdcFo"))))`;
+  return `(Pair (Pair (Pair {} (Pair "${params.baseToken}" {})) (Pair (Pair {} 0) (Pair {} {}))) (Pair (Pair (Pair 0 {}) (Pair {} {})) (Pair (Pair {} {}) (Pair 0 "tz1RBkXZSiQb3fS7Sg3zbFdPMBFPJUNHdcFo"))))`;
 };
 
 interface VoterStorageParams {
