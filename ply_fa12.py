@@ -15,8 +15,7 @@ TOKEN_METADATA = {
     "name": "Plenty PLY",
     "symbol": "PLY",
     "decimals": "18",
-    "thumbnailUri": "ipfs://QmRwP8UJUqQf2u5Ttx4bdWuhihkcGtRoJoAekq9j6A7hJM",
-    "shouldPreferSymbol": "true",
+    "icon": "ipfs://QmRwP8UJUqQf2u5Ttx4bdWuhihkcGtRoJoAekq9j6A7hJM",
 }
 
 CONTRACT_METADATA = {

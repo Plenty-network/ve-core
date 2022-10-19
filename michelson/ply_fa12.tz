@@ -82,7 +82,7 @@ code
                 GET;        # option (pair (map address nat) nat) : nat : @parameter%approve : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
                 IF_NONE
                   {
-                    PUSH int 92; # int : nat : @parameter%approve : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                    PUSH int 91; # int : nat : @parameter%approve : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
                     FAILWITH;   # FAILED
                   }
                   {}; # @some : nat : @parameter%approve : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
@@ -127,7 +127,7 @@ code
                 GET;        # option (pair (map address nat) nat) : @sender : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%approve
                 IF_NONE
                   {
-                    PUSH int 94; # int : @sender : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%approve
+                    PUSH int 93; # int : @sender : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%approve
                     FAILWITH;   # FAILED
                   }
                   {}; # @some : @sender : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%approve
@@ -182,7 +182,7 @@ code
                     GET;        # option (pair (map %approvals address nat) (nat %balance)) : @parameter%getAllowance : @storage
                     IF_NONE
                       {
-                        PUSH int 112; # int : @parameter%getAllowance : @storage
+                        PUSH int 111; # int : @parameter%getAllowance : @storage
                         FAILWITH;   # FAILED
                       }
                       {}; # @some : @parameter%getAllowance : @storage
@@ -240,7 +240,7 @@ code
                     GET;        # option (pair (map %approvals address nat) (nat %balance)) : @parameter%getBalance : @storage
                     IF_NONE
                       {
-                        PUSH int 104; # int : @parameter%getBalance : @storage
+                        PUSH int 103; # int : @parameter%getBalance : @storage
                         FAILWITH;   # FAILED
                       }
                       {}; # @some : @parameter%getBalance : @storage
@@ -370,7 +370,7 @@ code
                 GET;        # option (pair (map address nat) nat) : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
                 IF_NONE
                   {
-                    PUSH int 137; # int : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
+                    PUSH int 136; # int : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
                     FAILWITH;   # FAILED
                   }
                   {}; # @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%mint
@@ -448,7 +448,7 @@ code
                     GET;        # option (pair (map %approvals address nat) (nat %balance)) : nat : @parameter%transfer : @storage
                     IF_NONE
                       {
-                        PUSH int 68; # int : nat : @parameter%transfer : @storage
+                        PUSH int 67; # int : nat : @parameter%transfer : @storage
                         FAILWITH;   # FAILED
                       }
                       {}; # @some : nat : @parameter%transfer : @storage
@@ -551,7 +551,7 @@ code
                 GET;        # option (pair (map address nat) nat) : nat : @parameter%transfer : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
                 IF_NONE
                   {
-                    PUSH int 77; # int : nat : @parameter%transfer : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                    PUSH int 76; # int : nat : @parameter%transfer : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
                     FAILWITH;   # FAILED
                   }
                   {}; # @some : nat : @parameter%transfer : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
@@ -580,7 +580,7 @@ code
                 GET;        # option (pair (map address nat) nat) : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
                 IF_NONE
                   {
-                    PUSH int 78; # int : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                    PUSH int 77; # int : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
                     FAILWITH;   # FAILED
                   }
                   {}; # @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
@@ -594,7 +594,7 @@ code
                 GET;        # option (pair (map address nat) nat) : nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer
                 IF_NONE
                   {
-                    PUSH int 78; # int : nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer
+                    PUSH int 77; # int : nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer
                     FAILWITH;   # FAILED
                   }
                   {}; # @some : nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer
@@ -603,7 +603,7 @@ code
                 ISNAT;      # option nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer
                 IF_NONE
                   {
-                    PUSH int 78; # int : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer
+                    PUSH int 77; # int : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer
                     FAILWITH;   # FAILED
                   }
                   {}; # @some : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer
@@ -620,7 +620,7 @@ code
                 GET;        # option (pair (map address nat) nat) : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer
                 IF_NONE
                   {
-                    PUSH int 79; # int : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer
+                    PUSH int 78; # int : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer
                     FAILWITH;   # FAILED
                   }
                   {}; # @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer
@@ -662,7 +662,7 @@ code
                     GET;        # option (pair (map address nat) nat) : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
                     IF_NONE
                       {
-                        PUSH int 82; # int : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
+                        PUSH int 81; # int : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
                         FAILWITH;   # FAILED
                       }
                       {}; # @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)) : @parameter%transfer : pair (pair address (pair (big_map address (pair (map address nat) nat)) (big_map string bytes))) (pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply)))
@@ -678,7 +678,7 @@ code
                     GET;        # option (pair (map address nat) nat) : nat : map address nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))
                     IF_NONE
                       {
-                        PUSH int 83; # int : nat : map address nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))
+                        PUSH int 82; # int : nat : map address nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))
                         FAILWITH;   # FAILED
                       }
                       {}; # @some : nat : map address nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))
@@ -687,7 +687,7 @@ code
                     GET;        # option nat : nat : map address nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))
                     IF_NONE
                       {
-                        PUSH int 83; # int : nat : map address nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))
+                        PUSH int 82; # int : nat : map address nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))
                         FAILWITH;   # FAILED
                       }
                       {}; # @some : nat : map address nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))
@@ -695,7 +695,7 @@ code
                     ISNAT;      # option nat : map address nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))
                     IF_NONE
                       {
-                        PUSH int 82; # int : map address nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))
+                        PUSH int 81; # int : map address nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))
                         FAILWITH;   # FAILED
                       }
                       {}; # @some : map address nat : @some : address : big_map address (pair (map address nat) nat) : big_map string bytes : address : pair (set %mintAdmins address) (pair (big_map %token_metadata nat (pair (nat %token_id) (map %token_info string bytes))) (nat %totalSupply))
