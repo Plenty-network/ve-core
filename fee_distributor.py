@@ -219,6 +219,10 @@ class FeeDistributor(sp.Contract):
                     with sp.if_(voter_fees_share > 0):
                         sp.send(params.owner, sp.utils.nat_to_mutez(voter_fees_share))
 
+    @sp.entry_point
+    def default(self):
+        pass
+
 
 if __name__ == "__main__":
 
