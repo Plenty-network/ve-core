@@ -20,22 +20,22 @@ const FACTORY_ADMIN = "tz1ZczbHu1iLWRa88n9CUiCKDGex5ticp19S";
 const DEPLOY_VE_SWAP = true;
 
 // Address of PLENTY token contract
-const PLENTY_ADDRESS = "KT1GRSvLoikDsXujKgZPsGLX8k8VvR2Tq95b";
+const PLENTY_ADDRESS = "KT1EJo3R1AT1XUZxNer8TgaTeM8p5ippMUqW";
 
 // Address of WRAP token contract
-const WRAP_ADDRESS = "KT1LRboPna9yQY9BrjtQYDS1DVxhKESK4VVd";
+const WRAP_ADDRESS = "KT1PzM3a5P6rq5882B5prfpyCfTbrYzpiNmK";
 
 // Unix timestamp at which swapping starts
-const VE_SWAP_GENESIS = "1970-01-01T00:00:00Z";
+const VE_SWAP_GENESIS = "2022-11-03T00:00:00Z";
 
 // Unix timestamp at which swapping vesting ends
-const VE_SWAP_END = "1970-01-01T00:00:10Z";
+const VE_SWAP_END = "2024-11-03T00:00:00Z";
 
 // PLY / PLENTY exchange rate
-const PLENTY_EXCHANGE_VAL = 5 * 10 ** 18;
+const PLENTY_EXCHANGE_VAL = 6 * 10 ** 18;
 
 // PLY / WRAP exchange rate
-const WRAP_EXCHANGE_VAL = 2 * 10 ** 8;
+const WRAP_EXCHANGE_VAL = "30000000000000000000000000000";
 
 const deployParams: DeployParams = {
   tezos,

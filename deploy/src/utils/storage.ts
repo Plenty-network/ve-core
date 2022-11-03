@@ -50,7 +50,7 @@ interface VESwapStorageParams {
   veSwapGenesis: string;
   veSwapEnd: string;
   plentyExchangeVal: number;
-  wrapExchangeVal: number;
+  wrapExchangeVal: string;
 }
 
 export const getVESwapStorage = (params: VESwapStorageParams): string => {

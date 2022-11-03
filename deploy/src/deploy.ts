@@ -12,7 +12,7 @@ export interface DeployParams {
   plentyAddress: string;
   wrapAddress: string;
   plentyExchangeVal: number;
-  wrapExchangeVal: number;
+  wrapExchangeVal: string;
   veSwapGenesis: string;
   veSwapEnd: string;
 }
@@ -29,7 +29,11 @@ export const deploy = async (deployParams: DeployParams) => {
 
     // Deploy PLY FA1.2
     console.log("\n>> [1 / 6] Deploying PLY FA1.2");
-    const plyAddress = await contractUtils.deployContract(plyContract, plyStorage, deployParams.tezos);
+    const plyAddress = await contractUtils.deployContract(
+      plyContract,
+      plyStorage,
+      deployParams.tezos
+    );
     console.log(">>> PLY FA1.2 address: ", plyAddress);
 
     // Prepare storage and contract for Vote Escrow
@@ -50,7 +54,11 @@ export const deploy = async (deployParams: DeployParams) => {
       const veSwapContract = contractUtils.loadContract("ve_swap");
 
       console.log("\n>> [x] Deploying VESwap contract");
-      const veSwapAddress = await contractUtils.deployContract(veSwapContract, veSwapStorage, deployParams.tezos);
+      const veSwapAddress = await contractUtils.deployContract(
+        veSwapContract,
+        veSwapStorage,
+        deployParams.tezos
+      );
       console.log(">>> VE Swap address: ", veSwapAddress);
     }
 
@@ -65,7 +73,11 @@ export const deploy = async (deployParams: DeployParams) => {
 
     // Deploy Voter
     console.log("\n>> [3 / 6] Deploying Voter");
-    const voterAddress = await contractUtils.deployContract(voterContract, voterStorage, deployParams.tezos);
+    const voterAddress = await contractUtils.deployContract(
+      voterContract,
+      voterStorage,
+      deployParams.tezos
+    );
     console.log(">>> Voter address: ", voterAddress);
 
     // Prepare storage and contract for Core Factory
@@ -79,7 +91,11 @@ export const deploy = async (deployParams: DeployParams) => {
 
     // Deploy Factory
     console.log("\n>> [4 / 6] Deploying Core Factory");
-    const factoryAddress = await contractUtils.deployContract(factoryContract, factoryStorage, deployParams.tezos);
+    const factoryAddress = await contractUtils.deployContract(
+      factoryContract,
+      factoryStorage,
+      deployParams.tezos
+    );
     console.log(">>> Core Factory address: ", factoryAddress);
 
     // Prepare storage and contract for Fee Distributor
@@ -111,7 +127,9 @@ export const deploy = async (deployParams: DeployParams) => {
       },
       {
         kind: OpKind.TRANSACTION,
-        ...voterInstance.methods.set_factory_and_fee_dist(factoryAddress, feeDistributorAddress).toTransferParams(),
+        ...voterInstance.methods
+          .set_factory_and_fee_dist(factoryAddress, feeDistributorAddress)
+          .toTransferParams(),
       },
       {
         kind: OpKind.TRANSACTION,
