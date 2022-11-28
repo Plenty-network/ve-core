@@ -322,6 +322,7 @@ class VoteEscrow(sp.Contract):
             with attachment.match_cases() as arg:
                 with arg.match("add_attachment") as token_id:
                     # Sanity checks
+                    sp.verify(~self.data.attached.contains(token_id), Errors.LOCK_IS_ATTACHED)
                     sp.verify(self.data.ledger.get((params.owner, token_id), 0) == 1, Errors.NOT_AUTHORISED)
                     sp.verify(
                         (sp.sender == params.owner)
@@ -905,7 +906,7 @@ if __name__ == "__main__":
     # Test Helpers
     ###############
     NOW = int(0.5 * DAY)
-    DECIMALS = 10 ** 18
+    DECIMALS = 10**18
 
     ###########################
     # create_lock (valid test)
