@@ -6,6 +6,8 @@ TokenUtils = sp.io.import_script_from_url("file:utils/token.py")
 Constants = sp.io.import_script_from_url("file:utils/constants.py")
 Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
 Voter = sp.io.import_script_from_url("file:helpers/dummy/voter.py").Voter
+Utils = sp.io.import_script_from_url("file:utils/misc.py")
+SVG = sp.io.import_script_from_url("file:utils/svg.py")
 
 ############
 # Constants
@@ -15,6 +17,7 @@ DAY = Constants.DAY
 WEEK = Constants.WEEK
 YEAR = Constants.YEAR
 MAX_TIME = Constants.MAX_TIME
+DECIMALS = Constants.DECIMALS
 SLOPE_MULTIPLIER = Constants.SLOPE_MULTIPLIER
 
 ########
@@ -157,9 +160,22 @@ class VoteEscrow(sp.Contract):
         base_token=Addresses.TOKEN,
         locked_supply=sp.nat(0),
     ):
+
+        METADATA = {
+            "name": "PLY Vote Escrow",
+            "version": "1.0.0",
+            "description": "This contract allows locking up PLY as a veNFT",
+            "interfaces": ["TZIP-012", "TZIP-016", "TZIP-021"],
+            "views": [self.token_metadata],
+        }
+
+        # Smartpy's helper to create the metadata json
+        self.init_metadata("metadata", METADATA)
+
         self.init(
             ledger=ledger,
             operators=operators,
+            metadata=sp.utils.metadata_of_url("ipfs://QmV3Kih1Wq9EyHTiEfJnTyxdrqr2Fi59jLMvicFCyh6Bsb"),
             locks=locks,
             attached=attached,
             uid=sp.nat(0),
@@ -187,6 +203,7 @@ class VoteEscrow(sp.Contract):
                     ),
                     sp.TUnit,
                 ),
+                metadata=sp.TBigMap(sp.TString, sp.TBytes),
                 # VE specific
                 locks=sp.TBigMap(sp.TNat, Types.LOCK),
                 attached=sp.TBigMap(sp.TNat, sp.TAddress),
@@ -885,17 +902,100 @@ class VoteEscrow(sp.Contract):
     def get_locked_supply(self):
         sp.result(self.data.locked_supply)
 
-    @sp.onchain_view()
+    @sp.offchain_view(pure=False)
     def token_metadata(self, token_id):
         sp.set_type(token_id, sp.TNat)
 
-        # NOTE: ipfs string shall be updated
+        # Verify that the lock with supplied token-id exists
+        sp.verify(self.data.locks.contains(token_id), Errors.LOCK_DOES_NOT_EXIST)
+
+        # Current timestamp as nat
+        ts = sp.compute(sp.as_nat(sp.now - sp.timestamp(0)))
+
+        lock = sp.compute(self.data.locks[token_id])
+        bytes_of_nat = sp.compute(Utils.bytes_of_nat)
+
+        voting_power = sp.local("voting_power", 0)
+        expiry = sp.local("expiry", 0)
+
+        with sp.if_(lock.end > ts):
+            # Number of days left to expire
+            expiry.value = sp.as_nat(lock.end - ts) // 86400
+
+        index_ = self.data.num_token_checkpoints[token_id]
+        last_checkpoint = sp.compute(self.data.token_checkpoints[(token_id, index_)])
+
+        # Find the current voting power. `ts` is bound to be >= the timestamp of last checkpoint.
+        i_bias = last_checkpoint.bias
+        slope = last_checkpoint.slope
+        f_bias = sp.compute(i_bias - (sp.as_nat(ts - last_checkpoint.ts) * slope) // SLOPE_MULTIPLIER)
+        with sp.if_(f_bias < 0):
+            voting_power.value = 0
+        with sp.else_():
+            voting_power.value = sp.as_nat(f_bias)
+
+        # Segments of the SVG data URI
+        segments = sp.local("segments", SVG.DATA_SEGMENTS.GOLD)
+
+        # Select the correct set of segments based on days to expire to generate the SVG
+        # > 3 years = gold
+        # > 2 years = violet
+        # > 6 months = red
+        # < 6 months = green
+        # expired = grey
+        with sp.if_((expiry.value > 728) & (expiry.value < 1092)):
+            segments.value = SVG.DATA_SEGMENTS.VIOLET
+        with sp.else_():
+            with sp.if_((expiry.value > 180) & (expiry.value < 728)):
+                segments.value = SVG.DATA_SEGMENTS.RED
+            with sp.else_():
+                with sp.if_(expiry.value < 180):
+                    segments.value = SVG.DATA_SEGMENTS.GREEN
+                with sp.if_(lock.end < ts):
+                    segments.value = SVG.DATA_SEGMENTS.GREY
+
+        get_floating_point = sp.compute(Utils.get_floating_point)
+
+        f_locked_ply = get_floating_point(lock.base_value)
+        f_voting_power = get_floating_point(voting_power.value)
+
+        b_locked_ply = sp.local("b_locked_ply", bytes_of_nat(sp.fst(f_locked_ply)))
+        b_voting_power = sp.local("b_voting_power", bytes_of_nat(sp.fst(f_voting_power)))
+
+        with sp.if_(sp.snd(f_locked_ply) > 0):
+            b_locked_ply.value += sp.utils.bytes_of_string(".") + bytes_of_nat(sp.snd(f_locked_ply))
+        with sp.if_(sp.snd(f_voting_power) > 0):
+            b_voting_power.value += sp.utils.bytes_of_string(".") + bytes_of_nat(sp.snd(f_voting_power))
+
+        # Build the SVG data URI
+        image_uri = sp.compute(
+            SVG.build_svg(
+                sp.record(
+                    segments=segments.value,
+                    token_id=bytes_of_nat(token_id),
+                    locked_ply=b_locked_ply.value,
+                    voting_power=b_voting_power.value,
+                    expiry=bytes_of_nat(expiry.value),
+                )
+            )
+        )
+
+        # Create a TZIP-21 compliant token-info
+        metadata_tzip_21 = {
+            "name": sp.utils.bytes_of_string("Plenty veNFT"),
+            "symbol": sp.utils.bytes_of_string("veNFT"),
+            "decimals": sp.utils.bytes_of_string("0"),
+            "thumbnailUri": image_uri,
+            "artifactUri": image_uri,
+            "displayUri": image_uri,
+            "ttl": bytes_of_nat(sp.nat(900)),
+        }
+
+        # Return the TZIP-16 compliant metadata
         sp.result(
             sp.record(
                 token_id=token_id,
-                token_info={
-                    "": sp.utils.bytes_of_string("ipfs://"),
-                },
+                token_info=metadata_tzip_21,
             )
         )
 
