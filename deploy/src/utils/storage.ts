@@ -11,7 +11,7 @@ interface VEStorageParams {
 }
 
 export const getVEStorage = (params: VEStorageParams): string => {
-  return `(Pair (Pair (Pair (Pair {} "${params.baseToken}") (Pair {} {})) (Pair (Pair 0 {}) (Pair {} 0))) (Pair (Pair (Pair {} {Elt "" 0x697066733a2f2f516d56334b696831577139457948546945664a6e5479786472717232466935396a4c4d7669634643796836427362}) (Pair {} {})) (Pair (Pair {} {}) (Pair 0 "tz1RBkXZSiQb3fS7Sg3zbFdPMBFPJUNHdcFo"))))`;
+  return `(Pair (Pair (Pair (Pair {} "${params.baseToken}") (Pair {} {})) (Pair (Pair 0 {}) (Pair {} 0))) (Pair (Pair (Pair {} {Elt "" 0x697066733a2f2f516d586e5373396e6a51744545617565764179687735764b7145696e466d6965715842774878504b76584d4b4441}) (Pair {} {})) (Pair (Pair {} {}) (Pair 0 "tz1RBkXZSiQb3fS7Sg3zbFdPMBFPJUNHdcFo"))))`;
 };
 
 interface VoterStorageParams {

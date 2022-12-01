@@ -175,7 +175,7 @@ class VoteEscrow(sp.Contract):
         self.init(
             ledger=ledger,
             operators=operators,
-            metadata=sp.utils.metadata_of_url("ipfs://QmV3Kih1Wq9EyHTiEfJnTyxdrqr2Fi59jLMvicFCyh6Bsb"),
+            metadata=sp.utils.metadata_of_url("ipfs://QmXnSs9njQtEEauevAyhw5vKqEinFmieqXBwHxPKvXMKDA"),
             locks=locks,
             attached=attached,
             uid=sp.nat(0),
@@ -938,15 +938,15 @@ class VoteEscrow(sp.Contract):
         segments = sp.local("segments", SVG.DATA_SEGMENTS.GOLD)
 
         # Select the correct set of segments based on days to expire to generate the SVG
-        # > 3 years = gold
-        # > 2 years = violet
-        # > 6 months = red
+        # >= 3 years = gold
+        # >= 2 years = violet
+        # >= 6 months = red
         # < 6 months = green
         # expired = grey
-        with sp.if_((expiry.value > 728) & (expiry.value < 1092)):
+        with sp.if_((expiry.value >= 728) & (expiry.value < 1092)):
             segments.value = SVG.DATA_SEGMENTS.VIOLET
         with sp.else_():
-            with sp.if_((expiry.value > 180) & (expiry.value < 728)):
+            with sp.if_((expiry.value >= 180) & (expiry.value < 728)):
                 segments.value = SVG.DATA_SEGMENTS.RED
             with sp.else_():
                 with sp.if_(expiry.value < 180):

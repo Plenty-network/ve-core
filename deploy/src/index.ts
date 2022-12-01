@@ -11,10 +11,10 @@ tezos.setProvider({
 });
 
 // Admin for PLY FA1.2 contract
-const PLY_ADMIN = "tz1ZczbHu1iLWRa88n9CUiCKDGex5ticp19S";
+const PLY_ADMIN = "tz1WDRu8H4dHbUwygocLsmaXgHthGiV6JGJG";
 
 // Admin for core factory contract
-const FACTORY_ADMIN = "tz1ZczbHu1iLWRa88n9CUiCKDGex5ticp19S";
+const FACTORY_ADMIN = "tz1WDRu8H4dHbUwygocLsmaXgHthGiV6JGJG";
 
 // True if initial plenty/wrap to PLY swap contract needs to be deployed
 const DEPLOY_VE_SWAP = true;
@@ -26,10 +26,10 @@ const PLENTY_ADDRESS = "KT1EJo3R1AT1XUZxNer8TgaTeM8p5ippMUqW";
 const WRAP_ADDRESS = "KT1PzM3a5P6rq5882B5prfpyCfTbrYzpiNmK";
 
 // Unix timestamp at which swapping starts
-const VE_SWAP_GENESIS = "2022-11-03T00:00:00Z";
+const VE_SWAP_GENESIS = "2022-12-01T00:00:00Z";
 
 // Unix timestamp at which swapping vesting ends
-const VE_SWAP_END = "2024-11-03T00:00:00Z";
+const VE_SWAP_END = "2024-12-01T00:00:00Z";
 
 // PLY / PLENTY exchange rate
 const PLENTY_EXCHANGE_VAL = 6 * 10 ** 18;
