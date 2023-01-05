@@ -15,7 +15,7 @@ TOKEN_METADATA = {
     "name": "Plenty PLY",
     "symbol": "PLY",
     "decimals": "18",
-    "icon": "ipfs://QmRwP8UJUqQf2u5Ttx4bdWuhihkcGtRoJoAekq9j6A7hJM",
+    "thumbnailUri": "ipfs://QmQs2XZLFszq5npkYdt3oDTazw1XxpGYHJWL8o3LTGzVkU",
 }
 
 CONTRACT_METADATA = {
@@ -141,6 +141,12 @@ class FA12_administrator(FA12_core):
     def is_administrator(self, sender):
         return sender == self.data.administrator
 
+    @sp.entry_point
+    def setAdministrator(self, address):
+        sp.verify(self.is_administrator(sp.sender), FA12_Error.NotAdmin)
+
+        self.data.administrator = address
+
     # CHANGED: entrypoint to insert mint admins
     @sp.entry_point
     def addMintAdmin(self, address):
@@ -240,8 +246,13 @@ if __name__ == "__main__":
         scenario += c1.transfer(from_=alice.address, to_=bob.address, value=4).run(sender=bob, valid=False)
         scenario.verify(c1.data.balances[alice.address].balance == 10)
         scenario += c1.transfer(from_=alice.address, to_=bob.address, value=1).run(sender=alice)
+        scenario.h2("Admin makes the alice the new administrator")
+        scenario += c1.setAdministrator(alice.address).run(sender=admin)
+        scenario.h2("Bob tries to change the admin")
+        scenario += c1.setAdministrator(bob.address).run(sender=bob, valid=False)
 
         scenario.verify(c1.data.totalSupply == 18)
+        scenario.verify(c1.data.administrator == alice.address)
         scenario.verify(c1.data.balances[alice.address].balance == 9)
         scenario.verify(c1.data.balances[bob.address].balance == 9)
 

@@ -11,7 +11,7 @@ export interface DeployParams {
   deployVeSwap: boolean;
   plentyAddress: string;
   wrapAddress: string;
-  plentyExchangeVal: number;
+  plentyExchangeVal: string;
   wrapExchangeVal: string;
   veSwapGenesis: string;
   veSwapEnd: string;

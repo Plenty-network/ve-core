@@ -11,31 +11,31 @@ tezos.setProvider({
 });
 
 // Admin for PLY FA1.2 contract
-const PLY_ADMIN = "tz1WDRu8H4dHbUwygocLsmaXgHthGiV6JGJG";
+const PLY_ADMIN = "tz1Y8cACwiwQYwLNzzHnBvLQBendT6DUR3Rn";
 
 // Admin for core factory contract
-const FACTORY_ADMIN = "tz1WDRu8H4dHbUwygocLsmaXgHthGiV6JGJG";
+const FACTORY_ADMIN = "tz1Y8cACwiwQYwLNzzHnBvLQBendT6DUR3Rn";
 
 // True if initial plenty/wrap to PLY swap contract needs to be deployed
 const DEPLOY_VE_SWAP = true;
 
 // Address of PLENTY token contract
-const PLENTY_ADDRESS = "KT1EJo3R1AT1XUZxNer8TgaTeM8p5ippMUqW";
+const PLENTY_ADDRESS = "KT1GRSvLoikDsXujKgZPsGLX8k8VvR2Tq95b";
 
 // Address of WRAP token contract
-const WRAP_ADDRESS = "KT1PzM3a5P6rq5882B5prfpyCfTbrYzpiNmK";
+const WRAP_ADDRESS = "KT1LRboPna9yQY9BrjtQYDS1DVxhKESK4VVd";
 
 // Unix timestamp at which swapping starts
-const VE_SWAP_GENESIS = "2022-12-01T00:00:00Z";
+const VE_SWAP_GENESIS = "2023-01-05T00:00:00Z";
 
 // Unix timestamp at which swapping vesting ends
-const VE_SWAP_END = "2024-12-01T00:00:00Z";
+const VE_SWAP_END = "2025-01-05T00:00:00Z";
 
 // PLY / PLENTY exchange rate
-const PLENTY_EXCHANGE_VAL = 6 * 10 ** 18;
+const PLENTY_EXCHANGE_VAL = "5714285714285714285";
 
 // PLY / WRAP exchange rate
-const WRAP_EXCHANGE_VAL = "30000000000000000000000000000";
+const WRAP_EXCHANGE_VAL = "30927865055015100165151551528";
 
 const deployParams: DeployParams = {
   tezos,
