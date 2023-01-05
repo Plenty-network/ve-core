@@ -1,5 +1,8 @@
+import * as dotenv from "dotenv";
 import { TezosToolkit } from "@taquito/taquito";
 import { InMemorySigner } from "@taquito/signer";
+
+dotenv.config();
 
 // Types and utlities
 import { deploy, DeployParams } from "./deploy";
