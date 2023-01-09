@@ -24,8 +24,8 @@ First, set the values of the configuration fields in the `index.ts` file in `src
 - `PLENTY_EXCHANGE_VAL`: PLY/PLENTY swap rate.
 - `WRAP_EXCHANGE_VAL`: PLY/WRAP swap rate.
 
-Once the configuration fields are prepared, the deployment can be done by providing a private key as an environment variable and running `deploy:testnet` script:
+Once the configuration fields are prepared, the deployment can be done by providing a private key as an environment variable and running `deploy` script:
 
 ```
-$ PRIVATE_KEY=<Your private key> yarn deploy:testnet
+$ PRIVATE_KEY=<Your private key> yarn deploy <network>
 ```

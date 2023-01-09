@@ -1,25 +1,25 @@
 import smartpy as sp
 
+Errors = sp.io.import_script_from_url("file:utils/errors.py")
+Constants = sp.io.import_script_from_url("file:utils/constants.py")
 Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
 
 ############
 # Constants
 ############
 
-DECIMALS = 10 ** 18
-MAX_SUPPLY = 100_000_000 * DECIMALS
+DECIMALS = Constants.DECIMALS
+MAX_SUPPLY = Constants.MAX_SUPPLY
 
-# TODO: Update icon url
 TOKEN_METADATA = {
-    "decimals": "18",
     "name": "Plenty PLY",
     "symbol": "PLY",
-    "icon": "ipfs://dummy",
+    "decimals": "18",
+    "thumbnailUri": "ipfs://QmQs2XZLFszq5npkYdt3oDTazw1XxpGYHJWL8o3LTGzVkU",
 }
 
-# TODO: Update url
 CONTRACT_METADATA = {
-    "": "ipfs://dummy",
+    "": "ipfs://Qmdywzwsn5preNna8iPRg8P8g3rQWzrLXhnrkJeStvZtUh",
 }
 
 
@@ -28,9 +28,9 @@ class FA12_Error:
         return "FA1.2_" + s
 
     NotAdmin = make("NotAdmin")
-    InsufficientBalance = make("InsufficientBalance")
+    NotEnoughBalance = make("NotEnoughBalance")
     UnsafeAllowanceChange = make("UnsafeAllowanceChange")
-    NotAllowed = make("NotAllowed")
+    NotEnoughAllowance = make("NotEnoughAllowance")
     MaxSupplyMinted = make("MaxSupplyMinted")
 
 
@@ -63,13 +63,17 @@ class FA12_core(sp.Contract, FA12_common):
             ),
         )
         sp.verify(
-            (params.from_ == sp.sender) | (self.data.balances[params.from_].approvals[sp.sender] >= params.value),
-            FA12_Error.NotAllowed,
+            (params.from_ == sp.sender)
+            | (self.data.balances[params.from_].approvals.get(sp.sender, 0) >= params.value),
+            FA12_Error.NotEnoughAllowance,
         )
+
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
 
         self.addAddressIfNecessary(params.from_)
         self.addAddressIfNecessary(params.to_)
-        sp.verify(self.data.balances[params.from_].balance >= params.value, FA12_Error.InsufficientBalance)
+        sp.verify(self.data.balances[params.from_].balance >= params.value, FA12_Error.NotEnoughBalance)
         self.data.balances[params.from_].balance = sp.as_nat(self.data.balances[params.from_].balance - params.value)
         self.data.balances[params.to_].balance += params.value
 
@@ -80,6 +84,8 @@ class FA12_core(sp.Contract, FA12_common):
 
     @sp.entry_point
     def approve(self, params):
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
         sp.set_type(params, sp.TRecord(spender=sp.TAddress, value=sp.TNat).layout(("spender", "value")))
         self.addAddressIfNecessary(sp.sender)
         alreadyApproved = self.data.balances[sp.sender].approvals.get(params.spender, 0)
@@ -134,6 +140,12 @@ class FA12_mint(FA12_core):
 class FA12_administrator(FA12_core):
     def is_administrator(self, sender):
         return sender == self.data.administrator
+
+    @sp.entry_point
+    def setAdministrator(self, address):
+        sp.verify(self.is_administrator(sp.sender), FA12_Error.NotAdmin)
+
+        self.data.administrator = address
 
     # CHANGED: entrypoint to insert mint admins
     @sp.entry_point
@@ -234,8 +246,13 @@ if __name__ == "__main__":
         scenario += c1.transfer(from_=alice.address, to_=bob.address, value=4).run(sender=bob, valid=False)
         scenario.verify(c1.data.balances[alice.address].balance == 10)
         scenario += c1.transfer(from_=alice.address, to_=bob.address, value=1).run(sender=alice)
+        scenario.h2("Admin makes the alice the new administrator")
+        scenario += c1.setAdministrator(alice.address).run(sender=admin)
+        scenario.h2("Bob tries to change the admin")
+        scenario += c1.setAdministrator(bob.address).run(sender=bob, valid=False)
 
         scenario.verify(c1.data.totalSupply == 18)
+        scenario.verify(c1.data.administrator == alice.address)
         scenario.verify(c1.data.balances[alice.address].balance == 9)
         scenario.verify(c1.data.balances[bob.address].balance == 9)
 
@@ -280,10 +297,10 @@ if __name__ == "__main__":
         scenario += token.addMintAdmin(Addresses.CONTRACT).run(sender=Addresses.ADMIN)
 
         # Mint admin mints 90_000_000 tokens
-        scenario += token.mint(address=Addresses.ALICE, value=90_000_000 * DECIMALS).run(sender=Addresses.CONTRACT)
+        scenario += token.mint(address=Addresses.ALICE, value=900_000_000 * DECIMALS).run(sender=Addresses.CONTRACT)
 
         # Mint admin mints 20_000_000 tokens (overshoots max supply, so value gets adjusted), txn fails
-        scenario += token.mint(address=Addresses.ALICE, value=20_000_000 * DECIMALS).run(
+        scenario += token.mint(address=Addresses.ALICE, value=200_000_000 * DECIMALS).run(
             sender=Addresses.CONTRACT,
             valid=False,
             exception=FA12_Error.MaxSupplyMinted,

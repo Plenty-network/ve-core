@@ -1,43 +1,34 @@
 import smartpy as sp
 
-Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
-VE = sp.io.import_script_from_url("file:helpers/dummy/ve.py").VE
-Ply = sp.io.import_script_from_url("file:helpers/dummy/ply.py").Ply
-TokenUtils = sp.io.import_script_from_url("file:utils/token.py")
+Errors = sp.io.import_script_from_url("file:utils/errors.py")
 FA12 = sp.io.import_script_from_url("file:ply_fa12.py").FA12
-GaugeBribe = sp.io.import_script_from_url("file:helpers/dummy/gauge_bribe.py").GaugeBribe
+TokenUtils = sp.io.import_script_from_url("file:utils/token.py")
+VE = sp.io.import_script_from_url("file:helpers/dummy/ve.py").VE
+Constants = sp.io.import_script_from_url("file:utils/constants.py")
+Ply = sp.io.import_script_from_url("file:helpers/dummy/ply.py").Ply
+Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
 FeeDist = sp.io.import_script_from_url("file:helpers/dummy/fee_dist.py").FeeDist
+GaugeBribe = sp.io.import_script_from_url("file:helpers/dummy/gauge_bribe.py").GaugeBribe
+
 
 ############
 # Constants
 ############
 
-DECIMALS = PRECISION = 10 ** 18
 
-DAY = 86400
-WEEK = 7 * DAY
-YEAR = 52 * WEEK
-MAX_TIME = 4 * YEAR
+DAY = Constants.DAY
+WEEK = Constants.WEEK
+YEAR = Constants.YEAR
+MAX_TIME = Constants.MAX_TIME
+DECIMALS = Constants.DECIMALS
+PRECISION = Constants.PRECISION
+YEARLY_DROP = Constants.YEARLY_DROP
+INITIAL_DROP = Constants.INITIAL_DROP
+EMISSION_FACTOR = Constants.EMISSION_FACTOR
+INITIAL_EMISSION = Constants.INITIAL_EMISSION
+DROP_GRANULARITY = Constants.DROP_GRANULARITY
+VOTE_SHARE_MULTIPLIER = Constants.VOTE_SHARE_MULTIPLIER
 
-VOTE_SHARE_MULTIPLIER = 10 ** 18
-
-# NOTE: Emission values here are only for testing. Values in the system deployed on the mainnet can be different.
-
-# Initial weekly ply emission in number of tokens
-INITIAL_EMISSION = 2_000_000 * DECIMALS
-
-# Long term fixed trailing emission rate
-TRAIL_EMISSION = 10_000 * DECIMALS
-
-# The precision multiplier for drop percentages
-DROP_GRANULARITY = 1_000_000
-
-# Emission drop after the high initial rate for 4 weeks (period may change)
-# This implies emission drops to 35% of the initial value
-INITIAL_DROP = 35 * DROP_GRANULARITY  # Percentage with granularity
-
-# Emission drop after every one year
-YEARLY_DROP = 55 * DROP_GRANULARITY  # Percentage with granularity
 
 ########
 # Types
@@ -103,27 +94,6 @@ class Types:
     # Enumeration for voting power readers
     CURRENT = sp.nat(0)
     WHOLE_WEEK = sp.nat(1)
-
-
-#########
-# Errors
-#########
-
-
-class Errors:
-    EPOCH_ENDED = "EPOCH_ENDED"
-    PREVIOUS_EPOCH_YET_TO_END = "PREVIOUS_EPOCH_YET_TO_END"
-    INVALID_EPOCH = "INVALID_EPOCH"
-    AMM_INVALID_OR_NOT_WHITELISTED = "AMM_INVALID_OR_NOT_WHITELISTED"
-    SENDER_DOES_NOT_OWN_LOCK = "SENDER_DOES_NOT_OWN_LOCK"
-    ZERO_VOTE_NOT_ALLOWED = "ZERO_VOTE_NOT_ALLOWED"
-    NOT_ENOUGH_VOTING_POWER_AVAILABLE = "NOT_ENOUGH_VOTING_POWER_AVAILABLE"
-    ENTRYPOINT_DOES_NOT_ACCEPT_TEZ = "ENTRYPOINT_DOES_NOT_ACCEPT_TEZ"
-    CONTRACT_DOES_NOT_ACCEPT_TEZ = "CONTRACT_DOES_NOT_ACCEPT_TEZ"
-
-    # Generic
-    INVALID_VIEW = "INVALID_VIEW"
-    NOT_AUTHORISED = "NOT_AUTHORISED"
 
 
 ###########
@@ -255,7 +225,7 @@ class Voter(sp.Contract):
             current_emission = sp.compute(self.data.emission)
 
             # Calculate decrease offset based on locked supply ratio
-            emission_offset = (current_emission.base * ply_locked_supply) // ply_total_supply
+            emission_offset = ((current_emission.base * ply_locked_supply) // ply_total_supply) // EMISSION_FACTOR
 
             # Calculate real emission for the epoch that just ended
             real_emission = sp.as_nat(current_emission.base - emission_offset)
@@ -263,7 +233,7 @@ class Voter(sp.Contract):
 
             # Calculate growth due to the emission
             growth = (real_emission * PRECISION) // ply_total_supply
-            lockers_inflation = (growth * ply_locked_supply) // PRECISION
+            lockers_inflation = sp.compute((growth * ply_locked_supply) // (PRECISION * EMISSION_FACTOR))
 
             # Mint required number of PLY tokens (lockers inflation) for VoteEscrow
             c = sp.contract(
@@ -294,8 +264,6 @@ class Voter(sp.Contract):
                 self.data.emission.base = (current_emission.base * INITIAL_DROP) // (100 * DROP_GRANULARITY)
             with sp.if_(((rounded_now - current_emission.genesis) % YEAR) == 0):
                 self.data.emission.base = (current_emission.base * YEARLY_DROP) // (100 * DROP_GRANULARITY)
-                with sp.if_(self.data.emission.base < TRAIL_EMISSION):
-                    self.data.emission.base = TRAIL_EMISSION
 
             # Update weekly epoch
             self.data.epoch += 1
@@ -343,7 +311,7 @@ class Voter(sp.Contract):
         sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
 
         # Verify that current epoch is not yet over
-        sp.verify(sp.now < self.data.epoch_end[self.data.epoch], Errors.EPOCH_ENDED)
+        sp.verify(sp.now <= self.data.epoch_end[self.data.epoch], Errors.EPOCH_ENDED)
 
         # nat version of block timestamp
         now_ = sp.as_nat(sp.now - sp.timestamp(0))
@@ -428,35 +396,58 @@ class Voter(sp.Contract):
         sp.verify(is_owner, Errors.SENDER_DOES_NOT_OWN_LOCK)
 
         # Calculate vote share for the vePLY token
-        token_votes_for_amm = self.data.token_amm_votes[
-            sp.record(token_id=params.token_id, epoch=params.epoch, amm=params.amm)
-        ]
-        total_votes_for_amm = self.data.total_amm_votes[sp.record(epoch=params.epoch, amm=params.amm)]
-
-        token_vote_share = (token_votes_for_amm * VOTE_SHARE_MULTIPLIER) // total_votes_for_amm
-
-        # call the 'claim' entrypoint in bribe contract
-        param_type = sp.TRecord(
-            token_id=sp.TNat,
-            owner=sp.TAddress,
-            epoch=sp.TNat,
-            bribe_id=sp.TNat,
-            vote_share=sp.TNat,
-        ).layout(("token_id", ("owner", ("epoch", ("bribe_id", "vote_share")))))
-
-        c = sp.contract(param_type, self.data.amm_to_gauge_bribe[params.amm].bribe, "claim").open_some()
-
-        sp.transfer(
-            sp.record(
-                token_id=params.token_id,
-                owner=sp.sender,
-                epoch=params.epoch,
-                bribe_id=params.bribe_id,
-                vote_share=token_vote_share,
-            ),
-            sp.tez(0),
-            c,
+        token_votes_for_amm = self.data.token_amm_votes.get(
+            sp.record(token_id=params.token_id, epoch=params.epoch, amm=params.amm),
+            0,
         )
+
+        total_votes_for_amm = sp.compute(
+            self.data.total_amm_votes.get(
+                sp.record(epoch=params.epoch, amm=params.amm),
+                0,
+            )
+        )
+
+        with sp.if_(total_votes_for_amm > 0):
+            token_vote_share = (token_votes_for_amm * VOTE_SHARE_MULTIPLIER) // total_votes_for_amm
+
+            # call the 'claim' entrypoint in bribe contract
+            param_type = sp.TRecord(
+                token_id=sp.TNat,
+                owner=sp.TAddress,
+                epoch=sp.TNat,
+                bribe_id=sp.TNat,
+                vote_share=sp.TNat,
+            ).layout(("token_id", ("owner", ("epoch", ("bribe_id", "vote_share")))))
+
+            c = sp.contract(param_type, self.data.amm_to_gauge_bribe[params.amm].bribe, "claim").open_some()
+
+            sp.transfer(
+                sp.record(
+                    token_id=params.token_id,
+                    owner=sp.sender,
+                    epoch=params.epoch,
+                    bribe_id=params.bribe_id,
+                    vote_share=token_vote_share,
+                ),
+                sp.tez(0),
+                c,
+            )
+        with sp.else_():
+            # Retutn the bribe to the provider is no votes received by the AMM
+            c = sp.contract(
+                sp.TRecord(epoch=sp.TNat, bribe_id=sp.TNat),
+                self.data.amm_to_gauge_bribe[params.amm].bribe,
+                "return_bribe",
+            ).open_some()
+            sp.transfer(
+                sp.record(
+                    epoch=params.epoch,
+                    bribe_id=params.bribe_id,
+                ),
+                sp.tez(0),
+                c,
+            )
 
     @sp.entry_point
     def claim_fee(self, params):
@@ -610,13 +601,13 @@ class Voter(sp.Contract):
         sp.set_type(param, sp.TNat)
         sp.result(self.data.total_epoch_votes.get(param, 0))
 
-    # Reject tez sent to the contract address
-    @sp.entry_point
-    def default(self):
-        sp.failwith(Errors.CONTRACT_DOES_NOT_ACCEPT_TEZ)
-
 
 if __name__ == "__main__":
+
+    # Test helper
+    def precision_equal(a, b, dec):
+        # Check if values are equal after removing precision digits
+        return (a // dec) == (b // dec)
 
     ####################
     # vote (valid test)
@@ -867,10 +858,10 @@ if __name__ == "__main__":
     def test():
         scenario = sp.test_scenario()
 
-        # Initialize vote escrow with locked supply of 100 tokens
+        # Initialize vote escrow with locked supply of 1,00,000 tokens
         ve = VE(locked_supply=sp.nat(1_000_000 * DECIMALS))
 
-        # Initialize Ply token with total supply 400
+        # Initialize Ply token with total supply 4,00,000 tokens
         ply = Ply(total_supply=sp.nat(4_000_000 * DECIMALS))
 
         voter = Voter(
@@ -896,16 +887,20 @@ if __name__ == "__main__":
         scenario.verify(voter.data.epoch == 6)
         scenario.verify(voter.data.epoch_end[6] == sp.timestamp(7 * WEEK))
 
+        # Predicted values
+        emission_offset = 375_000 * DECIMALS
+        real_emission = 2_625_000 * DECIMALS
+        base_emission = 2_000_000 * DECIMALS
+
         # Emission values are updated correctly
-        scenario.verify(voter.data.emission.base == 700_000 * DECIMALS)
-        scenario.verify(voter.data.emission.real == 1_500_000 * DECIMALS)
+        scenario.verify(precision_equal(voter.data.emission.base, base_emission, DECIMALS))
+        scenario.verify(precision_equal(voter.data.emission.real, real_emission, DECIMALS))
 
         # Predicted locker inflation
-        growth = (1_500_000 * DECIMALS * PRECISION) // (4_000_000 * DECIMALS)
-        locker_inflation = (1_000_000 * DECIMALS * growth) // PRECISION
+        locker_inflation = 328_125 * DECIMALS
 
         # Correct inflation is record
-        scenario.verify(ve.data.inflation == locker_inflation)
+        scenario.verify(precision_equal(ve.data.inflation, locker_inflation, DECIMALS))
 
         # When next epoch is called again at the end of 7 Weeks
         scenario += voter.next_epoch().run(now=sp.timestamp(7 * WEEK + 73))
@@ -914,32 +909,35 @@ if __name__ == "__main__":
         scenario.verify(voter.data.epoch == 7)
         scenario.verify(voter.data.epoch_end[7] == sp.timestamp(8 * WEEK))
 
+        # Predicted values
+        emission_offset = 250_000 * DECIMALS
+        real_emission = 1_750_000 * DECIMALS
+
         # Emission values are updated correctly
-        scenario.verify(voter.data.emission.base == 700_000 * DECIMALS)
-        scenario.verify(voter.data.emission.real == 525_000 * DECIMALS)
+        scenario.verify(precision_equal(voter.data.emission.base, base_emission, DECIMALS))
+        scenario.verify(precision_equal(voter.data.emission.real, real_emission, DECIMALS))
 
         # Predicted locker inflation
-        growth = (525_000 * DECIMALS * PRECISION) // (4_000_000 * DECIMALS)
-        locker_inflation = (1_000_000 * DECIMALS * growth) // PRECISION
+        locker_inflation = 218_750 * DECIMALS
 
         # Correct inflation is record
-        scenario.verify(ve.data.inflation == locker_inflation)
+        scenario.verify(precision_equal(ve.data.inflation, locker_inflation, DECIMALS))
 
     @sp.add_test(name="next_epoch correctly updates epoch during yearly emission drop")
     def test():
         scenario = sp.test_scenario()
 
-        # Initialize vote escrow with locked supply of 100 tokens
+        # Initialize vote escrow with locked supply of 1,00,000 tokens
         ve = VE(locked_supply=sp.nat(1_000_000 * DECIMALS))
 
-        # Initialize Ply token with total supply 400
+        # Initialize Ply token with total supply 4,00,000 tokens
         ply = Ply(total_supply=sp.nat(4_000_000 * DECIMALS))
 
         voter = Voter(
             epoch=53,
             epoch_end=sp.big_map(l={53: sp.timestamp(54 * WEEK)}),
             emission=sp.record(
-                base=700_000 * DECIMALS,
+                base=2_000_000 * DECIMALS,
                 real=sp.nat(0),
                 genesis=2 * WEEK,
             ),
@@ -951,67 +949,27 @@ if __name__ == "__main__":
         scenario += ply
         scenario += voter
 
-        # When next epoch is called again at the end of 1st complete year
+        # When next epoch is called at the end of 1st complete year
         scenario += voter.next_epoch().run(now=sp.timestamp(54 * WEEK + 24))
 
         # Epoch is updated correctly
         scenario.verify(voter.data.epoch == 54)
         scenario.verify(voter.data.epoch_end[54] == sp.timestamp(55 * WEEK))
 
-        # Emission values are updated correctly
-        scenario.verify(voter.data.emission.base == 385_000 * DECIMALS)
-        scenario.verify(voter.data.emission.real == 525_000 * DECIMALS)
-
-        # Predicted locker inflation
-        growth = (525_000 * DECIMALS * PRECISION) // (4_000_000 * DECIMALS)
-        locker_inflation = (1_000_000 * DECIMALS * growth) // PRECISION
-
-        # Correct inflation is record
-        scenario.verify(ve.data.inflation == locker_inflation)
-
-    @sp.add_test(name="next_epoch correctly sets trail emission")
-    def test():
-        scenario = sp.test_scenario()
-
-        # Initialize vote escrow with locked supply of 100 tokens
-        ve = VE(locked_supply=sp.nat(1_000_000 * DECIMALS))
-
-        # Initialize Ply token with total supply 400
-        ply = Ply(total_supply=sp.nat(4_000_000 * DECIMALS))
-
-        voter = Voter(
-            epoch=53,
-            epoch_end=sp.big_map(l={53: sp.timestamp(54 * WEEK)}),
-            emission=sp.record(
-                base=15_000 * DECIMALS,
-                real=sp.nat(0),
-                genesis=2 * WEEK,
-            ),
-            ve_address=ve.address,
-            ply_address=ply.address,
-        )
-
-        scenario += ve
-        scenario += ply
-        scenario += voter
-
-        # When next epoch is called again at the end of 1st complete year
-        scenario += voter.next_epoch().run(now=sp.timestamp(54 * WEEK + 24))
-
-        # Epoch is updated correctly
-        scenario.verify(voter.data.epoch == 54)
-        scenario.verify(voter.data.epoch_end[54] == sp.timestamp(55 * WEEK))
+        # Predicted values
+        emission_offset = 250_000 * DECIMALS
+        real_emission = 1_750_000 * DECIMALS
+        base_emission = 1_414_213 * DECIMALS
 
         # Emission values are updated correctly
-        scenario.verify(voter.data.emission.base == 10_000 * DECIMALS)
-        scenario.verify(voter.data.emission.real == 11_250 * DECIMALS)
+        scenario.verify(precision_equal(voter.data.emission.base, base_emission, DECIMALS))
+        scenario.verify(precision_equal(voter.data.emission.real, real_emission, DECIMALS))
 
         # Predicted locker inflation
-        growth = (11_250 * DECIMALS * PRECISION) // (4_000_000 * DECIMALS)
-        locker_inflation = (1_000_000 * DECIMALS * growth) // PRECISION
+        locker_inflation = 218_750 * DECIMALS
 
         # Correct inflation is record
-        scenario.verify(ve.data.inflation == locker_inflation)
+        scenario.verify(precision_equal(ve.data.inflation, locker_inflation, DECIMALS))
 
     ############################
     # next_epoch (failure test)
@@ -1266,6 +1224,45 @@ if __name__ == "__main__":
             )
         )
 
+    @sp.add_test(name="claim_bribe calls return_bribe when total votes for the amm is zero")
+    def test():
+        scenario = sp.test_scenario()
+
+        # Initialize dummy vote escrow for ownership checks
+        ve = VE()
+
+        # Initialize a dummy bribe contract and set it in the voter for AMM_1
+        bribe = GaugeBribe()
+
+        # Initialize with no votes for epoch 1
+        voter = Voter(
+            epoch=2,
+            epoch_end=sp.big_map(l={2: sp.timestamp(10)}),
+            amm_to_gauge_bribe=sp.big_map(
+                l={
+                    Addresses.AMM_1: sp.record(gauge=Addresses.CONTRACT, bribe=bribe.address),
+                }
+            ),
+            ve_address=ve.address,
+        )
+
+        scenario += ve
+        scenario += bribe
+        scenario += voter
+
+        # When ALICE calls claim_bribe for epoch 1 votes
+        scenario += voter.claim_bribe(
+            sp.record(
+                token_id=1,
+                epoch=1,
+                amm=Addresses.AMM_1,
+                bribe_id=1,
+            )
+        ).run(sender=Addresses.ALICE)
+
+        # return_bribe is executed in the bribe contract
+        scenario.verify(bribe.data.return_val.open_some() == sp.record(epoch=1, bribe_id=1))
+
     #############################
     # claim_bribe (failure test)
     #############################
@@ -1353,11 +1350,11 @@ if __name__ == "__main__":
 
         # AMM's vote share is calculated correctly and gauge contract is called with correct amount value
         scenario.verify(
-            gauge.data.recharge_val.open_some() == sp.record(amount=1_000_000 * DECIMALS, epoch=1)
+            gauge.data.recharge_val.open_some() == sp.record(amount=1_500_000 * DECIMALS, epoch=1)
         )  # 0.5 of the real emission
 
         # PLY tokens are minted correctly for gauge
-        scenario.verify(ply_token.data.balances[gauge.address].balance == 1_000_000 * DECIMALS)
+        scenario.verify(ply_token.data.balances[gauge.address].balance == 1_500_000 * DECIMALS)
 
     ################################
     # recharge_gauge (failure test)

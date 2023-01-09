@@ -1,19 +1,21 @@
 import smartpy as sp
 
-Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
+Errors = sp.io.import_script_from_url("file:utils/errors.py")
+FA12 = sp.io.import_script_from_url("file:ply_fa12.py").FA12
 TokenUtils = sp.io.import_script_from_url("file:utils/token.py")
 VE = sp.io.import_script_from_url("file:helpers/dummy/ve.py").VE
-FA12 = sp.io.import_script_from_url("file:ply_fa12.py").FA12
+Constants = sp.io.import_script_from_url("file:utils/constants.py")
+Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
+
 
 ############
 # Constants
 ############
 
-DECIMALS = 10 ** 18
-PRECISION = 10 ** 18
-
-DAY = 86400
-WEEK = 7 * DAY
+DAY = Constants.DAY
+WEEK = Constants.WEEK
+DECIMALS = Constants.DECIMALS
+PRECISION = Constants.PRECISION
 
 ########
 # Types
@@ -25,23 +27,6 @@ class Types:
     # Enumeration for voting power readers
     CURRENT = sp.nat(0)  # Curren timestamp
     WHOLE_WEEK = sp.nat(1)  # Timestamp rounded down to a whole week
-
-
-#########
-# Errors
-#########
-
-
-class Errors:
-    SENDER_DOES_NOT_OWN_LOCK = "SENDER_DOES_NOT_OWN_LOCK"
-    ZERO_WITHDRAWAL_NOT_ALLOWED = "ZERO_WITHDRAWAL_NOT_ALLOWED"
-    ZERO_STAKE_NOT_ALLOWED = "ZERO_STAKE_NOT_ALLOWED"
-    NO_STAKE_TO_WITHDRAW = "NO_STAKE_TO_WITHDRAW"
-    ALREADY_RECHARGED_FOR_EPOCH = "ALREADY_RECHARGED_FOR_EPOCH"
-
-    # Generic
-    INVALID_VIEW = "INVALID_VIEW"
-    NOT_AUTHORISED = "NOT_AUTHORISED"
 
 
 ###########
@@ -138,45 +123,53 @@ class Gauge(sp.Contract):
         sp.set_type(address, sp.TAddress)
 
         # nat version of block timestamp
-        now_ = sp.as_nat(sp.now - sp.timestamp(0))
+        now_ = sp.compute(sp.as_nat(sp.now - sp.timestamp(0)))
+
+        # Store as local variable to keep on stack
+        period_finish = sp.compute(self.data.period_finish)
 
         # Calculate reward/token-staked based on derived supply
         reward_per_token_ = sp.local("reward_per_token_", self.data.reward_per_token)
         with sp.if_(self.data.total_supply != 0):
-            d_ts = sp.as_nat(sp.min(now_, self.data.period_finish) - self.data.last_update_time)
+            d_ts = sp.as_nat(sp.min(now_, period_finish) - self.data.last_update_time)
             reward_per_token_.value += (d_ts * self.data.reward_rate * PRECISION) // self.data.derived_supply
 
         self.data.reward_per_token = reward_per_token_.value
 
+        # Store as local variable to keep on stack
+        reward_per_token = sp.compute(self.data.reward_per_token)
+
         # Update last update time
-        self.data.last_update_time = sp.min(now_, self.data.period_finish)
+        self.data.last_update_time = sp.min(now_, period_finish)
 
         with sp.if_(address != Addresses.DUMMY):
-            with sp.if_(~self.data.rewards.contains(address)):
-                self.data.rewards[address] = 0
+            existing_rewards = self.data.rewards.get(address, 0)
 
             # Update already earned rewards for the user
-            self.data.rewards[address] += (
-                self.data.derived_balances.get(address, 0)
-                * sp.as_nat(self.data.reward_per_token - self.data.user_reward_per_token_debt.get(address, 0))
-            ) // PRECISION
+            self.data.rewards[address] = (
+                existing_rewards
+                + (
+                    self.data.derived_balances.get(address, 0)
+                    * sp.as_nat(reward_per_token - self.data.user_reward_per_token_debt.get(address, 0))
+                )
+                // PRECISION
+            )
 
-            self.data.user_reward_per_token_debt[address] = self.data.reward_per_token
+            self.data.user_reward_per_token_debt[address] = reward_per_token
 
     @sp.private_lambda(with_storage="read-write", wrap_call=True)
     def update_derived(self, params):
         sp.set_type(params, sp.TRecord(address=sp.TAddress, token_id=sp.TNat))
 
-        balance_ = self.data.balances[params.address]
-        total_supply_ = self.data.total_supply
+        balance_ = sp.compute(self.data.balances[params.address])
 
-        derived_balance_ = self.data.derived_balances.get(params.address, 0)
+        derived_balance_ = sp.compute(self.data.derived_balances.get(params.address, 0))
 
         with sp.if_(derived_balance_ != 0):
             self.data.derived_supply = sp.as_nat(self.data.derived_supply - derived_balance_)
 
         # nat version of block timestamp
-        now_ = sp.as_nat(sp.now - sp.timestamp(0))
+        now_ = sp.compute(sp.as_nat(sp.now - sp.timestamp(0)))
 
         # Calculate a mark_up if the user chooses to boost
         mark_up = sp.local("mark_up", sp.nat(0))
@@ -201,8 +194,9 @@ class Gauge(sp.Contract):
             mark_up.value = (((self.data.total_supply * token_voting_power) // total_voting_power) * 60) // 100
 
         base_balance = (balance_ * 40) // 100
-        self.data.derived_balances[params.address] = sp.min(base_balance + mark_up.value, balance_)
-        self.data.derived_supply += self.data.derived_balances[params.address]
+        derived_balance = sp.compute(sp.min(base_balance + mark_up.value, balance_))
+        self.data.derived_balances[params.address] = derived_balance
+        self.data.derived_supply += derived_balance
 
     @sp.entry_point
     def stake(self, params):
@@ -211,13 +205,15 @@ class Gauge(sp.Contract):
             sp.TRecord(amount=sp.TNat, token_id=sp.TNat),
         )
 
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         # Update global and user specific reward metrics
         self.update_reward(sp.sender)
 
         # Set balance and supply
-        with sp.if_(~self.data.balances.contains(sp.sender)):
-            self.data.balances[sp.sender] = sp.nat(0)
-        self.data.balances[sp.sender] += params.amount
+        balance = self.data.balances.get(sp.sender, 0)
+        self.data.balances[sp.sender] = balance + params.amount
         self.data.total_supply += params.amount
 
         # Update derived balance and derived supply for boosting
@@ -281,6 +277,9 @@ class Gauge(sp.Contract):
     def withdraw(self, amount):
         sp.set_type(amount, sp.TNat)
 
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         # Verify that withdrawal amount is non zero
         sp.verify(amount > 0, Errors.ZERO_WITHDRAWAL_NOT_ALLOWED)
 
@@ -290,24 +289,25 @@ class Gauge(sp.Contract):
         # Update global and user specific reward metrics
         self.update_reward(sp.sender)
 
+        # Store as local variable to keep on stack
+        balance = sp.compute(self.data.balances[sp.sender])
+
+        # Push withdrawal amount on stack
+        withdrawal_amount = sp.compute(sp.min(amount, balance))
+
         # Transfer withdrawn tokens back to sender
         TokenUtils.transfer_FA12(
             sp.record(
                 from_=sp.self_address,
                 to_=sp.sender,
-                value=sp.min(amount, self.data.balances[sp.sender]),
+                value=withdrawal_amount,
                 token_address=self.data.lp_token_address,
             )
         )
 
         # Modify balance and total supply
-        self.data.total_supply = sp.as_nat(self.data.total_supply - sp.min(amount, self.data.balances[sp.sender]))
-        self.data.balances[sp.sender] = sp.as_nat(
-            self.data.balances[sp.sender] - sp.min(amount, self.data.balances[sp.sender])
-        )
-
-        # Update derived balance and derived supply for boosting
-        self.update_derived(sp.record(address=sp.sender, token_id=self.data.attached_tokens.get(sp.sender, 0)))
+        self.data.total_supply = sp.as_nat(self.data.total_supply - withdrawal_amount)
+        self.data.balances[sp.sender] = sp.as_nat(balance - withdrawal_amount)
 
         # Detach boost token if all balance is withdrawn
         with sp.if_(self.data.balances[sp.sender] == 0):
@@ -325,10 +325,16 @@ class Gauge(sp.Contract):
 
                 del self.data.attached_tokens[sp.sender]
 
+        # Update derived balance and derived supply for boosting
+        self.update_derived(sp.record(address=sp.sender, token_id=self.data.attached_tokens.get(sp.sender, 0)))
+
     @sp.entry_point
     def get_reward(self):
         # Update global and user specific reward metrics
         self.update_reward(sp.sender)
+
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
 
         # If there is a non-zero reward to withdraw for the sender
         with sp.if_(self.data.rewards[sp.sender] != 0):
@@ -359,7 +365,7 @@ class Gauge(sp.Contract):
         self.update_reward(Addresses.DUMMY)
 
         # nat version of block timestamp
-        now_ = sp.as_nat(sp.now - sp.timestamp(0))
+        now_ = sp.compute(sp.as_nat(sp.now - sp.timestamp(0)))
 
         final_amount = sp.local("final_amount", params.amount)
 

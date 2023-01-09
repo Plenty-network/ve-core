@@ -34,3 +34,8 @@
 | `withdraw`   | `nat`                                         | Called a staker to remove their LP token stake.                                        |
 | `get_reward` | `unit`                                        | Called a staker to retrieve rewards accrued.                                           |
 | `recharge`   | `(pair %recharge (nat %amount) (nat %epoch))` | Called by `Voter` contract fill up the gauge with PLY emissions for a certain epoch.   |
+
+## Additional Information
+
+- `stake` entrypoint requires Gauge contract to be an `FA2 operator` for the ve-NFT to execute the `update_attachments` entrypoint in `VoteEscrow` contract.
+- `stake` entrypoint requires Gauge contract to have token transfer approval for associated AMM LP token.

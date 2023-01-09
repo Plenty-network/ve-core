@@ -1,16 +1,19 @@
 import smartpy as sp
 
-Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
+Errors = sp.io.import_script_from_url("file:utils/errors.py")
 TokenUtils = sp.io.import_script_from_url("file:utils/token.py")
-FA12 = sp.io.import_script_from_url("file:helpers/tokens/fa12.py").FA12
 FA2 = sp.io.import_script_from_url("file:helpers/tokens/fa2.py")
+Constants = sp.io.import_script_from_url("file:utils/constants.py")
+Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
 Pure = sp.io.import_script_from_url("file:helpers/dummy/pure.py").Pure
+FA12 = sp.io.import_script_from_url("file:helpers/tokens/fa12.py").FA12
+
 
 ############
 # Constants
 ############
 
-VOTE_SHARE_MULTIPLIER = 10 ** 18
+VOTE_SHARE_MULTIPLIER = Constants.VOTE_SHARE_MULTIPLIER
 
 ########
 # Types
@@ -61,22 +64,6 @@ class Types:
         amm=sp.TAddress,
         epoch_vote_shares=sp.TList(sp.TRecord(epoch=sp.TNat, share=sp.TNat)),
     ).layout(("token_id", ("owner", ("amm", "epoch_vote_shares"))))
-
-
-#########
-# Errors
-#########
-
-
-class Errors:
-    AMM_INVALID_OR_NOT_WHITELISTED = "AMM_INVALID_OR_NOT_WHITELISTED"
-    ALREADY_ADDED_FEES_FOR_EPOCH = "ALREADY_ADDED_FEES_FOR_EPOCH"
-    VOTER_ALREADY_CLAIMED_FEES_FOR_EPOCH = "VOTER_ALREADY_CLAIMED_FEES_FOR_EPOCH"
-    FEES_NOT_YET_ADDED = "FEES_NOT_YET_ADDED"
-    INVALID_TOKEN = "INVALID_TOKEN"
-
-    # Generic
-    NOT_AUTHORISED = "NOT_AUTHORISED"
 
 
 ############
@@ -189,27 +176,24 @@ class FeeDistributor(sp.Contract):
             key_ = sp.record(amm=params.amm, epoch=epoch_vote_share.epoch)
 
             # Iterate through the two tokens and record cumulative fees
-            with sp.for_("token", self.data.amm_epoch_fee[key_].keys()) as token:
-                total_fees = self.data.amm_epoch_fee[key_][token]
-                voter_fees_share = (total_fees * epoch_vote_share.share) // VOTE_SHARE_MULTIPLIER
+            amm_epoch_fee = sp.compute(self.data.amm_epoch_fee[key_])
+            with sp.for_("token", amm_epoch_fee.keys()) as token:
+                total_fees = amm_epoch_fee[token]
+                fees_share = token_fees.value.get(token, 0)
+                token_fees.value[token] = fees_share + (total_fees * epoch_vote_share.share)
 
-                with sp.if_(~token_fees.value.contains(token)):
-                    token_fees.value[token] = sp.nat(0)
-
-                token_fees.value[token] += voter_fees_share
-
-                # Mark the voter (vePLY token id) as claimed
-                self.data.claim_ledger[
-                    sp.record(
-                        token_id=params.token_id,
-                        amm=params.amm,
-                        epoch=epoch_vote_share.epoch,
-                    )
-                ] = sp.unit
+            # Mark the voter (vePLY token id) as claimed
+            self.data.claim_ledger[
+                sp.record(
+                    token_id=params.token_id,
+                    amm=params.amm,
+                    epoch=epoch_vote_share.epoch,
+                )
+            ] = sp.unit
 
         # Iterate through the two tokens and transfer the share to token / lock owner
         with sp.for_("token", token_fees.value.keys()) as token:
-            voter_fees_share = token_fees.value[token]
+            voter_fees_share = sp.compute(token_fees.value[token] // VOTE_SHARE_MULTIPLIER)
 
             with token.match_cases() as arg:
                 with arg.match("fa12") as address:
@@ -232,7 +216,8 @@ class FeeDistributor(sp.Contract):
                         )
                     )
                 with arg.match("tez") as _:
-                    sp.send(params.owner, sp.utils.nat_to_mutez(voter_fees_share))
+                    with sp.if_(voter_fees_share > 0):
+                        sp.send(params.owner, sp.utils.nat_to_mutez(voter_fees_share))
 
     @sp.entry_point
     def default(self):

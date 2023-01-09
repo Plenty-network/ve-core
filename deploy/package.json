@@ -1,15 +1,16 @@
 {
   "name": "deploy",
   "version": "1.0.0",
-  "description": "Deplyment scripts for Plenty's PLY/vePLY system",
+  "description": "Deployment scripts for Plenty's Vote Escrow system",
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "deploy:testnet": "ts-node ./src/index.ts ithacanet"
+    "deploy": "ts-node ./src/index.ts"
   },
   "dependencies": {
     "@taquito/signer": "^12.0.0",
-    "@taquito/taquito": "^12.0.0"
+    "@taquito/taquito": "^12.0.0",
+    "dotenv": "^16.0.3"
   },
   "devDependencies": {
     "ts-node": "^10.7.0",

@@ -1,21 +1,24 @@
 import smartpy as sp
 
-Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
-TokenUtils = sp.io.import_script_from_url("file:utils/token.py")
+Errors = sp.io.import_script_from_url("file:utils/errors.py")
 FA12 = sp.io.import_script_from_url("file:ply_fa12.py").FA12
+TokenUtils = sp.io.import_script_from_url("file:utils/token.py")
+Constants = sp.io.import_script_from_url("file:utils/constants.py")
+Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
 Voter = sp.io.import_script_from_url("file:helpers/dummy/voter.py").Voter
+Utils = sp.io.import_script_from_url("file:utils/misc.py")
+SVG = sp.io.import_script_from_url("file:utils/svg.py")
 
 ############
 # Constants
 ############
 
-DAY = 86400
-WEEK = 7 * DAY
-YEAR = 52 * WEEK
-MAX_TIME = 4 * YEAR
-
-# Increase precision during slope and associated bias calculation
-SLOPE_MULTIPLIER = 10 ** 18
+DAY = Constants.DAY
+WEEK = Constants.WEEK
+YEAR = Constants.YEAR
+MAX_TIME = Constants.MAX_TIME
+DECIMALS = Constants.DECIMALS
+SLOPE_MULTIPLIER = Constants.SLOPE_MULTIPLIER
 
 ########
 # Types
@@ -79,31 +82,6 @@ class Types:
     WHOLE_WEEK = sp.nat(1)
 
 
-#########
-# Errors
-#########
-
-
-class Errors:
-    INVALID_LOCK_TIME = "INVALID_LOCK_TIME"
-    LOCK_DOES_NOT_EXIST = "LOCK_DOES_NOT_EXIST"
-    LOCK_YET_TO_EXPIRE = "LOCK_YET_TO_EXPIRE"
-    LOCK_HAS_EXPIRED = "LOCK_HAS_EXPIRED"
-    INVALID_INCREASE_VALUE = "INVALID_INCREASE_VALUE"
-    INVALID_INCREASE_END_TIMESTAMP = "INVALID_INCREASE_END_TIMESTAMP"
-    TOO_EARLY_TIMESTAMP = "TOO_EARLY_TIMESTAMP"
-    INVALID_TIME = "INVALID_TIME"
-    LOCK_IS_ATTACHED = "LOCK_IS_ATTACHED"
-    ALREADY_CLAIMED_INFLATION = "ALREADY_CLAIMED_INFLATION"
-    INFLATION_NOT_ADDED = "INFLATION_NOT_ADDED"
-    ENTRYPOINT_DOES_NOT_ACCEPT_TEZ = "ENTRYPOINT_DOES_NOT_ACCEPT_TEZ"
-    CONTRACT_DOES_NOT_ACCEPT_TEZ = "CONTRACT_DOES_NOT_ACCEPT_TEZ"
-
-    # Generic
-    NOT_AUTHORISED = "NOT_AUTHORISED"
-    INVALID_VIEW = "INVALID_VIEW"
-
-
 # TZIP-12 specified errors for FA2 standard
 class FA2_Errors:
     FA2_TOKEN_UNDEFINED = "FA2_TOKEN_UNDEFINED"
@@ -135,14 +113,6 @@ class VoteEscrow(sp.Contract):
                 operator=sp.TAddress,
             ),
             tvalue=sp.TUnit,
-        ),
-        token_metadata=sp.big_map(
-            l={},
-            tkey=sp.TNat,
-            tvalue=sp.TRecord(
-                token_id=sp.TNat,
-                token_info=sp.TMap(sp.TString, sp.TBytes),
-            ),
         ),
         # Vote-escrow storage items
         locks=sp.big_map(
@@ -190,11 +160,23 @@ class VoteEscrow(sp.Contract):
         base_token=Addresses.TOKEN,
         locked_supply=sp.nat(0),
     ):
+
+        METADATA = {
+            "name": "PLY Vote Escrow",
+            "version": "1.0.0",
+            "description": "This contract allows locking up PLY as a veNFT",
+            "interfaces": ["TZIP-012", "TZIP-016", "TZIP-021"],
+            "views": [self.token_metadata],
+        }
+
+        # Smartpy's helper to create the metadata json
+        self.init_metadata("metadata", METADATA)
+
         self.init(
             ledger=ledger,
             operators=operators,
+            metadata=sp.utils.metadata_of_url("ipfs://QmXnSs9njQtEEauevAyhw5vKqEinFmieqXBwHxPKvXMKDA"),
             locks=locks,
-            token_metadata=token_metadata,
             attached=attached,
             uid=sp.nat(0),
             token_checkpoints=token_checkpoints,
@@ -221,13 +203,7 @@ class VoteEscrow(sp.Contract):
                     ),
                     sp.TUnit,
                 ),
-                token_metadata=sp.TBigMap(
-                    sp.TNat,
-                    sp.TRecord(
-                        token_id=sp.TNat,
-                        token_info=sp.TMap(sp.TString, sp.TBytes),
-                    ),
-                ),
+                metadata=sp.TBigMap(sp.TString, sp.TBytes),
                 # VE specific
                 locks=sp.TBigMap(sp.TNat, Types.LOCK),
                 attached=sp.TBigMap(sp.TNat, sp.TAddress),
@@ -295,18 +271,18 @@ class VoteEscrow(sp.Contract):
     def balance_of(self, params):
         sp.set_type(params, Types.BALANCE_OF_PARAMS)
 
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         # Response object
         response = sp.local("response", [])
 
         with sp.for_("request", params.requests) as request:
             sp.verify(self.data.locks.contains(request.token_id), FA2_Errors.FA2_TOKEN_UNDEFINED)
 
-            with sp.if_(self.data.ledger.contains((request.owner, request.token_id))):
-                response.value.push(
-                    sp.record(request=request, balance=self.data.ledger[(request.owner, request.token_id)])
-                )
-            with sp.else_():
-                response.value.push(sp.record(request=request, balance=sp.nat(0)))
+            balance = self.data.ledger.get((request.owner, request.token_id), 0)
+
+            response.value.push(sp.record(request=request, balance=balance))
 
         sp.transfer(response.value, sp.tez(0), params.callback)
 
@@ -363,6 +339,7 @@ class VoteEscrow(sp.Contract):
             with attachment.match_cases() as arg:
                 with arg.match("add_attachment") as token_id:
                     # Sanity checks
+                    sp.verify(~self.data.attached.contains(token_id), Errors.LOCK_IS_ATTACHED)
                     sp.verify(self.data.ledger.get((params.owner, token_id), 0) == 1, Errors.NOT_AUTHORISED)
                     sp.verify(
                         (sp.sender == params.owner)
@@ -520,13 +497,6 @@ class VoteEscrow(sp.Contract):
             )
         )
 
-        # Insert token metadata
-        # TODO: to be replaced with real IPFS data
-        self.data.token_metadata[uid] = sp.record(
-            token_id=uid,
-            token_info={"": sp.bytes("ipfs://")},
-        )
-
         # Retrieve base token to self address
         TokenUtils.transfer_FA12(
             sp.record(
@@ -579,9 +549,6 @@ class VoteEscrow(sp.Contract):
 
         # Delete the lock
         del self.data.locks[token_id]
-
-        # Delete metadata
-        del self.data.token_metadata[token_id]
 
     @sp.entry_point
     def increase_lock_value(self, params):
@@ -694,7 +661,7 @@ class VoteEscrow(sp.Contract):
         sp.verify((ts > lock.end) & (d_ts <= MAX_TIME), Errors.INVALID_INCREASE_END_TIMESTAMP)
 
         # Calculate new bias and slope
-        bias = (lock.base_value * d_ts) // MAX_TIME
+        bias = sp.compute((lock.base_value * d_ts) // MAX_TIME)
         slope = (bias * SLOPE_MULTIPLIER) // d_ts
 
         # Update lock end
@@ -769,11 +736,13 @@ class VoteEscrow(sp.Contract):
             # Get epoch ending from Voter
             epoch_end = sp.view("get_epoch_end", self.data.voter, epoch, sp.TNat).open_some(Errors.INVALID_VIEW)
 
+            ts_ = sp.compute(sp.as_nat(epoch_end - WEEK))
+
             # Get token voting power at the beginning of epoch
             token_vp = sp.view(
                 "get_token_voting_power",
                 sp.self_address,
-                sp.record(token_id=params.token_id, ts=sp.as_nat(epoch_end - WEEK), time=Types.WHOLE_WEEK),
+                sp.record(token_id=params.token_id, ts=ts_, time=Types.WHOLE_WEEK),
                 sp.TNat,
             ).open_some(Errors.INVALID_VIEW)
 
@@ -781,7 +750,7 @@ class VoteEscrow(sp.Contract):
             total_vp = sp.view(
                 "get_total_voting_power",
                 sp.self_address,
-                sp.record(ts=sp.as_nat(epoch_end - WEEK), time=Types.WHOLE_WEEK),
+                sp.record(ts=ts_, time=Types.WHOLE_WEEK),
                 sp.TNat,
             ).open_some(Errors.INVALID_VIEW)
 
@@ -824,7 +793,7 @@ class VoteEscrow(sp.Contract):
         with sp.if_(ts >= last_checkpoint.ts):
             i_bias = last_checkpoint.bias
             slope = last_checkpoint.slope
-            f_bias = i_bias - (sp.as_nat(ts - last_checkpoint.ts) * slope) // SLOPE_MULTIPLIER
+            f_bias = sp.compute(i_bias - (sp.as_nat(ts - last_checkpoint.ts) * slope) // SLOPE_MULTIPLIER)
             with sp.if_(f_bias < 0):
                 sp.result(sp.nat(0))
             with sp.else_():
@@ -846,9 +815,10 @@ class VoteEscrow(sp.Contract):
             with sp.if_(self.data.token_checkpoints[(params.token_id, mid.value + 1)].ts == ts):
                 sp.result(self.data.token_checkpoints[(params.token_id, mid.value + 1)].bias)
             with sp.else_():
-                bias = self.data.token_checkpoints[(params.token_id, low.value + 1)].bias
-                slope = self.data.token_checkpoints[(params.token_id, low.value + 1)].slope
-                d_ts = ts - self.data.token_checkpoints[(params.token_id, low.value + 1)].ts
+                checkpoint = sp.compute(self.data.token_checkpoints[(params.token_id, low.value + 1)])
+                bias = checkpoint.bias
+                slope = checkpoint.slope
+                d_ts = ts - checkpoint.ts
                 sp.result(sp.as_nat(bias - (sp.as_nat(d_ts) * slope) // SLOPE_MULTIPLIER))
 
     @sp.onchain_view()
@@ -921,22 +891,113 @@ class VoteEscrow(sp.Contract):
     def is_owner(self, params):
         sp.set_type(params, sp.TRecord(address=sp.TAddress, token_id=sp.TNat))
 
-        with sp.if_(~self.data.ledger.contains((params.address, params.token_id))):
+        balance = self.data.ledger.get((params.address, params.token_id), 0)
+
+        with sp.if_(balance != 1):
             sp.result(sp.bool(False))
         with sp.else_():
-            with sp.if_(self.data.ledger[(params.address, params.token_id)] != 1):
-                sp.result(sp.bool(False))
-            with sp.else_():
-                sp.result(sp.bool(True))
+            sp.result(sp.bool(True))
 
     @sp.onchain_view()
     def get_locked_supply(self):
         sp.result(self.data.locked_supply)
 
-    # Reject tez sent to the contract address
-    @sp.entry_point
-    def default(self):
-        sp.failwith(Errors.CONTRACT_DOES_NOT_ACCEPT_TEZ)
+    @sp.offchain_view(pure=False)
+    def token_metadata(self, token_id):
+        sp.set_type(token_id, sp.TNat)
+
+        # Verify that the lock with supplied token-id exists
+        sp.verify(self.data.locks.contains(token_id), Errors.LOCK_DOES_NOT_EXIST)
+
+        # Current timestamp as nat
+        ts = sp.compute(sp.as_nat(sp.now - sp.timestamp(0)))
+
+        lock = sp.compute(self.data.locks[token_id])
+        bytes_of_nat = sp.compute(Utils.bytes_of_nat)
+
+        voting_power = sp.local("voting_power", 0)
+        expiry = sp.local("expiry", 0)
+
+        with sp.if_(lock.end > ts):
+            # Number of days left to expire
+            expiry.value = sp.as_nat(lock.end - ts) // 86400
+
+        index_ = self.data.num_token_checkpoints[token_id]
+        last_checkpoint = sp.compute(self.data.token_checkpoints[(token_id, index_)])
+
+        # Find the current voting power. `ts` is bound to be >= the timestamp of last checkpoint.
+        i_bias = last_checkpoint.bias
+        slope = last_checkpoint.slope
+        f_bias = sp.compute(i_bias - (sp.as_nat(ts - last_checkpoint.ts) * slope) // SLOPE_MULTIPLIER)
+        with sp.if_(f_bias < 0):
+            voting_power.value = 0
+        with sp.else_():
+            voting_power.value = sp.as_nat(f_bias)
+
+        # Segments of the SVG data URI
+        segments = sp.local("segments", SVG.DATA_SEGMENTS.GOLD)
+
+        # Select the correct set of segments based on days to expire to generate the SVG
+        # >= 3 years = gold
+        # >= 2 years = violet
+        # >= 6 months = red
+        # < 6 months = green
+        # expired = grey
+        with sp.if_((expiry.value >= 728) & (expiry.value < 1092)):
+            segments.value = SVG.DATA_SEGMENTS.VIOLET
+        with sp.else_():
+            with sp.if_((expiry.value >= 180) & (expiry.value < 728)):
+                segments.value = SVG.DATA_SEGMENTS.RED
+            with sp.else_():
+                with sp.if_(expiry.value < 180):
+                    segments.value = SVG.DATA_SEGMENTS.GREEN
+                with sp.if_(lock.end < ts):
+                    segments.value = SVG.DATA_SEGMENTS.GREY
+
+        get_floating_point = sp.compute(Utils.get_floating_point)
+
+        f_locked_ply = get_floating_point(lock.base_value)
+        f_voting_power = get_floating_point(voting_power.value)
+
+        b_locked_ply = sp.local("b_locked_ply", bytes_of_nat(sp.fst(f_locked_ply)))
+        b_voting_power = sp.local("b_voting_power", bytes_of_nat(sp.fst(f_voting_power)))
+
+        with sp.if_(sp.snd(f_locked_ply) > 0):
+            b_locked_ply.value += sp.utils.bytes_of_string(".") + bytes_of_nat(sp.snd(f_locked_ply))
+        with sp.if_(sp.snd(f_voting_power) > 0):
+            b_voting_power.value += sp.utils.bytes_of_string(".") + bytes_of_nat(sp.snd(f_voting_power))
+
+        # Build the SVG data URI
+        image_uri = sp.compute(
+            SVG.build_svg(
+                sp.record(
+                    segments=segments.value,
+                    token_id=bytes_of_nat(token_id),
+                    locked_ply=b_locked_ply.value,
+                    voting_power=b_voting_power.value,
+                    expiry=bytes_of_nat(expiry.value),
+                )
+            )
+        )
+
+        # Create a TZIP-21 compliant token-info
+        metadata_tzip_21 = {
+            "name": sp.utils.bytes_of_string("Plenty veNFT"),
+            "symbol": sp.utils.bytes_of_string("veNFT"),
+            "decimals": sp.utils.bytes_of_string("0"),
+            "thumbnailUri": image_uri,
+            "artifactUri": image_uri,
+            "displayUri": image_uri,
+            "ttl": bytes_of_nat(sp.nat(900)),
+        }
+
+        # Return the TZIP-16 compliant metadata
+        sp.result(
+            sp.record(
+                token_id=token_id,
+                token_info=metadata_tzip_21,
+            )
+        )
 
 
 if __name__ == "__main__":
@@ -945,7 +1006,7 @@ if __name__ == "__main__":
     # Test Helpers
     ###############
     NOW = int(0.5 * DAY)
-    DECIMALS = 10 ** 18
+    DECIMALS = 10**18
 
     ###########################
     # create_lock (valid test)
@@ -1066,10 +1127,10 @@ if __name__ == "__main__":
         ve = VoteEscrow()
         scenario += ve
 
-        # When ALICE create a lock with ending before current time, the txn fails
+        # When ALICE sends tez to the entrypoint, the txn fails
         scenario += ve.create_lock(user_address=Addresses.ALICE, base_value=1000 * DECIMALS, end=2 * YEAR,).run(
             sender=Addresses.ALICE,
-            amount=sp.tez(0),
+            amount=sp.tez(1),
             now=sp.timestamp(3 * YEAR),
             valid=False,
             exception=Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ,

@@ -16,6 +16,7 @@
 | ----------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | `ledger`                | `(big_map (pair address nat) nat)`                                                  | Stores the vePLY token balance of Tezos addresses. Each vePLY is unique, so a ledger balance record can be either 1 or 0       |
 | `operators`             | `(big_map (pair (address %owner) (pair (address %operator) (nat %token_id))) unit)` | Stores the FA2 operators for a token                                                                                           |
+| `token_metadata`        | `(big_map nat (pair (nat %token_id) (map %token_info string bytes)))`               | Stores FA2 token metadata                                                                                                      |
 | `locks`                 | `(big_map nat (pair (nat %base_value) (nat %end)))`                                 | Stores the base PLY value and expiry timestamp of PLY locks                                                                    |
 | `attached`              | `(big_map nat unit)`                                                                | Keeps track of attached locks. Attached tokens/locks cannot be transferred using FA2 Transfer                                  |
 | `token_checkpoints`     | `(big_map (pair nat nat) (pair (nat %slope) (pair (nat %bias) (nat %ts))))`         | Records **bias** and **slope** values for the linearly decreasing voting power for a specific token-id at different timestamps |
@@ -53,3 +54,7 @@
 | `get_total_voting_power` | `(pair (nat %time) (nat %ts))`                        | `nat`       | Calculates and returns the total global voting power at any timestamp.                                                                                                                                                              |
 | `is_owner`               | `(pair (address %address) (nat %token_id))`           | `bool`      | Returns boolean true if an address owns a specified lock/token.                                                                                                                                                                     |
 | `get_locked_supply`      | `unit`                                                | `nat`       | Returns the total locked PLY supply in `VoteEscrow`.                                                                                                                                                                                |
+
+## Additional Information
+
+- `create_lock` and `increase_lock_value` entrypoints require VoteEscrow contract to have token transfer appoval for PLY token.

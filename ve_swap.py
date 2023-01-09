@@ -6,34 +6,26 @@
 
 import smartpy as sp
 
-Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
-TokenUtils = sp.io.import_script_from_url("file:utils/token.py")
+Errors = sp.io.import_script_from_url("file:utils/errors.py")
 FA12 = sp.io.import_script_from_url("file:ply_fa12.py").FA12
+TokenUtils = sp.io.import_script_from_url("file:utils/token.py")
 FA2 = sp.io.import_script_from_url("file:helpers/tokens/fa2.py")
+Constants = sp.io.import_script_from_url("file:utils/constants.py")
+Addresses = sp.io.import_script_from_url("file:helpers/addresses.py")
+
 
 ############
 # Constants
 ############
 
-DAY = 86400
-
-PRECISION = 10 ** 18
+DAY = Constants.DAY
+PRECISION = Constants.PRECISION
+DECIMALS = Constants.DECIMALS
 
 # Enumeration
 class Token:
     PLENTY = sp.nat(0)
     WRAP = sp.nat(1)
-
-
-#########
-# Errors
-#########
-
-
-class Errors:
-    SWAP_YET_TO_BEGIN = "SWAP_YET_TO_BEGIN"
-    NOTHING_TO_CLAIM = "NOTHING_TO_CLAIM"
-    CLAIMING_BEFORE_24_HOURS = "CLAIMING_BEFORE_24_HOURS"
 
 
 ###########
@@ -106,13 +98,16 @@ class VESwap(sp.Contract):
                 last_claim=sp.timestamp(0),
             )
 
-        ledger_record = self.data.ledger[params.address]
+        # Store as local variable to keep on Stack
+        ledger_record = sp.compute(self.data.ledger[params.address])
+        genesis = sp.compute(self.data.genesis)
+        end = sp.compute(self.data.end)
 
         # Rate for newly added amount
-        rate_ = params.value // sp.as_nat(self.data.end - self.data.genesis)
+        rate_ = params.value // sp.as_nat(end - genesis)
 
         # Vested from new amount
-        vested_ = sp.min(params.value, rate_ * sp.as_nat(sp.now - self.data.genesis))
+        vested_ = sp.min(params.value, rate_ * sp.as_nat(sp.now - genesis))
 
         # Vested from existing balance
         vested__ = sp.min(
@@ -120,22 +115,30 @@ class VESwap(sp.Contract):
         )
 
         # Update vested amount & remaining unvested balance
-        ledger_record.vested += vested_ + vested__
-        ledger_record.balance = sp.as_nat(ledger_record.balance - vested__) + sp.as_nat(params.value - vested_)
+        self.data.ledger[params.address].vested += vested_ + vested__
+        self.data.ledger[params.address].balance = sp.as_nat(ledger_record.balance - vested__) + sp.as_nat(
+            params.value - vested_
+        )
+
+        # Re-compute to accomodate above modifications
+        ledger_record = sp.compute(self.data.ledger[params.address])
 
         # Update release rate based on remaining amount
         with sp.if_(ledger_record.balance != 0):
-            ledger_record.release_rate = ledger_record.balance // sp.as_nat(self.data.end - sp.now)
+            self.data.ledger[params.address].release_rate = ledger_record.balance // sp.as_nat(end - sp.now)
 
         # Update last claimed
-        ledger_record.last_claim = sp.now
+        self.data.ledger[params.address].last_claim = sp.now
 
     @sp.entry_point
     def exchange(self, params):
         sp.set_type(params, sp.TRecord(token=sp.TNat, value=sp.TNat))
 
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         # Verify that timing is correct
-        sp.verify(sp.now > self.data.genesis, Errors.SWAP_YET_TO_BEGIN)
+        sp.verify(sp.now >= self.data.genesis, Errors.SWAP_YET_TO_BEGIN)
 
         # Calculate total PLY after exchange
         ply_converted = sp.local("ply_converted", sp.nat(0))
@@ -144,11 +147,8 @@ class VESwap(sp.Contract):
         with sp.else_():
             ply_converted.value = (self.data.wrap_exchange_val * params.value) // PRECISION
 
-        # nat version of block timestamp
-        now_ = sp.as_nat(sp.now - sp.timestamp(0))
-
         # 50% of the converted value
-        ply_half = ply_converted.value // 2
+        ply_half = sp.compute(ply_converted.value // 2)
 
         # Mint ply_half for the user
         c_ply = sp.contract(
@@ -184,15 +184,21 @@ class VESwap(sp.Contract):
     @sp.entry_point
     def claim(self):
 
+        # Reject tez
+        sp.verify(sp.amount == sp.tez(0), Errors.ENTRYPOINT_DOES_NOT_ACCEPT_TEZ)
+
         # Sanity checks
-        sp.verify(sp.now > self.data.genesis, Errors.SWAP_YET_TO_BEGIN)
+        sp.verify(sp.now >= self.data.genesis, Errors.SWAP_YET_TO_BEGIN)
         sp.verify(self.data.ledger.contains(sp.sender), Errors.NOTHING_TO_CLAIM)
         sp.verify((sp.now - self.data.ledger[sp.sender].last_claim) > DAY, Errors.CLAIMING_BEFORE_24_HOURS)
 
         self.update_ledger(sp.record(address=sp.sender, value=sp.nat(0)))
 
+        # Store as local variable to keep on stack
+        ledger_sender = sp.compute(self.data.ledger[sp.sender])
+
         # Verify that non-zero amount is supposed to be claimed
-        sp.verify(self.data.ledger[sp.sender].vested != 0, Errors.NOTHING_TO_CLAIM)
+        sp.verify(ledger_sender.vested != 0, Errors.NOTHING_TO_CLAIM)
 
         # Mint vested tokens for claimer
         c_ply = sp.contract(
@@ -201,7 +207,7 @@ class VESwap(sp.Contract):
             "mint",
         ).open_some()
         sp.transfer(
-            sp.record(address=sp.sender, value=self.data.ledger[sp.sender].vested),
+            sp.record(address=sp.sender, value=ledger_sender.vested),
             sp.tez(0),
             c_ply,
         )
@@ -212,11 +218,11 @@ class VESwap(sp.Contract):
 
 if __name__ == "__main__":
 
-    ###########
-    # exchange
-    ###########
+    ########################
+    # exchange (Valid test)
+    ########################
 
-    @sp.add_test(name="exchange works correctly for both PLENTY and WRAP")
+    @sp.add_test(name="exchange works correctly during the vesting period")
     def test():
         scenario = sp.test_scenario()
 
@@ -307,11 +313,126 @@ if __name__ == "__main__":
         scenario.verify(plenty.data.balances[ve_swap.address].balance == 100)
         scenario.verify(wrap.data.ledger[ve_swap.address].balance == 100)
 
-    ########
-    # claim
-    ########
+    @sp.add_test(name="exchange works correctly after the vesting period")
+    def test():
+        scenario = sp.test_scenario()
 
-    @sp.add_test(name="claim works correctly")
+        ply = FA12(Addresses.ADMIN)
+        plenty = FA12(Addresses.ADMIN)
+        wrap = FA2.FA2(
+            FA2.FA2_config(),
+            sp.utils.metadata_of_url("https://example.com"),
+            Addresses.ADMIN,
+        )
+
+        ve_swap = VESwap(
+            plenty_exchange_val=5 * PRECISION,
+            wrap_exchange_val=2 * PRECISION,
+            ply_address=ply.address,
+            plenty_address=plenty.address,
+            wrap_address=wrap.address,
+        )
+
+        scenario += ply
+        scenario += plenty
+        scenario += wrap
+        scenario += ve_swap
+
+        # Make ve_swap a mint admin in PLY
+        scenario += ply.addMintAdmin(ve_swap.address).run(sender=Addresses.ADMIN)
+
+        # Mint PLENTY for ALICE
+        scenario += plenty.mint(address=Addresses.ALICE, value=100).run(sender=Addresses.ADMIN)
+
+        # Mint WRAP for ALICE
+        scenario += wrap.mint(
+            address=Addresses.ALICE,
+            amount=100,
+            metadata=FA2.FA2.make_metadata(name="WRAP", decimals=8, symbol="WRAP"),
+            token_id=0,
+        ).run(sender=Addresses.ADMIN)
+
+        # Approve PLENTY spending by ve_swap for ALICE
+        scenario += plenty.approve(spender=ve_swap.address, value=100).run(sender=Addresses.ALICE)
+
+        # Make ve_swap an operator of WRAP for ALICE
+        scenario += wrap.update_operators(
+            [sp.variant("add_operator", sp.record(owner=Addresses.ALICE, operator=ve_swap.address, token_id=0))]
+        ).run(sender=Addresses.ALICE)
+
+        # When ALICE exchanges her 100 PLENTY tokens for PLY
+        scenario += ve_swap.exchange(token=Token.PLENTY, value=100).run(
+            sender=Addresses.ALICE,
+            now=sp.timestamp(11),
+        )
+
+        # She gets 250 PLY tokens (50% of (5 * 100))
+        scenario.verify(ply.data.balances[Addresses.ALICE].balance == 250)
+
+        # Her ledger is updated correctly with already vested token amount (250 PLY since exchanging after 'end')
+        scenario.verify(
+            ve_swap.data.ledger[Addresses.ALICE]
+            == sp.record(
+                balance=0,
+                release_rate=0,
+                vested=250,
+                last_claim=sp.timestamp(11),
+            )
+        )
+
+        # When ALICE exchanges her 100 WRAP tokens for PLY
+        scenario += ve_swap.exchange(token=Token.WRAP, value=100).run(
+            sender=Addresses.ALICE,
+            now=sp.timestamp(14),
+        )
+
+        # She gets 100 PLY tokens (50% of (2 * 100)) + 250 earlier
+        scenario.verify(ply.data.balances[Addresses.ALICE].balance == 350)
+
+        # Her ledger is updated correctly with already vested token amount
+        scenario.verify(
+            ve_swap.data.ledger[Addresses.ALICE]
+            == sp.record(
+                balance=0,
+                release_rate=0,
+                vested=350,
+                last_claim=sp.timestamp(14),
+            )
+        )
+
+        # ve_swap has correct amount of PLENTY and WRAP retrieved
+        scenario.verify(plenty.data.balances[ve_swap.address].balance == 100)
+        scenario.verify(wrap.data.ledger[ve_swap.address].balance == 100)
+
+    ##########################
+    # exchange (failure test)
+    ##########################
+
+    @sp.add_test(name="exchange fails if user tries to exchage before genesis")
+    def test():
+        scenario = sp.test_scenario()
+
+        ve_swap = VESwap(
+            genesis=sp.timestamp(1),
+            plenty_exchange_val=5 * PRECISION,
+            wrap_exchange_val=2 * PRECISION,
+        )
+
+        scenario += ve_swap
+
+        # When ALICE exchanges her 100 PLENTY tokens for PLY before genesis, txn fails
+        scenario += ve_swap.exchange(token=Token.PLENTY, value=100).run(
+            sender=Addresses.ALICE,
+            now=sp.timestamp(0),
+            valid=False,
+            exception=Errors.SWAP_YET_TO_BEGIN,
+        )
+
+    #####################
+    # claim (valid test)
+    #####################
+
+    @sp.add_test(name="claim works correctly sends vested balance to user")
     def test():
         scenario = sp.test_scenario()
 
@@ -369,6 +490,132 @@ if __name__ == "__main__":
                 release_rate=(800000 // (10 * DAY - 100000)),
                 vested=0,
                 last_claim=sp.timestamp(11 * DAY),
+            )
+        )
+
+    #######################
+    # claim (failure test)
+    #######################
+
+    @sp.add_test(name="claim fails if there is no vested balance to claim")
+    def test():
+        scenario = sp.test_scenario()
+
+        ve_swap = VESwap(
+            ledger=sp.big_map(
+                l={
+                    Addresses.ALICE: sp.record(
+                        balance=0,
+                        release_rate=0,
+                        vested=0,
+                        last_claim=sp.timestamp(0),
+                    )
+                }
+            ),
+            end=sp.timestamp(10 * DAY),
+        )
+
+        scenario += ve_swap
+
+        # When BOB calls claim, txn fails since he has not exchange yet
+        scenario += ve_swap.claim().run(
+            sender=Addresses.BOB,
+            now=sp.timestamp(11 * DAY),
+            valid=False,
+            exception=Errors.NOTHING_TO_CLAIM,
+        )
+
+        # When ALICE calls claim, txn fails since he has no vested tokens
+        scenario += ve_swap.claim().run(
+            sender=Addresses.ALICE,
+            now=sp.timestamp(11 * DAY),
+            valid=False,
+            exception=Errors.NOTHING_TO_CLAIM,
+        )
+
+    @sp.add_test(name="claim fails if it is called again before 24 hours")
+    def test():
+        scenario = sp.test_scenario()
+
+        ve_swap = VESwap(
+            ledger=sp.big_map(
+                l={
+                    Addresses.ALICE: sp.record(
+                        balance=1000000,
+                        release_rate=2,
+                        vested=5000,
+                        last_claim=sp.timestamp(int(0.5 * DAY)),
+                    )
+                }
+            ),
+            end=sp.timestamp(10 * DAY),
+        )
+
+        scenario += ve_swap
+
+        # When ALICE calls claim less than 24 hours after last claim, txn fails
+        scenario += ve_swap.claim().run(
+            sender=Addresses.ALICE,
+            now=sp.timestamp(DAY),
+            valid=False,
+            exception=Errors.CLAIMING_BEFORE_24_HOURS,
+        )
+
+    ##################################
+    # update_ledger (edge-case test)
+    ##################################
+
+    @sp.add_test(
+        name="update_ledger logic may revert if called very close to the end but passes after a few extra seconds"
+    )
+    def test():
+        scenario = sp.test_scenario()
+
+        ply = FA12(Addresses.ADMIN)
+        plenty = FA12(Addresses.ADMIN)
+
+        ve_swap = VESwap(
+            genesis=sp.timestamp(0),
+            end=sp.timestamp(215360),
+            plenty_exchange_val=5 * PRECISION,
+            ply_address=ply.address,
+            plenty_address=plenty.address,
+        )
+
+        scenario += ply
+        scenario += plenty
+        scenario += ve_swap
+
+        # Make ve_swap a mint admin in PLY
+        scenario += ply.addMintAdmin(ve_swap.address).run(sender=Addresses.ADMIN)
+
+        # Mint PLENTY for ALICE (randomly selected value)
+        scenario += plenty.mint(address=Addresses.ALICE, value=1530864662).run(sender=Addresses.ADMIN)
+
+        # Approve PLENTY spending by ve_swap for ALICE
+        scenario += plenty.approve(spender=ve_swap.address, value=1530864662).run(sender=Addresses.ALICE)
+
+        # When ALICE exchanges her PLENTY tokens for PLY, very close to the end, the txn fails
+        scenario += ve_swap.exchange(token=Token.PLENTY, value=1530864662).run(
+            sender=Addresses.ALICE, now=sp.timestamp(215361), valid=False
+        )
+
+        # When ALICE exchanges her PLENTY tokens for PLY, few more seconds after end, the txn passes
+        scenario += ve_swap.exchange(token=Token.PLENTY, value=1530864662).run(
+            sender=Addresses.ALICE, now=sp.timestamp(215380)
+        )
+
+        # She gets 3827161655 PLY tokens (50% of (5 * 1530864662))
+        scenario.verify(ply.data.balances[Addresses.ALICE].balance == 3827161655)
+
+        # Her ledger is updated correctly with already vested token amount (250 PLY since exchanging after 'end')
+        scenario.verify(
+            ve_swap.data.ledger[Addresses.ALICE]
+            == sp.record(
+                balance=0,
+                release_rate=0,
+                vested=3827161655,
+                last_claim=sp.timestamp(215380),
             )
         )
 

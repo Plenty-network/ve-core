@@ -1,5 +1,8 @@
+import * as dotenv from "dotenv";
 import { TezosToolkit } from "@taquito/taquito";
 import { InMemorySigner } from "@taquito/signer";
+
+dotenv.config();
 
 // Types and utlities
 import { deploy, DeployParams } from "./deploy";
@@ -11,10 +14,10 @@ tezos.setProvider({
 });
 
 // Admin for PLY FA1.2 contract
-const PLY_ADMIN = "tz1ZczbHu1iLWRa88n9CUiCKDGex5ticp19S";
+const PLY_ADMIN = "tz1Y8cACwiwQYwLNzzHnBvLQBendT6DUR3Rn";
 
 // Admin for core factory contract
-const FACTORY_ADMIN = "tz1ZczbHu1iLWRa88n9CUiCKDGex5ticp19S";
+const FACTORY_ADMIN = "tz1Y8cACwiwQYwLNzzHnBvLQBendT6DUR3Rn";
 
 // True if initial plenty/wrap to PLY swap contract needs to be deployed
 const DEPLOY_VE_SWAP = true;
@@ -26,16 +29,16 @@ const PLENTY_ADDRESS = "KT1GRSvLoikDsXujKgZPsGLX8k8VvR2Tq95b";
 const WRAP_ADDRESS = "KT1LRboPna9yQY9BrjtQYDS1DVxhKESK4VVd";
 
 // Unix timestamp at which swapping starts
-const VE_SWAP_GENESIS = "1970-01-01T00:00:00Z";
+const VE_SWAP_GENESIS = "2023-01-05T00:00:00Z";
 
 // Unix timestamp at which swapping vesting ends
-const VE_SWAP_END = "1970-01-01T00:00:10Z";
+const VE_SWAP_END = "2025-01-05T00:00:00Z";
 
 // PLY / PLENTY exchange rate
-const PLENTY_EXCHANGE_VAL = 5 * 10 ** 18;
+const PLENTY_EXCHANGE_VAL = "5714285714285714285";
 
 // PLY / WRAP exchange rate
-const WRAP_EXCHANGE_VAL = 2 * 10 ** 8;
+const WRAP_EXCHANGE_VAL = "30927865055015100165151551528";
 
 const deployParams: DeployParams = {
   tezos,
